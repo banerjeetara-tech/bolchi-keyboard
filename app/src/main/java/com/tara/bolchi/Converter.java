@@ -27,6 +27,70 @@ final class Converter {
         return HindiTranslit.toHinglish(Translit.toBanglish(s));
     }
 
+    // ---------- Google typing service + Google Translate (no key) ----------
+    private static final Pattern WORD = Pattern.compile("[A-Za-z]+");
+
+    /** Banglish/Hinglish words to script, word by word, using the same service as the suggestions. */
+    static String romanToScript(String text, boolean hindi) throws Exception {
+        Matcher m = WORD.matcher(text);
+        StringBuffer out = new StringBuffer();
+        while (m.find()) {
+            stage = "converting \"" + m.group() + "\"";
+            java.util.List<String> c = Phonetic.suggest(m.group(), hindi);
+            m.appendReplacement(out, Matcher.quoteReplacement(c.isEmpty() ? m.group() : c.get(0)));
+        }
+        m.appendTail(out);
+        return out.toString();
+    }
+
+    private static boolean hasScript(String s) {
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c >= '\u0900' && c <= '\u09FF') return true;
+        }
+        return false;
+    }
+
+    /** Free Google Translate. lang = "bn", "hi" or "auto". */
+    static String googleTranslate(String text, String lang) throws Exception {
+        String q = java.net.URLEncoder.encode(text, "UTF-8");
+        String[] hosts = {"https://translate.google.com", "https://translate.googleapis.com"};
+        Exception last = null;
+        for (String h : hosts) {
+            try {
+                stage = "asking Google Translate";
+                HttpURLConnection c = (HttpURLConnection) new URL(h + "/translate_a/single?client=gtx&dt=t&tl=en&sl="
+                        + lang + "&q=" + q).openConnection();
+                c.setConnectTimeout(5000);
+                c.setReadTimeout(8000);
+                if (c.getResponseCode() != 200) { last = new UserMessage("Google Translate didn't answer"); continue; }
+                JSONArray j = new JSONArray(read(c.getInputStream()));
+                JSONArray parts = j.getJSONArray(0);
+                StringBuilder b = new StringBuilder();
+                for (int i = 0; i < parts.length(); i++) {
+                    JSONArray p = parts.optJSONArray(i);
+                    if (p != null && !p.isNull(0)) b.append(p.getString(0));
+                }
+                if (b.length() > 0) return b.toString().trim();
+            } catch (Exception e) { last = e; }
+        }
+        throw last != null ? last : new UserMessage("Google Translate didn't answer");
+    }
+
+    /** Translate without a key; falls back to the AI only if a key is saved and Google Translate fails. */
+    static String translateFree(String text, int voiceMode, String key) throws Exception {
+        try {
+            if (hasScript(text)) return googleTranslate(text, "auto");
+            if (voiceMode == 2) return googleTranslate(text, "auto");
+            boolean hindi = voiceMode == 1;
+            String script = romanToScript(text, hindi);
+            return googleTranslate(script, hindi ? "hi" : "bn");
+        } catch (Exception e) {
+            if (key != null && !key.trim().isEmpty()) return translate(text, key);
+            throw e;
+        }
+    }
+
     // ---------- AI: translate / Bangla script ----------
     static String translate(String text, String key) throws Exception {
         return gemini(key,

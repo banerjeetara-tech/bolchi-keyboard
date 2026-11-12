@@ -790,8 +790,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         new Thread(new Runnable() { @Override public void run() {
             String out;
             try {
-                if (opt == 0) out = Converter.translate(src, key);
-                else if (opt == 1) out = Converter.toBanglaScript(src, key);
+                if (opt == 0) out = Converter.translateFree(src, mode, key);
+                else if (opt == 1) out = Converter.romanToScript(src, false);
                 else {
                     String r = Converter.units(src, Converter.usdRates());
                     out = r.isEmpty() ? "\u26A0 No amounts found. Try \"5 kg\" or \"\u20B9500\"" : r;
