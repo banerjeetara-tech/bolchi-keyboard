@@ -71,6 +71,17 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private int theme = 0;
     private int page = PAGE_ABC;
     private int emojiTab = 1;
+    private static final String[] LAYOUT_KEY = {"EN", "ab\u2192\u0985", "ab\u2192\u0905", "\u0985", "\u0905"};
+    private static final String[] LAYOUT_NAME = {"English", "Bangla: type English, get \u0986\u09ae\u09bf",
+            "Hindi: type English, get \u092e\u0948\u0902", "Bangla letter keys", "Hindi letter keys"};
+    private int layout = 0;
+    private boolean scriptShift;
+    private final StringBuilder phon = new StringBuilder();
+    private List<String> cands = new ArrayList<>();
+    private String candFor = "";
+    private int candJob = 0;
+    private LinearLayout candRow;
+    private final boolean[] voiceScript = new boolean[2];
     private int convOption = 0;
     private int convJob = 0;
     private String convResult = null;
@@ -193,6 +204,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         SharedPreferences p = prefs();
         mode = p.getInt("mode", MODE_BN);
         if (mode < 0 || mode > 2) mode = MODE_BN;
+        layout = p.getInt("layout", 0);
+        if (layout < 0 || layout > 4) layout = 0;
+        voiceScript[0] = p.getBoolean("bnScript", false);
+        voiceScript[1] = p.getBoolean("hiScript", false);
         theme = p.getInt("theme", 0);
         if (theme < 0 || theme >= Themes.count()) theme = 0;
         loadColors();
@@ -253,7 +268,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             lp.setMargins(dp(GAP), 0, dp(GAP), 0);
             c.setLayoutParams(lp);
             c.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { tick(v); setMode(m); }
+                @Override public void onClick(View v) {
+                    tick(v);
+                    if (m == mode && m != MODE_EN) toggleVoiceScript(); else setMode(m);
+                }
             });
             chips.add(c);
             bar.addView(c);
@@ -324,11 +342,21 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (page == PAGE_EMOJI) { buildEmoji(); return; }
         if (page == PAGE_CONVERT) { buildConverter(); return; }
 
+        candRow = null;
+        if (page == PAGE_ABC && layout >= 3) { buildScriptKeys(); return; }
         String[] rows = page == PAGE_ABC ? LETTERS : page == PAGE_SYM1 ? SYM1 : SYM2;
 
-        LinearLayout nums = row();
-        for (String k : NUMBERS.split(" ")) nums.addView(charKey(k));
-        keysBox.addView(nums);
+        if (page == PAGE_ABC && (layout == 1 || layout == 2)) {
+            candRow = row();
+            candRow.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 4)));
+            keysBox.addView(candRow);
+            paintCands();
+        } else {
+            LinearLayout nums = row();
+            for (String k : NUMBERS.split(" ")) nums.addView(charKey(k));
+            keysBox.addView(nums);
+        }
 
         LinearLayout r1 = row();
         for (String k : rows[0].split(" ")) r1.addView(charKey(k));
@@ -360,9 +388,31 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         onPress(pageKey, cFn, new Runnable() { @Override public void run() {
             page = page == PAGE_ABC ? PAGE_SYM1 : PAGE_ABC; buildKeysSoon(); } });
         r4.addView(pageKey);
+        bottomRowRest(r4, page == PAGE_ABC);
+        keysBox.addView(r4);
+        paintSpace();
+        updateShift();
+    }
+
+    private TextView layoutKey() {
+        TextView k = makeKey(LAYOUT_KEY[layout], 1.2f, cFn, cInk, layout == 0 ? 14 : 17);
+        onPress(k, cFn, new Runnable() { @Override public void run() {
+            flushPhon(false);
+            layout = (layout + 1) % LAYOUT_KEY.length;
+            scriptShift = false;
+            prefs().edit().putInt("layout", layout).apply();
+            buildKeysSoon();
+            flashSpace(LAYOUT_NAME[layout]);
+        } });
+        return k;
+    }
+
+    /** Emoji, language, comma, space, full stop, enter. */
+    private void bottomRowRest(LinearLayout r4, boolean letters) {
         r4.addView(emojiKey());
-        if (page == PAGE_ABC) r4.addView(charKey(","));
-        spaceKey = makeKey("", page == PAGE_ABC ? 4f : 5f, cKey, cMuted, 13);
+        r4.addView(layoutKey());
+        if (letters) r4.addView(charKey(","));
+        spaceKey = makeKey("", letters ? 3.6f : 4.6f, cKey, cMuted, 13);
         spaceKey.setEllipsize(TextUtils.TruncateAt.START);
         spaceKey.setOnTouchListener(new View.OnTouchListener() {
             private boolean held;
@@ -391,10 +441,118 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         TextView enter = makeKey("⏎", 1.5f, cAcc, cOnAcc, 20);
         onPress(enter, cAcc, new Runnable() { @Override public void run() { onEnter(); } });
         r4.addView(enter);
-        keysBox.addView(r4);
+    }
 
+    private void buildScriptKeys() {
+        boolean hi = layout == 4;
+        String[] rows = scriptShift ? (hi ? ScriptKeys.HI_SHIFT : ScriptKeys.BN_SHIFT) : (hi ? ScriptKeys.HI : ScriptKeys.BN);
+        for (int i = 0; i < 3; i++) {
+            LinearLayout r = row();
+            for (String k : rows[i].split(" ")) r.addView(scriptKey(k));
+            keysBox.addView(r);
+        }
+        LinearLayout r3 = row();
+        TextView sh = makeKey(scriptShift ? "\u21E7" : "\u21E7", 1.4f, scriptShift ? cKey : cFn, scriptShift ? cAcc : cInk, 20);
+        onPress(sh, scriptShift ? cKey : cFn, new Runnable() { @Override public void run() {
+            scriptShift = !scriptShift; buildKeysSoon(); } });
+        r3.addView(sh);
+        for (String k : rows[3].split(" ")) r3.addView(scriptKey(k));
+        r3.addView(deleteKey(1.4f));
+        keysBox.addView(r3);
+
+        LinearLayout r4 = row();
+        TextView pageKey = makeKey("!#1", 1.5f, cFn, cInk, 15);
+        onPress(pageKey, cFn, new Runnable() { @Override public void run() { page = PAGE_SYM1; buildKeysSoon(); } });
+        r4.addView(pageKey);
+        bottomRowRest(r4, false);
+        keysBox.addView(r4);
         paintSpace();
-        updateShift();
+    }
+
+    private TextView scriptKey(final String ch) {
+        final TextView t = makeKey(ch, 1f, cKey, cInk, 24);
+        onPress(t, cKey, new Runnable() { @Override public void run() {
+            if ("।".equals(ch) || ",".equals(ch) || "?".equals(ch) || "!".equals(ch)) typeMark(ch);
+            else commit(ch);
+        } });
+        return t;
+    }
+
+    // ---------- type English, get script ----------
+    private boolean phonetic() { return page == PAGE_ABC && (layout == 1 || layout == 2); }
+
+    /** Put the word being typed into the text box, using the top suggestion if we have one. */
+    private void flushPhon(boolean useSuggestion) {
+        if (phon.length() == 0) return;
+        InputConnection ic = getCurrentInputConnection();
+        String word = phon.toString();
+        String out = useSuggestion && word.equals(candFor) && !cands.isEmpty() ? cands.get(0) : word;
+        phon.setLength(0);
+        cands = new ArrayList<>();
+        candFor = "";
+        candJob++;
+        if (ic != null) ic.commitText(out, 1);
+        paintCands();
+    }
+
+    private void pickCand(String c) {
+        InputConnection ic = getCurrentInputConnection();
+        phon.setLength(0);
+        cands = new ArrayList<>();
+        candFor = "";
+        candJob++;
+        if (ic != null) ic.commitText(c + " ", 1);
+        paintCands();
+    }
+
+    private void typePhon(String letter) {
+        phon.append(letter);
+        InputConnection ic = getCurrentInputConnection();
+        if (ic != null) ic.setComposingText(phon.toString(), 1);
+        askSuggestions();
+    }
+
+    private void askSuggestions() {
+        final int job = ++candJob;
+        final String word = phon.toString();
+        final boolean hi = layout == 2;
+        if (word.isEmpty()) { paintCands(); return; }
+        new Thread(new Runnable() { @Override public void run() {
+            List<String> got;
+            try { got = Phonetic.suggest(word, hi); } catch (Throwable t) { got = null; }
+            final List<String> fin = got;
+            handler.post(new Runnable() { @Override public void run() {
+                if (job != candJob) return;
+                if (fin == null) { flashSpace("No internet: English letters kept"); return; }
+                cands = fin;
+                candFor = word;
+                paintCands();
+            } });
+        } }).start();
+    }
+
+    private void paintCands() {
+        if (candRow == null) return;
+        candRow.removeAllViews();
+        if (phon.length() == 0) {
+            TextView hint = new TextView(this);
+            hint.setText(layout == 2 ? "Type in English letters: main \u2192 \u092e\u0948\u0902" : "Type in English letters: ami \u2192 \u0986\u09ae\u09bf");
+            hint.setTextColor(cMuted);
+            hint.setTextSize(14);
+            hint.setGravity(Gravity.CENTER);
+            candRow.addView(hint, new LinearLayout.LayoutParams(0, dp(KEY_H + 4), 1f));
+            return;
+        }
+        List<String> show = new ArrayList<>(cands);
+        show.add(phon.toString());
+        for (int i = 0; i < show.size(); i++) {
+            final String c = show.get(i);
+            boolean top = i == 0;
+            TextView t = makeKey(c, 1f, top ? cFn : cKey, cInk, 19);
+            if (top) t.setTypeface(Typeface.DEFAULT_BOLD);
+            onPress(t, top ? cFn : cKey, new Runnable() { @Override public void run() { pickCand(c); } });
+            candRow.addView(t);
+        }
     }
 
     private TextView emojiKey() {
@@ -424,7 +582,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private TextView charKey(final String ch) {
-        final TextView t = makeKey(ch, 1f, cKey, cInk, 23);
+        final TextView t = makeKey(ch, 1f, cKey, cInk, 26);
         final boolean letter = page == PAGE_ABC && ch.length() == 1 && Character.isLetter(ch.charAt(0));
         if (letter) letterKeys.add(t);
         onPress(t, cKey, new Runnable() { @Override public void run() {
@@ -672,6 +830,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void commit(String s) {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
+        if (phonetic() && s.length() == 1 && Character.isLetter(s.charAt(0)) && s.charAt(0) < 128) {
+            typePhon(s); return;
+        }
+        flushPhon(true);
         ic.finishComposingText();
         composing = false;
         ic.commitText(s, 1);
@@ -686,6 +848,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void typeMark(String m) {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
+        flushPhon(true);
         ic.finishComposingText();
         composing = false;
         CharSequence before = ic.getTextBeforeCursor(1, 0);
@@ -698,6 +861,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void deleteOne() {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
+        if (phon.length() > 0) {
+            phon.setLength(phon.length() - 1);
+            ic.setComposingText(phon.toString(), 1);
+            if (phon.length() == 0) { ic.finishComposingText(); candJob++; cands = new ArrayList<>(); paintCands(); }
+            else askSuggestions();
+            return;
+        }
         ic.finishComposingText();
         composing = false;
         CharSequence sel = ic.getSelectedText(0);
@@ -713,6 +883,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void onEnter() {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
+        flushPhon(true);
         ic.finishComposingText();
         composing = false;
         EditorInfo ei = getCurrentInputEditorInfo();
@@ -784,8 +955,15 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     @Override
+    public boolean onEvaluateFullscreenMode() {
+        return false;
+    }
+
+    @Override
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
+        phon.setLength(0);
+        cands = new ArrayList<>();
         if (keysBox == null) return;
         capsLock = false;
         int cls = info.inputType & EditorInfo.TYPE_MASK_CLASS;
@@ -819,7 +997,20 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         spaceKey.setText(s);
     }
 
+    private void toggleVoiceScript() {
+        int i = mode == MODE_BN ? 0 : 1;
+        voiceScript[i] = !voiceScript[i];
+        prefs().edit().putBoolean(i == 0 ? "bnScript" : "hiScript", voiceScript[i]).apply();
+        paintChips();
+        flashSpace(i == 0 ? (voiceScript[0] ? "Speak \u2192 \u09ac\u09be\u0982\u09b2\u09be script" : "Speak \u2192 Banglish")
+                : (voiceScript[1] ? "Speak \u2192 \u0939\u093f\u0902\u0926\u0940 script" : "Speak \u2192 Hinglish"));
+    }
+
     private void paintChips() {
+        if (chips.size() == 3) {
+            chips.get(0).setText(voiceScript[0] ? "\u09ac\u09be\u0982\u09b2\u09be" : "Bangla");
+            chips.get(1).setText(voiceScript[1] ? "\u0939\u093f\u0902\u0926\u0940" : "Hindi");
+        }
         for (int i = 0; i < chips.size(); i++) {
             TextView c = chips.get(i);
             boolean on = i == mode;
@@ -849,8 +1040,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private String convert(String heard) {
-        if (mode == MODE_BN) return Translit.toBanglish(heard);
-        if (mode == MODE_HI) return HindiTranslit.toHinglish(heard);
+        if (mode == MODE_BN) return voiceScript[0] ? heard : Translit.toBanglish(heard);
+        if (mode == MODE_HI) return voiceScript[1] ? heard : HindiTranslit.toHinglish(heard);
         return heard;
     }
 
@@ -868,6 +1059,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             flashSpace("Turn on the Google app for voice");
             return;
         }
+        flushPhon(true);
         listening = true;
         failRounds = 0;
         composing = false;
