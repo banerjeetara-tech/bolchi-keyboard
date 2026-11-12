@@ -941,6 +941,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         for (TextView t : letterKeys) {
             String s = t.getText().toString();
             t.setText(up ? s.toUpperCase() : s.toLowerCase());
+            t.setTextSize(up ? 26 : 31);
         }
         if (shiftKey != null) {
             shiftKey.setText(capsLock ? "⇪" : "⇧");
