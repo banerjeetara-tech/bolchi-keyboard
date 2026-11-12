@@ -9,6 +9,19 @@ final class ScriptKeys {
             "ক খ গ ঘ ঙ চ ছ জ ঝ ঞ",
             "ট ঠ ড ঢ ণ ত থ দ ধ ন",
             "প ফ ব ভ ম য র ল হ"};
+    static final String BN_VOWELS = "অ আ ই ঈ উ ঊ এ ঐ ও ঔ";
+    static final String HI_VOWELS = "अ आ इ ई उ ऊ ए ऐ ओ औ";
+
+    /** True when the next letter starts a new syllable, so full vowels (অ আ…) make sense. */
+    static boolean wantsFullVowel(CharSequence before) {
+        if (before == null || before.length() == 0) return true;
+        char c = before.charAt(before.length() - 1);
+        boolean bnCons = (c >= '\u0995' && c <= '\u09B9') || (c >= '\u09DC' && c <= '\u09DF');
+        boolean hiCons = (c >= '\u0915' && c <= '\u0939') || (c >= '\u0958' && c <= '\u095F');
+        boolean nukta = c == '\u09BC' || c == '\u093C';
+        return !(bnCons || hiCons || nukta);
+    }
+
     static final String[] BN_SHIFT = {
             "অ আ ই ঈ উ ঊ ঋ এ ঐ ও ঔ",
             "শ ষ স ড় ঢ় য় ৎ ং ঃ ঁ",
