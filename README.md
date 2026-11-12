@@ -13,9 +13,10 @@ like "ami bolchi") straight into WhatsApp, SMS or any other app.
 
 ## Using it
 
-- In any app, tap a text box, switch to Bolchi, tap the mic and speak Bengali.
-- **ABC** goes back to your normal keyboard (hold it to see the keyboard list).
-- The row also has comma, full stop, question mark, space, delete and enter.
+- It is a full keyboard: type English on the letter keys, numbers and symbols on **?123**.
+- Pick **Bangla**, **Hindi** or **English** on the top bar, tap **Speak**, and talk.
+  Bangla comes out as Banglish, Hindi as Hinglish, English as English.
+- The globe key (or holding the space bar) switches to another keyboard if you ever need one.
 
 ## Good to know
 
@@ -23,4 +24,4 @@ like "ami bolchi") straight into WhatsApp, SMS or any other app.
   Google app > Settings > Voice > Languages.
 - Spelling follows sound rules plus a list of common words in
   `app/src/main/java/com/tara/bolchi/Translit.java`. Add your own words to the `DICT` list there.
-- Each build is signed with a temporary key. To install a newer build, uninstall the old one first.
+- From build 2 on, every build is signed with the same key, so a new build installs over the old one.

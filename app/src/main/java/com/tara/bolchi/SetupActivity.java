@@ -81,7 +81,7 @@ public class SetupActivity extends Activity {
         scroll.addView(col);
 
         col.addView(text("Bolchi Keyboard", 28, INK));
-        col.addView(text("Speak Bengali. It types Banglish (ami bolchi) in WhatsApp, SMS or any app.", 16, MUTED));
+        col.addView(text("One keyboard for everything: type English on the keys, or tap Speak and talk in Bangla (types Banglish), Hindi (types Hinglish) or English.", 16, MUTED));
 
         col.addView(text("1. Allow the microphone", 17, INK));
         micBtn = button("Allow microphone");
@@ -124,10 +124,10 @@ public class SetupActivity extends Activity {
         col.addView(try1, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        col.addView(text("In any app, the ABC key takes you back to your normal keyboard. "
-                + "To come back to Bolchi, use the keyboard icon at the bottom corner of the screen.", 14, MUTED));
-        col.addView(text("If it says Bengali voice is not set up: open the Google app, go to Settings, Voice, "
-                + "Languages, and add Bengali (India). Voice typing needs internet.", 14, MUTED));
+        col.addView(text("Pick Bangla, Hindi or English on the top bar before you tap Speak. "
+                + "To change keyboards, tap the globe key or hold the space bar.", 14, MUTED));
+        col.addView(text("If it says voice is not set up: open the Google app, go to Settings, Voice, "
+                + "Languages, and add Bengali (India) and Hindi (India). Voice typing needs internet.", 14, MUTED));
 
         setContentView(scroll);
     }
