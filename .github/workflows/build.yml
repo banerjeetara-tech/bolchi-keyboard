@@ -1,7 +1,7 @@
 name: Build Bolchi Keyboard APK
 on:
   push:
-    branches: [main]
+    branches: [main, next]
   workflow_dispatch:
 permissions:
   contents: write
@@ -26,6 +26,7 @@ jobs:
           name: bolchi-keyboard-apk
           path: bolchi-keyboard.apk
       - name: Publish as a release (easy phone download)
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}

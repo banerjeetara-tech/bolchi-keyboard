@@ -7,7 +7,9 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.InsetDrawable;
 import android.inputmethodservice.InputMethodService;
 import android.os.Bundle;
 import android.os.Handler;
@@ -22,12 +24,16 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.ExtractedText;
+import android.view.inputmethod.ExtractedTextRequest;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,7 +47,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private static final String[] MODE_LABEL = {"Bangla", "Hindi", "English"};
     private static final String[] MODE_LANG = {"bn-IN", "hi-IN", "en-IN"};
 
-    private static final int PAGE_ABC = 0, PAGE_SYM1 = 1, PAGE_SYM2 = 2, PAGE_EMOJI = 3;
+    private static final int PAGE_ABC = 0, PAGE_SYM1 = 1, PAGE_SYM2 = 2, PAGE_EMOJI = 3, PAGE_CONVERT = 4;
+    private static final String[] CONV_NAMES = {"Translate to English", "To Bangla script", "To English letters", "Units and currency"};
 
     private static final String NUMBERS = "1 2 3 4 5 6 7 8 9 0";
     private static final String[] LETTERS = {"q w e r t y u i o p", "a s d f g h j k l", "z x c v b n m"};
@@ -64,10 +71,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private int theme = 0;
     private int page = PAGE_ABC;
     private int emojiTab = 1;
+    private int convOption = 0;
+    private int convJob = 0;
+    private String convResult = null;
+    private TextView convBtn;
     private boolean shift, capsLock;
     private long lastShiftTap;
 
-    private int cBg, cKey, cFn, cInk, cMuted, cAcc;
+    private int cBg, cKey, cFn, cInk, cMuted, cAcc, cOnAcc;
 
     private LinearLayout keysBox;
     private TextView mic;
@@ -114,6 +125,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         cInk = Themes.color(theme, Themes.INK);
         cMuted = Themes.color(theme, Themes.MUTED);
         cAcc = Themes.color(theme, Themes.ACCENT);
+        cOnAcc = Themes.onAccent(theme);
+    }
+
+    /** Key face drawn inset, so the touch area covers the gaps between keys too. */
+    private Drawable keyFace(int fill) {
+        return new InsetDrawable(box(fill, 7), dp(GAP), dp(2), dp(GAP), dp(2));
     }
 
     private TextView makeKey(String label, float weight, int fill, int textColor, float textSp) {
@@ -123,11 +140,35 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         t.setTextSize(textSp);
         t.setGravity(Gravity.CENTER);
         t.setSingleLine(true);
-        t.setBackground(box(fill, 7));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(KEY_H), weight);
-        lp.setMargins(dp(GAP), dp(2), dp(GAP), dp(2));
-        t.setLayoutParams(lp);
+        t.setBackground(keyFace(fill));
+        t.setLayoutParams(new LinearLayout.LayoutParams(0, dp(KEY_H + 4), weight));
         return t;
+    }
+
+    /** Pressed colour: a little darker (or lighter on dark themes) than the key. */
+    private int pressedOf(int fill) {
+        int r = (fill >> 16) & 0xFF, g = (fill >> 8) & 0xFF, b = fill & 0xFF;
+        boolean dark = (0.299 * r + 0.587 * g + 0.114 * b) < 100;
+        float f = dark ? 1.6f : 0.85f;
+        int add = dark ? 30 : 0;
+        return Color.rgb(Math.min(255, (int) (r * f) + add), Math.min(255, (int) (g * f) + add), Math.min(255, (int) (b * f) + add));
+    }
+
+    /** Runs the action the instant the finger touches the key, with a press highlight. */
+    private void onPress(final TextView t, final int fill, final Runnable action) {
+        t.setOnTouchListener(new View.OnTouchListener() {
+            @Override public boolean onTouch(View v, MotionEvent e) {
+                int a = e.getActionMasked();
+                if (a == MotionEvent.ACTION_DOWN) {
+                    v.setBackground(keyFace(pressedOf(fill)));
+                    tick(v);
+                    try { action.run(); } catch (Exception ex) { saveProblem(ex); }
+                } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
+                    v.setBackground(keyFace(fill));
+                }
+                return true;
+            }
+        });
     }
 
     private View spacer(float weight) {
@@ -180,6 +221,24 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         });
         bar.addView(pal);
 
+        convBtn = new TextView(this);
+        convBtn.setText("\u21C4");
+        convBtn.setTextSize(19);
+        convBtn.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(dp(46), dp(40));
+        clp.setMargins(dp(GAP), 0, dp(GAP), 0);
+        convBtn.setLayoutParams(clp);
+        convBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                tick(v);
+                if (listening) stopListening(null);
+                page = page == PAGE_CONVERT ? PAGE_ABC : PAGE_CONVERT;
+                convResult = null;
+                buildKeysSoon();
+            }
+        });
+        bar.addView(convBtn);
+
         chips.clear();
         for (int i = 0; i < 3; i++) {
             final int m = i;
@@ -198,7 +257,6 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             bar.addView(c);
         }
         mic = new TextView(this);
-        mic.setTextColor(Color.WHITE);
         mic.setTextSize(15);
         mic.setTypeface(Typeface.DEFAULT_BOLD);
         mic.setGravity(Gravity.CENTER);
@@ -221,12 +279,48 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         return root;
     }
 
+    /** Rebuild after the current touch finishes (never remove a view while it is being touched). */
+    private void buildKeysSoon() {
+        handler.post(new Runnable() { @Override public void run() {
+            try { buildKeys(); } catch (Exception ex) { saveProblem(ex); }
+        } });
+    }
+
+    /** Saves what went wrong so the Bolchi app can show it. */
+    void saveProblem(Throwable t) {
+        try {
+            StringWriter w = new StringWriter();
+            t.printStackTrace(new PrintWriter(w));
+            String txt = "Bolchi " + BuildConfigInfo.version(this) + "\n" + w.toString();
+            if (txt.length() > 6000) txt = txt.substring(0, 6000);
+            prefs().edit().putString("problem", txt).putLong("problemAt", System.currentTimeMillis()).commit();
+        } catch (Throwable ignored) { /* nothing more we can do */ }
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        final Thread.UncaughtExceptionHandler prev = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+            @Override public void uncaughtException(Thread th, Throwable ex) {
+                saveProblem(ex);
+                if (prev != null) prev.uncaughtException(th, ex);
+            }
+        });
+    }
+
     private void buildKeys() {
         keysBox.removeAllViews();
         letterKeys.clear();
         shiftKey = null;
         spaceKey = null;
+        if (convBtn != null) {
+            boolean on = page == PAGE_CONVERT;
+            convBtn.setBackground(box(on ? cInk : cFn, 20));
+            convBtn.setTextColor(on ? cKey : cInk);
+        }
         if (page == PAGE_EMOJI) { buildEmoji(); return; }
+        if (page == PAGE_CONVERT) { buildConverter(); return; }
 
         String[] rows = page == PAGE_ABC ? LETTERS : page == PAGE_SYM1 ? SYM1 : SYM2;
 
@@ -247,17 +341,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         LinearLayout r3 = row();
         if (page == PAGE_ABC) {
             shiftKey = makeKey("⇧", 1.5f, cFn, cInk, 20);
-            shiftKey.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { tick(v); onShift(); }
-            });
+            onPress(shiftKey, cFn, new Runnable() { @Override public void run() { onShift(); } });
             r3.addView(shiftKey);
         } else {
             TextView pg = makeKey(page == PAGE_SYM1 ? "1/2" : "2/2", 1.5f, cFn, cInk, 15);
-            pg.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) {
-                    tick(v); page = page == PAGE_SYM1 ? PAGE_SYM2 : PAGE_SYM1; buildKeys();
-                }
-            });
+            onPress(pg, cFn, new Runnable() { @Override public void run() {
+                page = page == PAGE_SYM1 ? PAGE_SYM2 : PAGE_SYM1; buildKeysSoon(); } });
             r3.addView(pg);
         }
         for (String k : rows[2].split(" ")) r3.addView(charKey(k));
@@ -266,28 +355,39 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
         LinearLayout r4 = row();
         TextView pageKey = makeKey(page == PAGE_ABC ? "!#1" : "ABC", 1.5f, cFn, cInk, 15);
-        pageKey.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                tick(v); page = page == PAGE_ABC ? PAGE_SYM1 : PAGE_ABC; buildKeys();
-            }
-        });
+        onPress(pageKey, cFn, new Runnable() { @Override public void run() {
+            page = page == PAGE_ABC ? PAGE_SYM1 : PAGE_ABC; buildKeysSoon(); } });
         r4.addView(pageKey);
         r4.addView(emojiKey());
         if (page == PAGE_ABC) r4.addView(charKey(","));
         spaceKey = makeKey("", page == PAGE_ABC ? 4f : 5f, cKey, cMuted, 13);
         spaceKey.setEllipsize(TextUtils.TruncateAt.START);
-        spaceKey.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { tick(v); typeSpace(); }
-        });
-        spaceKey.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override public boolean onLongClick(View v) { showPicker(); return true; }
+        spaceKey.setOnTouchListener(new View.OnTouchListener() {
+            private boolean held;
+            private final Runnable longHold = new Runnable() {
+                @Override public void run() { held = true; showPicker(); }
+            };
+            @Override public boolean onTouch(View v, MotionEvent e) {
+                int a = e.getActionMasked();
+                if (a == MotionEvent.ACTION_DOWN) {
+                    held = false;
+                    v.setBackground(keyFace(pressedOf(cKey)));
+                    tick(v);
+                    handler.postDelayed(longHold, 600);
+                } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
+                    handler.removeCallbacks(longHold);
+                    v.setBackground(keyFace(cKey));
+                    if (a == MotionEvent.ACTION_UP && !held) {
+                        try { typeSpace(); } catch (Exception ex) { saveProblem(ex); }
+                    }
+                }
+                return true;
+            }
         });
         r4.addView(spaceKey);
         r4.addView(charKey("."));
-        TextView enter = makeKey("⏎", 1.5f, cAcc, Color.WHITE, 20);
-        enter.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { tick(v); onEnter(); }
-        });
+        TextView enter = makeKey("⏎", 1.5f, cAcc, cOnAcc, 20);
+        onPress(enter, cAcc, new Runnable() { @Override public void run() { onEnter(); } });
         r4.addView(enter);
         keysBox.addView(r4);
 
@@ -297,9 +397,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     private TextView emojiKey() {
         TextView e = makeKey("🙂", 1f, cFn, cInk, 19);
-        e.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { tick(v); page = PAGE_EMOJI; buildKeys(); }
-        });
+        onPress(e, cFn, new Runnable() { @Override public void run() { page = PAGE_EMOJI; buildKeysSoon(); } });
         return e;
     }
 
@@ -307,12 +405,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         TextView del = makeKey("⌫", weight, cFn, cInk, 20);
         del.setOnTouchListener(new View.OnTouchListener() {
             @Override public boolean onTouch(View v, MotionEvent e) {
-                int a = e.getAction();
+                int a = e.getActionMasked();
                 if (a == MotionEvent.ACTION_DOWN) {
+                    v.setBackground(keyFace(pressedOf(cFn)));
                     tick(v);
-                    deleteOne();
+                    try { deleteOne(); } catch (Exception ex) { saveProblem(ex); }
                     handler.postDelayed(repeatDelete, 400);
                 } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
+                    v.setBackground(keyFace(cFn));
                     handler.removeCallbacks(repeatDelete);
                 }
                 return true;
@@ -325,15 +425,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final TextView t = makeKey(ch, 1f, cKey, cInk, 23);
         final boolean letter = page == PAGE_ABC && ch.length() == 1 && Character.isLetter(ch.charAt(0));
         if (letter) letterKeys.add(t);
-        t.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                tick(v);
-                String out = t.getText().toString();
-                if (".".equals(ch) || ",".equals(ch) || "?".equals(ch) || "!".equals(ch)) typeMark(out);
-                else commit(out);
-                if (letter && shift && !capsLock) { shift = false; updateShift(); }
-            }
-        });
+        onPress(t, cKey, new Runnable() { @Override public void run() {
+            String out = t.getText().toString();
+            if (".".equals(ch) || ",".equals(ch) || "?".equals(ch) || "!".equals(ch)) typeMark(out);
+            else commit(out);
+            if (letter && shift && !capsLock) { shift = false; updateShift(); }
+        } });
         return t;
     }
 
@@ -368,7 +465,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             t.setGravity(Gravity.CENTER);
             t.setLayoutParams(new LinearLayout.LayoutParams(0, dp(KEY_H + 2), 1f));
             t.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { tick(v); commit(em); addRecent(em); }
+                @Override public void onClick(View v) {
+                    tick(v);
+                    try { commit(em); addRecent(em); } catch (Exception ex) { saveProblem(ex); }
+                }
             });
             r.addView(t);
         }
@@ -381,20 +481,153 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
         LinearLayout tabs = row();
         TextView abc = makeKey("ABC", 1.5f, cFn, cInk, 15);
-        abc.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { tick(v); page = PAGE_ABC; buildKeys(); }
-        });
+        onPress(abc, cFn, new Runnable() { @Override public void run() { page = PAGE_ABC; buildKeysSoon(); } });
         tabs.addView(abc);
         for (int i = 0; i < Emojis.TAB_ICONS.length; i++) {
             final int tab = i;
             TextView t = makeKey(Emojis.TAB_ICONS[i], 1f, i == emojiTab ? cFn : cKey, cInk, 19);
-            t.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { tick(v); emojiTab = tab; buildKeys(); }
-            });
+            final int f = i == emojiTab ? cFn : cKey;
+            onPress(t, f, new Runnable() { @Override public void run() { emojiTab = tab; buildKeysSoon(); } });
             tabs.addView(t);
         }
         tabs.addView(deleteKey(1.5f));
         keysBox.addView(tabs);
+    }
+
+    // ---------- converter panel ----------
+    /** The text to convert: the selection if there is one, otherwise the whole message. */
+    private String currentText(boolean[] isSelection) {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return "";
+        CharSequence sel = ic.getSelectedText(0);
+        if (sel != null && sel.length() > 0) { isSelection[0] = true; return sel.toString(); }
+        isSelection[0] = false;
+        ExtractedText et = ic.getExtractedText(new ExtractedTextRequest(), 0);
+        if (et != null && et.text != null) return et.text.toString();
+        CharSequence b = ic.getTextBeforeCursor(4000, 0);
+        CharSequence a = ic.getTextAfterCursor(4000, 0);
+        return (b == null ? "" : b.toString()) + (a == null ? "" : a.toString());
+    }
+
+    private void replaceText(String result) {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return;
+        boolean[] isSel = new boolean[1];
+        String cur = currentText(isSel);
+        ic.beginBatchEdit();
+        if (!isSel[0]) {
+            ExtractedText et = ic.getExtractedText(new ExtractedTextRequest(), 0);
+            int len = et != null && et.text != null ? et.text.length() : cur.length();
+            ic.setSelection(0, len);
+        }
+        ic.commitText(result, 1);
+        ic.endBatchEdit();
+    }
+
+    private TextView panelBox(String label, String body, boolean strong) {
+        TextView t = new TextView(this);
+        t.setText(label + "\n" + body);
+        t.setTextColor(cInk);
+        t.setTextSize(15);
+        if (strong) t.setTypeface(Typeface.DEFAULT_BOLD);
+        t.setMaxLines(4);
+        t.setEllipsize(TextUtils.TruncateAt.END);
+        t.setPadding(dp(10), dp(6), dp(10), dp(6));
+        t.setBackground(keyFace(cKey));
+        return t;
+    }
+
+    private void buildConverter() {
+        boolean[] isSel = new boolean[1];
+        final String src = currentText(isSel).trim();
+
+        for (int rIdx = 0; rIdx < 2; rIdx++) {
+            LinearLayout r = row();
+            for (int c = 0; c < 2; c++) {
+                final int idx = rIdx * 2 + c;
+                boolean on = idx == convOption;
+                final int fill = on ? cInk : cKey;
+                TextView o = makeKey(CONV_NAMES[idx], 1f, fill, on ? cKey : cInk, 14);
+                if (on) o.setTypeface(Typeface.DEFAULT_BOLD);
+                onPress(o, fill, new Runnable() { @Override public void run() {
+                    convOption = idx; convResult = null; buildKeysSoon(); } });
+                r.addView(o);
+            }
+            keysBox.addView(r);
+        }
+
+        String label = isSel[0] ? "Selected text" : "Your text";
+        TextView srcBox = panelBox(label, src.isEmpty() ? "Type or speak a message first" : src, false);
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 20));
+        keysBox.addView(srcBox, slp);
+
+        final TextView resBox = panelBox("Result", convResult != null ? convResult
+                : src.isEmpty() ? "" : "Working\u2026", true);
+        keysBox.addView(resBox, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 20)));
+
+        LinearLayout act = row();
+        TextView back = makeKey("Back to keys", 1f, cFn, cInk, 14);
+        onPress(back, cFn, new Runnable() { @Override public void run() { page = PAGE_ABC; buildKeysSoon(); } });
+        act.addView(back);
+        final TextView use = makeKey("Replace my text", 1f, cAcc, cOnAcc, 14);
+        onPress(use, cAcc, new Runnable() { @Override public void run() {
+            if (convResult == null || convResult.isEmpty() || convResult.startsWith("\u26A0")) return;
+            String out = convResult;
+            if (convOption == 3) {
+                // units: add the answer after the message instead of replacing it
+                commit((src.endsWith(" ") ? "" : " ") + "(" + out + ")");
+            } else {
+                replaceText(out);
+            }
+            page = PAGE_ABC; buildKeysSoon();
+        } });
+        if (convOption == 3) use.setText("Add result");
+        act.addView(use);
+        keysBox.addView(act);
+
+        if (src.isEmpty() || convResult != null) return;
+        runConversion(src, resBox);
+    }
+
+    private void showResult(final int job, final String text) {
+        handler.post(new Runnable() { @Override public void run() {
+            if (job != convJob || page != PAGE_CONVERT) return;
+            convResult = text;
+            buildKeys();
+        } });
+    }
+
+    private void runConversion(final String src, TextView resBox) {
+        final int job = ++convJob;
+        final int opt = convOption;
+        final String key = prefs().getString("aikey", "");
+        if (opt == 2) { showResult(job, Converter.toEnglishLetters(src)); return; }
+        if (opt == 3 && !Converter.hasCurrency(src)) {
+            String r = Converter.units(src, null);
+            showResult(job, r.isEmpty() ? "\u26A0 No amounts found. Try \"5 kg\" or \"\u20B9500\"" : r);
+            return;
+        }
+        new Thread(new Runnable() { @Override public void run() {
+            String out;
+            try {
+                if (opt == 0) out = Converter.translate(src, key);
+                else if (opt == 1) out = Converter.toBanglaScript(src, key);
+                else {
+                    String r = Converter.units(src, Converter.usdRates());
+                    out = r.isEmpty() ? "\u26A0 No amounts found. Try \"5 kg\" or \"\u20B9500\"" : r;
+                }
+            } catch (Converter.UserMessage um) {
+                out = "\u26A0 " + um.getMessage();
+            } catch (java.io.IOException io) {
+                out = "\u26A0 No internet. Check your connection";
+            } catch (Exception e) {
+                saveProblem(e);
+                out = "\u26A0 Something went wrong. Try again";
+            }
+            showResult(job, out);
+        } }).start();
     }
 
     private void addRecent(String em) {
@@ -433,7 +666,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         CharSequence before = ic.getTextBeforeCursor(1, 0);
         if (before != null && before.length() == 1 && before.charAt(0) == ' ') ic.deleteSurroundingText(1, 0);
         ic.commitText(m + " ", 1);
-        if (page != PAGE_ABC) { page = PAGE_ABC; buildKeys(); }
+        if (page != PAGE_ABC) { page = PAGE_ABC; buildKeysSoon(); }
         autoShift();
     }
 
@@ -557,7 +790,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     private void paintSpace() {
         if (spaceKey == null) return;
-        String s = spaceText != null ? spaceText : listening ? "Listening… tap Stop when done" : "Bolchi";
+        String s = spaceText != null ? spaceText : listening ? "Listening…" : "Bolchi";
         spaceKey.setText(s);
     }
 
@@ -575,7 +808,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (mic == null) return;
         mic.setText(listening ? "● Stop" : "🎤 Speak");
         mic.setBackground(box(listening ? cInk : cAcc, 20));
-        mic.setTextColor(listening ? cKey : Color.WHITE);
+        mic.setTextColor(listening ? cKey : cOnAcc);
     }
 
     // ---------- voice ----------

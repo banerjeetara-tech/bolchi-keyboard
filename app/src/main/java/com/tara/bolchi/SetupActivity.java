@@ -2,7 +2,10 @@ package com.tara.bolchi;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -17,6 +20,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.List;
 
@@ -33,6 +37,8 @@ public class SetupActivity extends Activity {
 
     private TextView micBtn;
     private TextView enableBtn;
+    private LinearLayout problemBox;
+    private TextView problemText;
 
     private int dp(float v) {
         return (int) (v * getResources().getDisplayMetrics().density + 0.5f);
@@ -125,9 +131,60 @@ public class SetupActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         col.addView(text("Pick Bangla, Hindi or English on the bottom bar, then tap Speak. It keeps listening until you tap Stop. "
-                + "The palette key changes colours, the smiley key opens emojis, and holding the space bar switches keyboards.", 14, MUTED));
+                + "The palette key changes colours, the \u21C4 key opens the converter, the smiley key opens emojis, and holding the space bar switches keyboards.", 14, MUTED));
         col.addView(text("If it says voice is not set up: open the Google app, go to Settings, Voice, "
                 + "Languages, and add Bengali (India) and Hindi (India). Voice typing needs internet.", 14, MUTED));
+
+        // AI key for the converter
+        col.addView(text("5. Converter key (for Translate and Bangla script)", 17, INK));
+        col.addView(text("Get a free key at aistudio.google.com/apikey, copy it, paste it here and tap Save.", 14, MUTED));
+        final EditText keyBox = new EditText(this);
+        keyBox.setHint("Paste your Google AI Studio key");
+        keyBox.setSingleLine(true);
+        keyBox.setTextColor(INK);
+        keyBox.setTextSize(15);
+        keyBox.setBackground(box(CARD, LINE, 12));
+        keyBox.setPadding(dp(12), dp(12), dp(12), dp(12));
+        keyBox.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+        final SharedPreferences prefs = getSharedPreferences("bolchi", Context.MODE_PRIVATE);
+        keyBox.setText(prefs.getString("aikey", ""));
+        col.addView(keyBox, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        TextView saveKey = button("Save key");
+        saveKey.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                prefs.edit().putString("aikey", keyBox.getText().toString().trim()).apply();
+                Toast.makeText(SetupActivity.this, "Key saved", Toast.LENGTH_SHORT).show();
+            }
+        });
+        col.addView(saveKey);
+
+        // problem report, shown only when the keyboard closed unexpectedly
+        problemBox = new LinearLayout(this);
+        problemBox.setOrientation(LinearLayout.VERTICAL);
+        problemBox.addView(text("Problem report", 17, INK));
+        problemBox.addView(text("The keyboard closed unexpectedly. Tap Copy and paste this to Claude so it can be fixed.", 14, MUTED));
+        problemText = text("", 12, MUTED);
+        problemText.setMaxLines(8);
+        problemBox.addView(problemText);
+        TextView copy = button("Copy problem report");
+        copy.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("Bolchi problem", prefs.getString("problem", "")));
+                Toast.makeText(SetupActivity.this, "Copied", Toast.LENGTH_SHORT).show();
+            }
+        });
+        problemBox.addView(copy);
+        TextView clear = button("Clear report");
+        clear.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                prefs.edit().remove("problem").apply();
+                refresh();
+            }
+        });
+        problemBox.addView(clear);
+        col.addView(problemBox);
 
         setContentView(scroll);
     }
@@ -161,5 +218,9 @@ public class SetupActivity extends Activity {
         }
         enableBtn.setText(on ? "✓ Bolchi is turned on" : "Open keyboard settings");
         enableBtn.setBackground(box(on ? OK : ACCENT, 0, 12));
+
+        String problem = getSharedPreferences("bolchi", Context.MODE_PRIVATE).getString("problem", "");
+        problemBox.setVisibility(problem.isEmpty() ? View.GONE : View.VISIBLE);
+        problemText.setText(problem);
     }
 }

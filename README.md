@@ -16,7 +16,9 @@ like "ami bolchi") straight into WhatsApp, SMS or any other app.
 - A full keyboard: number row, letters, two symbol pages (**!#1**, then **1/2** / **2/2**) and an emoji panel (smiley key).
 - Pick **Bangla**, **Hindi** or **English** on the bottom bar, tap **Speak**, and talk. It keeps listening until you tap **Stop**.
   Bangla comes out as Banglish, Hindi as Hinglish, English as English.
-- The palette key cycles through 17 colour themes.
+- The palette key cycles through 27 colour themes (10 bold, 17 light).
+- The ⇄ key opens the converter: translate to English, Banglish to Bangla script, Bangla/Hindi script to English letters, units and currency.
+  Translate and Bangla script need a free Google AI Studio key, pasted once in the Bolchi app.
 - Holding the space bar switches to another keyboard if you ever need one.
 
 ## Good to know
