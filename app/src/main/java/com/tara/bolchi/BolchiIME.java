@@ -412,7 +412,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         r4.addView(emojiKey());
         r4.addView(layoutKey());
         if (letters) r4.addView(charKey(","));
-        spaceKey = makeKey("", letters ? 3.6f : 4.6f, cKey, cMuted, 13);
+        spaceKey = makeKey("", letters ? 5f : 6f, cKey, cMuted, 13);
         spaceKey.setEllipsize(TextUtils.TruncateAt.START);
         spaceKey.setOnTouchListener(new View.OnTouchListener() {
             private boolean held;
