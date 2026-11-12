@@ -13,10 +13,11 @@ like "ami bolchi") straight into WhatsApp, SMS or any other app.
 
 ## Using it
 
-- It is a full keyboard: type English on the letter keys, numbers and symbols on **?123**.
-- Pick **Bangla**, **Hindi** or **English** on the top bar, tap **Speak**, and talk.
+- A full keyboard: number row, letters, two symbol pages (**!#1**, then **1/2** / **2/2**) and an emoji panel (smiley key).
+- Pick **Bangla**, **Hindi** or **English** on the bottom bar, tap **Speak**, and talk. It keeps listening until you tap **Stop**.
   Bangla comes out as Banglish, Hindi as Hinglish, English as English.
-- The globe key (or holding the space bar) switches to another keyboard if you ever need one.
+- The palette key cycles through 17 colour themes.
+- Holding the space bar switches to another keyboard if you ever need one.
 
 ## Good to know
 

@@ -124,8 +124,8 @@ public class SetupActivity extends Activity {
         col.addView(try1, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        col.addView(text("Pick Bangla, Hindi or English on the top bar before you tap Speak. "
-                + "To change keyboards, tap the globe key or hold the space bar.", 14, MUTED));
+        col.addView(text("Pick Bangla, Hindi or English on the bottom bar, then tap Speak. It keeps listening until you tap Stop. "
+                + "The palette key changes colours, the smiley key opens emojis, and holding the space bar switches keyboards.", 14, MUTED));
         col.addView(text("If it says voice is not set up: open the Google app, go to Settings, Voice, "
                 + "Languages, and add Bengali (India) and Hindi (India). Voice typing needs internet.", 14, MUTED));
 
