@@ -75,6 +75,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private int convJob = 0;
     private String convResult = null;
     private TextView convBtn;
+    private TextView convResBox;
+    private long convStarted;
     private boolean shift, capsLock;
     private long lastShiftTap;
 
@@ -564,6 +566,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
         final TextView resBox = panelBox("Result", convResult != null ? convResult
                 : src.isEmpty() ? "" : "Working\u2026", true);
+        convResBox = resBox;
         keysBox.addView(resBox, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 20)));
 
@@ -573,7 +576,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         act.addView(back);
         final TextView use = makeKey("Replace my text", 1f, cAcc, cOnAcc, 14);
         onPress(use, cAcc, new Runnable() { @Override public void run() {
-            if (convResult == null || convResult.isEmpty() || convResult.startsWith("\u26A0")) return;
+            if (convResult == null || convResult.isEmpty()) return;
+            if (convResult.startsWith("\u26A0")) { convResult = null; buildKeysSoon(); return; }
             String out = convResult;
             if (convOption == 3) {
                 // units: add the answer after the message instead of replacing it
@@ -584,6 +588,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             page = PAGE_ABC; buildKeysSoon();
         } });
         if (convOption == 3) use.setText("Add result");
+        if (convResult != null && convResult.startsWith("\u26A0")) use.setText("Try again");
         act.addView(use);
         keysBox.addView(act);
 
@@ -609,6 +614,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             showResult(job, r.isEmpty() ? "\u26A0 No amounts found. Try \"5 kg\" or \"\u20B9500\"" : r);
             return;
         }
+        convStarted = System.currentTimeMillis();
+        handler.postDelayed(new Runnable() { @Override public void run() {
+            if (job != convJob || convResult != null || page != PAGE_CONVERT || convResBox == null) return;
+            long secs = (System.currentTimeMillis() - convStarted) / 1000;
+            convResBox.setText("Result\nWorking\u2026 " + secs + "s");
+            handler.postDelayed(this, 1000);
+        } }, 1000);
         new Thread(new Runnable() { @Override public void run() {
             String out;
             try {
@@ -620,11 +632,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 }
             } catch (Converter.UserMessage um) {
                 out = "\u26A0 " + um.getMessage();
-            } catch (java.io.IOException io) {
+            } catch (java.net.SocketTimeoutException to) {
+                out = "\u26A0 The AI took too long. Tap Try again";
+            } catch (java.net.UnknownHostException uh) {
                 out = "\u26A0 No internet. Check your connection";
-            } catch (Exception e) {
+            } catch (java.io.IOException io) {
+                saveProblem(io);
+                out = "\u26A0 Connection problem: " + io.getClass().getSimpleName();
+            } catch (Throwable e) {
                 saveProblem(e);
-                out = "\u26A0 Something went wrong. Try again";
+                out = "\u26A0 Something went wrong (" + e.getClass().getSimpleName() + "). Tap Try again";
             }
             showResult(job, out);
         } }).start();

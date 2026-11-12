@@ -16,7 +16,8 @@ import java.util.regex.Pattern;
 final class Converter {
     private Converter() {}
 
-    static final String MODEL = "gemini-flash-latest";
+    static final String MODEL = "gemini-flash-lite-latest";
+    static final String MODEL_BACKUP = "gemini-flash-latest";
 
     // ---------- offline: script to English letters ----------
     static String toEnglishLetters(String s) {
@@ -42,6 +43,14 @@ final class Converter {
     }
 
     private static String gemini(String key, String instruction, String text) throws Exception {
+        try {
+            return gemini(MODEL, key, instruction, text);
+        } catch (ModelMissing m) {
+            return gemini(MODEL_BACKUP, key, instruction, text);
+        }
+    }
+
+    private static String gemini(String model, String key, String instruction, String text) throws Exception {
         if (key == null || key.trim().isEmpty()) throw new UserMessage("Add your Google AI Studio key in the Bolchi app first");
         JSONObject body = new JSONObject();
         body.put("systemInstruction", new JSONObject().put("parts",
@@ -49,10 +58,10 @@ final class Converter {
         body.put("contents", new JSONArray().put(new JSONObject().put("role", "user").put("parts",
                 new JSONArray().put(new JSONObject().put("text", text)))));
         HttpURLConnection c = (HttpURLConnection) new URL(
-                "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL + ":generateContent").openConnection();
+                "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent").openConnection();
         c.setRequestMethod("POST");
-        c.setConnectTimeout(15000);
-        c.setReadTimeout(30000);
+        c.setConnectTimeout(10000);
+        c.setReadTimeout(20000);
         c.setDoOutput(true);
         c.setRequestProperty("Content-Type", "application/json");
         c.setRequestProperty("x-goog-api-key", key.trim());
@@ -61,6 +70,7 @@ final class Converter {
         os.close();
         int code = c.getResponseCode();
         String resp = read(code >= 400 ? c.getErrorStream() : c.getInputStream());
+        if (code == 404) throw new ModelMissing();
         if (code == 400 || code == 401 || code == 403) {
             throw new UserMessage(resp.contains("API_KEY") || resp.contains("API key")
                     ? "Your AI key isn't working. Check it in the Bolchi app" : "The AI service refused this request");
@@ -189,6 +199,8 @@ final class Converter {
         in.close();
         return b.toString("UTF-8");
     }
+
+    static final class ModelMissing extends Exception {}
 
     /** An error with a message meant for the person, not a crash. */
     static final class UserMessage extends Exception {
