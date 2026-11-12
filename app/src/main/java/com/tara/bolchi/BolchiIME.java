@@ -615,10 +615,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             return;
         }
         convStarted = System.currentTimeMillis();
+        Converter.stage = "starting";
         handler.postDelayed(new Runnable() { @Override public void run() {
             if (job != convJob || convResult != null || page != PAGE_CONVERT || convResBox == null) return;
             long secs = (System.currentTimeMillis() - convStarted) / 1000;
-            convResBox.setText("Result\nWorking\u2026 " + secs + "s");
+            if (secs >= 30) {
+                convJob++;
+                Converter.cancel();
+                convResult = "\u26A0 Took too long while " + Converter.stage + ". Tap Try again";
+                buildKeys();
+                return;
+            }
+            convResBox.setText("Result\nWorking\u2026 " + secs + "s (" + Converter.stage + ")");
             handler.postDelayed(this, 1000);
         } }, 1000);
         new Thread(new Runnable() { @Override public void run() {

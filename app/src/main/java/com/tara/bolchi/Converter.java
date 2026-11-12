@@ -17,6 +17,9 @@ final class Converter {
     private Converter() {}
 
     static final String MODEL = "gemini-flash-lite-latest";
+    static volatile String stage = "";
+    static volatile HttpURLConnection current;
+    static void cancel() { try { HttpURLConnection c = current; if (c != null) c.disconnect(); } catch (Throwable t) { } }
     static final String MODEL_BACKUP = "gemini-flash-latest";
 
     // ---------- offline: script to English letters ----------
@@ -59,8 +62,10 @@ final class Converter {
                 new JSONArray().put(new JSONObject().put("text", text)))));
         HttpURLConnection c = (HttpURLConnection) new URL(
                 "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent").openConnection();
+        current = c;
+        stage = "connecting to Google";
         c.setRequestMethod("POST");
-        c.setConnectTimeout(10000);
+        c.setConnectTimeout(4000);
         c.setReadTimeout(20000);
         c.setDoOutput(true);
         c.setRequestProperty("Content-Type", "application/json");
@@ -68,7 +73,9 @@ final class Converter {
         OutputStream os = c.getOutputStream();
         os.write(body.toString().getBytes("UTF-8"));
         os.close();
+        stage = "waiting for the AI answer";
         int code = c.getResponseCode();
+        stage = "reading the answer";
         String resp = read(code >= 400 ? c.getErrorStream() : c.getInputStream());
         if (code == 404) throw new ModelMissing();
         if (code == 400 || code == 401 || code == 403) {
