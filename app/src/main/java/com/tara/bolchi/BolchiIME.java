@@ -72,6 +72,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private final StringBuilder spokenAll = new StringBuilder();   // everything written in this Speak session
     private String lastPartial = "";
     private int tidyJob;
+    private boolean tidyBusy, tidyFailed;
+    private String tidyPendSaid, tidyPendOut, tidyDone = "";
 
     private int mode = MODE_BN;
     private int theme = 0;
@@ -1316,6 +1318,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         flushPhon(true);
         listening = true;
+        spokenAll.setLength(0);
+        lastPartial = "";
+        tidyPendOut = null;
+        tidyDone = "";
+        tidyFailed = false;
+        tidyJob++;
         failRounds = 0;
         composing = false;
         paintMic();
@@ -1375,36 +1383,61 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         lastPartial = "";
         paintMic();
         if (message != null) flashSpace(message); else paintSpace();
-        if (was) tidySpoken();
+        if (was) { tidyApply(); tidyAsk(); }
     }
 
-    /** After Stop: the AI (if a key is saved) tidies what was spoken and keeps the corrected version. */
-    private void tidySpoken() {
+    /**
+     * While speaking, the AI (if a key is saved) keeps tidying what was said so far: it keeps the
+     * corrected version when she changes her mind, drops fumbles and adds punctuation. No need to tap Stop.
+     */
+    private void tidyAsk() {
+        if (tidyBusy || tidyFailed) return;
         final String said = spokenAll.toString();
-        spokenAll.setLength(0);
         final String key = prefs().getString("aikey", "");
-        if (key.trim().isEmpty() || said.trim().split("\\s+").length < 3) return;
-        final int job = ++tidyJob;
-        flashSpace("AI is tidying\u2026");
+        if (key.trim().isEmpty() || said.equals(tidyDone) || said.trim().split("\\s+").length < 3) return;
+        tidyBusy = true;
+        final int job = tidyJob;
         new Thread(new Runnable() { @Override public void run() {
             String got;
             try { got = Converter.tidy(said.trim(), key); } catch (Throwable t) { got = null; }
             final String out = got;
             handler.post(new Runnable() { @Override public void run() {
+                tidyBusy = false;
                 if (job != tidyJob) return;
-                if (out == null || out.isEmpty()) { flashSpace("AI did not connect: kept as spoken"); return; }
-                InputConnection ic = getCurrentInputConnection();
-                if (ic == null) return;
-                CharSequence b = ic.getTextBeforeCursor(said.length(), 0);
-                if (b == null || !b.toString().equals(said)) return;   // the text changed meanwhile: leave it
-                String lead = said.startsWith(" ") ? " " : "";
-                ic.beginBatchEdit();
-                ic.deleteSurroundingText(said.length(), 0);
-                ic.commitText(lead + out, 1);
-                ic.endBatchEdit();
-                flashSpace("AI tidied \u2713");
+                if (out == null || out.isEmpty()) {
+                    tidyFailed = true;
+                    flashSpace("AI did not connect: kept as spoken");
+                    return;
+                }
+                tidyPendSaid = said;
+                tidyPendOut = out;
+                if (!composing) tidyApply();
             } });
         } }).start();
+    }
+
+    /** Puts the AI's tidy text in place of what was spoken, keeping anything said after it. */
+    private void tidyApply() {
+        if (tidyPendOut == null) return;
+        String said = tidyPendSaid, out = tidyPendOut;
+        tidyPendOut = null;
+        String all = spokenAll.toString();
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null || !all.startsWith(said)) return;
+        CharSequence b = ic.getTextBeforeCursor(all.length(), 0);
+        if (b == null || !b.toString().equals(all)) { spokenAll.setLength(0); return; }   // she edited by hand: leave it
+        String clean = (said.startsWith(" ") ? " " : "") + out;
+        String neu = clean + all.substring(said.length());
+        if (!neu.equals(all)) {
+            ic.beginBatchEdit();
+            ic.deleteSurroundingText(all.length(), 0);
+            ic.commitText(neu, 1);
+            ic.endBatchEdit();
+        }
+        spokenAll.setLength(0);
+        if (neu.length() < 1200) spokenAll.append(neu);   // long talk: start a fresh stretch
+        tidyDone = clean;
+        if (!all.equals(said)) tidyAsk();
     }
 
     private static String first(Bundle b) {
@@ -1458,6 +1491,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         composing = false;
         lastPartial = "";
+        tidyApply();
+        tidyAsk();
         failRounds = 0;
         handler.postDelayed(nextRound, 60);
     }
@@ -1467,7 +1502,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (!listening) return;
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) ic.finishComposingText();
+        if (composing) spokenAll.append(lastPartial);
         composing = false;
+        lastPartial = "";
+        tidyApply();
+        tidyAsk();
         switch (error) {
             case SpeechRecognizer.ERROR_NO_MATCH:
             case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
