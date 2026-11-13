@@ -69,6 +69,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private int failRounds;
     private boolean composing;
     private String roundLead = "";
+    private final StringBuilder spokenAll = new StringBuilder();   // everything written in this Speak session
+    private String lastPartial = "";
+    private int tidyJob;
 
     private int mode = MODE_BN;
     private int theme = 0;
@@ -1366,10 +1369,42 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (was) {
             InputConnection ic = getCurrentInputConnection();
             if (ic != null) ic.finishComposingText();
+            if (composing) spokenAll.append(lastPartial);
         }
         composing = false;
+        lastPartial = "";
         paintMic();
         if (message != null) flashSpace(message); else paintSpace();
+        if (was) tidySpoken();
+    }
+
+    /** After Stop: the AI (if a key is saved) tidies what was spoken and keeps the corrected version. */
+    private void tidySpoken() {
+        final String said = spokenAll.toString();
+        spokenAll.setLength(0);
+        final String key = prefs().getString("aikey", "");
+        if (key.trim().isEmpty() || said.trim().split("\\s+").length < 3) return;
+        final int job = ++tidyJob;
+        flashSpace("AI is tidying\u2026");
+        new Thread(new Runnable() { @Override public void run() {
+            String got;
+            try { got = Converter.tidy(said.trim(), key); } catch (Throwable t) { got = null; }
+            final String out = got;
+            handler.post(new Runnable() { @Override public void run() {
+                if (job != tidyJob) return;
+                if (out == null || out.isEmpty()) { flashSpace("AI did not connect: kept as spoken"); return; }
+                InputConnection ic = getCurrentInputConnection();
+                if (ic == null) return;
+                CharSequence b = ic.getTextBeforeCursor(said.length(), 0);
+                if (b == null || !b.toString().equals(said)) return;   // the text changed meanwhile: leave it
+                String lead = said.startsWith(" ") ? " " : "";
+                ic.beginBatchEdit();
+                ic.deleteSurroundingText(said.length(), 0);
+                ic.commitText(lead + out, 1);
+                ic.endBatchEdit();
+                flashSpace("AI tidied \u2713");
+            } });
+        } }).start();
     }
 
     private static String first(Bundle b) {
@@ -1404,7 +1439,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
         if (!composing) { roundLead = lead(); composing = true; }
-        ic.setComposingText(roundLead + convert(heard), 1);
+        lastPartial = roundLead + convert(heard);
+        ic.setComposingText(lastPartial, 1);
     }
 
     @Override
@@ -1416,10 +1452,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (!heard.isEmpty()) {
                 if (!composing) roundLead = lead();
                 ic.setComposingText(roundLead + convert(heard), 1);
+                spokenAll.append(roundLead).append(convert(heard));
             }
             ic.finishComposingText();
         }
         composing = false;
+        lastPartial = "";
         failRounds = 0;
         handler.postDelayed(nextRound, 60);
     }

@@ -100,6 +100,18 @@ final class Converter {
                 text);
     }
 
+    /** Tidies dictated text: keeps the speaker's corrected version, drops fillers and repeats. */
+    static String tidy(String text, String key) throws Exception {
+        return gemini(key,
+                "The user dictated this text by voice. Clean it up the way a careful typist would. When the speaker "
+                        + "corrects themselves (for example 'at five, no sorry, six' or 'call Rahul, I mean Rohit'), keep only "
+                        + "the corrected version. Remove filler sounds and accidental repeats. Add basic punctuation and "
+                        + "capital letters. Do not translate. Keep the same language and the same script: it may be Bengali "
+                        + "or Hindi written in English letters (Banglish, Hinglish), Bengali or Hindi script, or English. "
+                        + "Do not add or remove meaning and do not answer the text. Reply with only the cleaned text.",
+                text);
+    }
+
     static String toBanglaScript(String text, String key) throws Exception {
         return gemini(key,
                 "Rewrite the user's text in Bengali script. The text is Bengali written in English letters (Banglish), "

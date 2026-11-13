@@ -39,6 +39,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   backspace right after puts the typed word back and remembers it (prefs `ownWords`).
 - Paste: when nothing is being typed and something is copied, the middle suggestion shows "📋 Paste" (Tara did not want a separate button;
   she expects the app's normal long-press Paste — ask what happens there if she says it still fails). Key press only recolours the key (no re-layout) for faster typing.
+- Voice AI tidy: after Stop, if an AI key is saved, Gemini (`Converter.tidy`) cleans the spoken text (keeps the corrected
+  version, punctuation) and replaces it; if Gemini cannot connect the text stays as spoken (rules in `Spoken.java` still apply).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
