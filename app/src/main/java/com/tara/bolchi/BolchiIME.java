@@ -101,7 +101,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private LinearLayout sugRow;
     private final TextView[] sug = new TextView[3];
     private final String[] sugVal = {"", "", ""};
-    private boolean sugKeepsTyped;
+    private boolean sugKeepsTyped, sugPaste;
     private boolean autoFix = true;
     private boolean noFix;
     private String fixTyped, fixDone;
@@ -282,22 +282,6 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             }
         });
         bar.addView(convBtn);
-
-        TextView pasteBtn = new TextView(this);
-        pasteBtn.setText("\uD83D\uDCCB");
-        pasteBtn.setTextSize(17);
-        pasteBtn.setGravity(Gravity.CENTER);
-        pasteBtn.setBackground(box(cFn, 20));
-        LinearLayout.LayoutParams ptp = new LinearLayout.LayoutParams(dp(46), dp(40));
-        ptp.setMargins(dp(GAP), 0, dp(GAP), 0);
-        pasteBtn.setLayoutParams(ptp);
-        pasteBtn.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                tick(v);
-                try { paste(); } catch (Exception ex) { saveProblem(ex); }
-            }
-        });
-        bar.addView(pasteBtn);
 
         chips.clear();
         for (int i = 0; i < 3; i++) {
@@ -480,7 +464,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String[] v = {"", "", ""};
         boolean bold = false;
         sugKeepsTyped = false;
-        if (w.length() > 0 && Words.ready) {
+        sugPaste = false;
+        if (w.length() == 0) {
+            // copied text waiting: offer it in the middle, like other keyboards do
+            try {
+                ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (cm != null && cm.hasPrimaryClip()) { v[1] = "\uD83D\uDCCB Paste"; sugPaste = true; }
+            } catch (Exception ignored) { /* no paste offer */ }
+        } else if (Words.ready) {
             String fx = Words.fix(w);
             List<String> c = Words.complete(w, 3);
             if (fx != null) {
@@ -524,6 +515,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
+        if (sugPaste && i == 1) { paste(); return; }
         if (val.isEmpty() || w.isEmpty() || ic == null) return;
         boolean keep = i == 0 && sugKeepsTyped;
         if (!wordIsThere(ic, w)) { resetWord(); return; }

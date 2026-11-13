@@ -37,7 +37,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Letter size follows key width (28–38 dp, bold, ignores system font scale); keys 54 dp tall.
 - English keys: suggestion strip (3 words + Auto ✓/✕ toggle). Space/punctuation auto-corrects typos;
   backspace right after puts the typed word back and remembers it (prefs `ownWords`).
-- 📋 paste button in the bottom bar. Key press only recolours the key (no re-layout) for faster typing.
+- Paste: when nothing is being typed and something is copied, the middle suggestion shows "📋 Paste" (Tara did not want a separate button;
+  she expects the app's normal long-press Paste — ask what happens there if she says it still fails). Key press only recolours the key (no re-layout) for faster typing.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
