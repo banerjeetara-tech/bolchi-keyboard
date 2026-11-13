@@ -41,6 +41,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - No paste button or paste suggestion: Tara wants only the app's normal long-press Paste (`paste()` in BolchiIME is unused).
 - Key press only recolours the key (no re-layout). Phonetic suggestions wait 140 ms after the last key (one request per pause).
   Tara still said "typing is not smooth" on version 10 while on the ab→বাং layout: ask which layout and what exactly lags.
+- Touch (version 12): `KeyArea` (the keys container) handles every finger itself and sends it to the nearest key
+  (`keyAt`, within 34 dp), because normal Android delivery dropped the second thumb when the first finger rested on an empty
+  spot and ignored taps between keys. Emoji and converter pages still use normal touch. Keys type first, then buzz.
+  Tara reported on version 10/11: letters come late, taps missed, wrong neighbour letter (English too) — not yet confirmed fixed.
 - Voice AI tidy (Wispr Flow style, no Stop needed): after every pause, if an AI key is saved, Gemini (`Converter.tidy`) cleans
   everything spoken so far in this Speak session (keeps the corrected version, drops fumbles, punctuation) and swaps it in while
   she keeps talking. If Gemini cannot connect it stops trying for that session; rules in `Spoken.java` still apply.

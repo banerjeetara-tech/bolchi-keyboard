@@ -20,6 +20,7 @@ import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.text.TextUtils;
+import android.util.SparseArray;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
@@ -112,6 +113,66 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String fixTyped, fixDone;
     private float letterDp = 32;
 
+    // all key touches are handled in one place, so two thumbs and near-misses work
+    private final List<View> keyViews = new ArrayList<>();
+    private final SparseArray<View> heldKeys = new SparseArray<>();
+    private boolean directTouch;
+
+    /**
+     * The key area hands every finger to the nearest key itself. Android's normal delivery drops the
+     * second thumb when the first finger rests on an empty spot, and ignores taps that land between keys.
+     */
+    private class KeyArea extends LinearLayout {
+        KeyArea(Context c) { super(c); }
+
+        @Override
+        public boolean dispatchTouchEvent(MotionEvent ev) {
+            if (!directTouch) return super.dispatchTouchEvent(ev);
+            try {
+                int a = ev.getActionMasked();
+                int idx = ev.getActionIndex();
+                int id = ev.getPointerId(idx);
+                if (a == MotionEvent.ACTION_DOWN) heldKeys.clear();
+                if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_POINTER_DOWN) {
+                    View k = keyAt(ev.getX(idx), ev.getY(idx));
+                    if (k != null) { heldKeys.put(id, k); sendTo(k, MotionEvent.ACTION_DOWN, ev); }
+                } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_POINTER_UP) {
+                    View k = heldKeys.get(id);
+                    heldKeys.remove(id);
+                    if (k != null) sendTo(k, MotionEvent.ACTION_UP, ev);
+                } else if (a == MotionEvent.ACTION_CANCEL) {
+                    for (int i = 0; i < heldKeys.size(); i++) sendTo(heldKeys.valueAt(i), MotionEvent.ACTION_CANCEL, ev);
+                    heldKeys.clear();
+                }
+            } catch (Exception ex) { saveProblem(ex); }
+            return true;
+        }
+    }
+
+    private void sendTo(View k, int action, MotionEvent from) {
+        MotionEvent e = MotionEvent.obtain(from.getDownTime(), from.getEventTime(), action, 1f, 1f, 0);
+        try { k.dispatchTouchEvent(e); } finally { e.recycle(); }
+    }
+
+    /** The key under the finger, or the closest one when the finger lands just beside a key. */
+    private View keyAt(float x, float y) {
+        View best = null;
+        float bestD = dp(34) * (float) dp(34);
+        for (int i = keyViews.size() - 1; i >= 0; i--) {
+            View v = keyViews.get(i);
+            if (!(v.getParent() instanceof View)) { keyViews.remove(i); continue; }
+            View row = (View) v.getParent();
+            if (row.getParent() != keysBox) continue;
+            float l = row.getLeft() + v.getLeft(), t = row.getTop() + v.getTop();
+            float dx = Math.max(0, Math.max(l - x, x - (l + v.getWidth())));
+            float dy = Math.max(0, Math.max(t - y, y - (t + v.getHeight())));
+            float d = dx * dx + dy * dy;
+            if (d < bestD) { bestD = d; best = v; if (d == 0) break; }
+        }
+        return best;
+    }
+
+
     private int cBg, cKey, cFn, cInk, cMuted, cAcc, cOnAcc;
 
     private LinearLayout keysBox;
@@ -184,6 +245,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         t.setIncludeFontPadding(false);
         GradientDrawable g = box(fill, 7);
         t.setTag(g);
+        keyViews.add(t);
         t.setBackground(new InsetDrawable(g, dp(GAP), dp(2), dp(GAP), dp(2)));
         t.setLayoutParams(new LinearLayout.LayoutParams(0, dp(KEY_H + 4), weight));
         return t;
@@ -204,9 +266,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             @Override public boolean onTouch(View v, MotionEvent e) {
                 int a = e.getActionMasked();
                 if (a == MotionEvent.ACTION_DOWN) {
+                    try { action.run(); } catch (Exception ex) { saveProblem(ex); }
                     face(v, pressedOf(fill));
                     tick(v);
-                    try { action.run(); } catch (Exception ex) { saveProblem(ex); }
                 } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
                     face(v, fill);
                 }
@@ -247,16 +309,17 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(cBg);
-        root.setPadding(dp(3), dp(4), dp(3), dp(6));
+        root.setPadding(0, 0, 0, dp(6));
 
-        keysBox = new LinearLayout(this);
+        keysBox = new KeyArea(this);
         keysBox.setOrientation(LinearLayout.VERTICAL);
+        keysBox.setPadding(dp(3), dp(4), dp(3), 0);
         root.addView(keysBox, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         // bottom bar: palette, language chips, speak
         LinearLayout bar = row();
-        ((LinearLayout.LayoutParams) bar.getLayoutParams()).topMargin = dp(4);
+        ((LinearLayout.LayoutParams) bar.getLayoutParams()).setMargins(dp(3), dp(4), dp(3), 0);
         TextView pal = new TextView(this);
         pal.setText("🎨");
         pal.setTextSize(17);
@@ -367,6 +430,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     private void buildKeys() {
         keysBox.removeAllViews();
+        keyViews.clear();
+        directTouch = page != PAGE_EMOJI && page != PAGE_CONVERT;
         letterKeys.clear();
         shiftKey = null;
         spaceKey = null;
