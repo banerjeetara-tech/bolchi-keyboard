@@ -58,6 +58,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Learning: an email typed once on the keys is saved to `myWords` automatically (`tokenEnd`); a new word not in the dictionary is
   saved to `ownWords` and offered first next time. Email/web boxes show the strip with only her saved entries; a dot inside an
   email gets no space. Password boxes show no strip.
+- Voice beeps: `hushBeep()` mutes music/notification/system streams for 0.9 s around every recogniser restart and stop, so only
+  the first start beeps (Tara: "sounds constantly till I press stop"). Not confirmed on her phone.
+- Tara's main ask: speak Bengali mixed with English words. The engine listens only in the dark chip's language. Her screenshots
+  showed the English chip dark; she also reported the app shows "Bolchi 7.0" (so check which build is really installed).
+  Idea not yet tried: language-switch extras (API 34 `ENABLE_LANGUAGE_SWITCH`) for mixed speech — only with her testing.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

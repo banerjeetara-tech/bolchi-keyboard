@@ -16,6 +16,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.InsetDrawable;
 import android.inputmethodservice.InputMethodService;
+import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -1569,6 +1570,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         flushPhon(true);
         listening = true;
+        firstRound = true;
         spokenAll.setLength(0);
         lastPartial = "";
         tidyPendOut = null;
@@ -1591,8 +1593,39 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         recognizer.setRecognitionListener(this);
     }
 
+    // The phone's voice engine beeps every time it starts and stops. We restart it after every pause,
+    // so it would beep again and again: silence those beeps (only the first start is heard).
+    private static final int[] BEEP_STREAMS = {AudioManager.STREAM_MUSIC, AudioManager.STREAM_NOTIFICATION, AudioManager.STREAM_SYSTEM};
+    private final boolean[] hushed = new boolean[BEEP_STREAMS.length];
+    private boolean firstRound;
+    private final Runnable unhush = new Runnable() {
+        @Override public void run() {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            for (int k = 0; k < BEEP_STREAMS.length; k++) {
+                if (!hushed[k]) continue;
+                hushed[k] = false;
+                try { if (am != null) am.adjustStreamVolume(BEEP_STREAMS[k], AudioManager.ADJUST_UNMUTE, 0); } catch (Exception ignored) { }
+            }
+        }
+    };
+
+    private void hushBeep() {
+        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        if (am == null) return;
+        for (int k = 0; k < BEEP_STREAMS.length; k++) {
+            try {
+                if (hushed[k] || am.isStreamMute(BEEP_STREAMS[k])) continue;   // already silent: leave it alone
+                am.adjustStreamVolume(BEEP_STREAMS[k], AudioManager.ADJUST_MUTE, 0);
+                hushed[k] = true;
+            } catch (Exception ignored) { /* not allowed for this stream */ }
+        }
+        handler.removeCallbacks(unhush);
+        handler.postDelayed(unhush, 900);
+    }
+
     private void beginRound() {
         try {
+            if (firstRound) firstRound = false; else hushBeep();
             if (recognizer == null) freshRecognizer();
             String lang = MODE_LANG[mode];
             Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
@@ -1622,6 +1655,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     private void stopListening(String message) {
         boolean was = listening;
+        if (was) hushBeep();
         listening = false;
         handler.removeCallbacks(nextRound);
         if (recognizer != null) {
@@ -1704,7 +1738,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     @Override public void onBeginningOfSpeech() { }
     @Override public void onRmsChanged(float rmsdB) { }
     @Override public void onBufferReceived(byte[] buffer) { }
-    @Override public void onEndOfSpeech() { }
+    @Override public void onEndOfSpeech() { if (listening) hushBeep(); }
     @Override public void onEvent(int eventType, Bundle params) { }
 
     /** A space before new speech unless we're at the start or already after a space. */
@@ -1732,6 +1766,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     @Override
     public void onResults(Bundle results) {
         if (!listening) return;
+        hushBeep();
         String heard = first(results);
         if (mode == MODE_EN) heard = Spoken.fix(heard);   // Bangla/Hindi speech is written exactly as heard
         InputConnection ic = getCurrentInputConnection();
@@ -1754,6 +1789,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     @Override
     public void onError(int error) {
         if (!listening) return;
+        hushBeep();
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) ic.finishComposingText();
         if (composing) spokenAll.append(lastPartial);
