@@ -34,11 +34,13 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - 27 themes: 10 bold (black combos, navy/coral, plum/peach, forest/cream/gold, teal/white/yellow) + 17 light.
 
 ## Added in app version 10 (not yet confirmed by Tara)
-- Letter size follows key width (28–38 dp, bold, ignores system font scale); keys 54 dp tall.
+- Letter size follows key width, 25–33 dp (capitals 0.88×), regular weight, ignores system font scale; keys 50 dp tall.
+  (Version 10 tried 38 dp bold: Tara said "very big, looking very bad". Do not go bigger again without a real screenshot check.)
 - English keys: suggestion strip (3 words + Auto ✓/✕ toggle). Space/punctuation auto-corrects typos;
   backspace right after puts the typed word back and remembers it (prefs `ownWords`).
-- Paste: when nothing is being typed and something is copied, the middle suggestion shows "📋 Paste" (Tara did not want a separate button;
-  she expects the app's normal long-press Paste — ask what happens there if she says it still fails). Key press only recolours the key (no re-layout) for faster typing.
+- No paste button or paste suggestion: Tara wants only the app's normal long-press Paste (`paste()` in BolchiIME is unused).
+- Key press only recolours the key (no re-layout). Phonetic suggestions wait 140 ms after the last key (one request per pause).
+  Tara still said "typing is not smooth" on version 10 while on the ab→বাং layout: ask which layout and what exactly lags.
 - Voice AI tidy (Wispr Flow style, no Stop needed): after every pause, if an AI key is saved, Gemini (`Converter.tidy`) cleans
   everything spoken so far in this Speak session (keeps the corrected version, drops fumbles, punctuation) and swaps it in while
   she keeps talking. If Gemini cannot connect it stops trying for that session; rules in `Spoken.java` still apply.

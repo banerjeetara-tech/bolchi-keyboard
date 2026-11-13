@@ -60,7 +60,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             "° • ○ ● □ ■ ♤ ♡ ◇ ♧",
             "☆ ▪ ¤ 《 》 ¡ ¿"};
 
-    private static final int KEY_H = 50;     // dp
+    private static final int KEY_H = 46;     // dp
     private static final float GAP = 1.5f;   // dp between keys
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -372,7 +372,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         spaceKey = null;
         sugRow = null;
         float keyW = getResources().getDisplayMetrics().widthPixels / getResources().getDisplayMetrics().density / 10f;
-        letterDp = Math.max(28f, Math.min(38f, keyW * 0.8f));
+        letterDp = Math.max(25f, Math.min(33f, keyW * 0.72f));
         if (convBtn != null) {
             boolean on = page == PAGE_CONVERT;
             convBtn.setBackground(box(on ? cInk : cFn, 20));
@@ -470,13 +470,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         boolean bold = false;
         sugKeepsTyped = false;
         sugPaste = false;
-        if (w.length() == 0) {
-            // copied text waiting: offer it in the middle, like other keyboards do
-            try {
-                ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                if (cm != null && cm.hasPrimaryClip()) { v[1] = "\uD83D\uDCCB Paste"; sugPaste = true; }
-            } catch (Exception ignored) { /* no paste offer */ }
-        } else if (Words.ready) {
+        if (w.length() > 0 && Words.ready) {
             String fx = Words.fix(w);
             List<String> c = Words.complete(w, 3);
             if (fx != null) {
@@ -520,7 +514,6 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
-        if (sugPaste && i == 1) { paste(); return; }
         if (val.isEmpty() || w.isEmpty() || ic == null) return;
         boolean keep = i == 0 && sugKeepsTyped;
         if (!wordIsThere(ic, w)) { resetWord(); return; }
@@ -749,6 +742,15 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final String word = phon.toString();
         final boolean hi = layout == 2;
         if (word.isEmpty()) { paintCands(); return; }
+        handler.removeCallbacks(candAsk);
+        candAsk = new Runnable() { @Override public void run() { fetchSuggestions(job, word, hi); } };
+        handler.postDelayed(candAsk, 140);
+    }
+
+    private Runnable candAsk;
+
+    private void fetchSuggestions(final int job, final String word, final boolean hi) {
+        if (job != candJob) return;
         new Thread(new Runnable() { @Override public void run() {
             List<String> got;
             try { got = Phonetic.suggest(word, hi); } catch (Throwable t) { got = null; }
@@ -816,7 +818,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private TextView charKey(final String ch) {
         final TextView t = makeKey(ch, 1f, cKey, cInk, 26);
         final boolean letter = page == PAGE_ABC && ch.length() == 1 && Character.isLetter(ch.charAt(0));
-        if (letter) { letterKeys.add(t); t.setTypeface(Typeface.DEFAULT_BOLD); }
+        if (letter) letterKeys.add(t);
         onPress(t, cKey, new Runnable() { @Override public void run() {
             String out = t.getText().toString();
             if (".".equals(ch) || ",".equals(ch) || "?".equals(ch) || "!".equals(ch)) typeMark(out);
@@ -1189,7 +1191,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         for (TextView t : letterKeys) {
             String s = t.getText().toString();
             t.setText(up ? s.toUpperCase() : s.toLowerCase());
-            t.setTextSize(TypedValue.COMPLEX_UNIT_DIP, up ? letterDp * 0.86f : letterDp);
+            t.setTextSize(TypedValue.COMPLEX_UNIT_DIP, up ? letterDp * 0.88f : letterDp);
         }
         if (shiftKey != null) {
             shiftKey.setText(capsLock ? "⇪" : "⇧");
