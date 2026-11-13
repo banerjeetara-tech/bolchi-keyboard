@@ -101,6 +101,20 @@ final class Converter {
     }
 
     /** Tidies dictated text: keeps the speaker's corrected version, drops fillers and repeats. */
+    /** What Google said the last time a request was refused (for the Test button). */
+    static volatile String lastDetail = "";
+
+    /** One real AI request, with a plain answer about what happened. */
+    static String test(String key) {
+        lastDetail = "";
+        try {
+            return "AI works. It wrote: " + tidy("aai em apdeting phrom the link, ami bhat khabo", key);
+        } catch (Throwable t) {
+            String why = lastDetail.isEmpty() ? t.getClass().getSimpleName() + ": " + t.getMessage() : lastDetail;
+            return "AI did NOT work.\n" + why;
+        }
+    }
+
     static String tidy(String text, String key) throws Exception {
         return gemini(key,
                 "The user dictated this text by voice on a Bengali/Hindi speech engine. The speaker mixes Bengali (or Hindi) "
@@ -157,6 +171,7 @@ final class Converter {
         int code = c.getResponseCode();
         stage = "reading the answer";
         String resp = read(code >= 400 ? c.getErrorStream() : c.getInputStream());
+        if (code >= 400) lastDetail = "Google answered " + code + ": " + (resp.length() > 300 ? resp.substring(0, 300) : resp);
         if (code == 404) throw new ModelMissing();
         if (code == 400 || code == 401 || code == 403) {
             throw new UserMessage(resp.contains("API_KEY") || resp.contains("API key")

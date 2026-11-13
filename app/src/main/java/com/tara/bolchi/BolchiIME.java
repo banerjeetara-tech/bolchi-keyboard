@@ -1693,7 +1693,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (job != tidyJob) return;
                 if (out == null || out.isEmpty()) {
                     tidyFailed = true;
-                    flashSpace("AI did not connect: kept as spoken");
+                    flashSpace("AI did not work: open Bolchi app, tap Test AI key");
                     return;
                 }
                 tidyPendSaid = said;

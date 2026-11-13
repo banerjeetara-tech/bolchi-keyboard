@@ -69,6 +69,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Speak turns it off. If Gemini does not connect from her phone the text stays as spoken (space bar says so) — then a local
   phonetic respelling table (CMUdict-based) is the fallback idea. On the English chip the phone engine mishears words
   ("app version and GitHub version" → "abortion and guitar version"); that is engine quality, not Bolchi.
+- The "Bolchi 7.0" she saw was an OLD saved problem report in the app, not the installed version. The app now shows
+  "Installed version" and has a **Test AI key** button (`Converter.test`) that prints Google's exact answer.
+- Her AI key starts with `AQ.` (new AI Studio "Auth key" format, not `AIza`). Forum reports say many AQ. keys get
+  401 ACCESS_TOKEN_TYPE_UNSUPPORTED on generativelanguage.googleapis.com. Get her Test AI key result before more AI work.
+  Never write her key in the repo or in chat.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

@@ -159,6 +159,25 @@ public class SetupActivity extends Activity {
         });
         col.addView(saveKey);
 
+        // test the AI key, and show which version is installed
+        final TextView testOut = text("Installed version: Bolchi " + BuildConfigInfo.version(this), 14, MUTED);
+        TextView testBtn = button("Test AI key");
+        testBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                final String k = keyBox.getText().toString().trim();
+                prefs.edit().putString("aikey", k).apply();
+                testOut.setText("Testing, wait up to 30 seconds\u2026");
+                new Thread(new Runnable() { @Override public void run() {
+                    final String r = Converter.test(k);
+                    runOnUiThread(new Runnable() { @Override public void run() {
+                        testOut.setText("Bolchi " + BuildConfigInfo.version(SetupActivity.this) + "\n" + r);
+                    } });
+                } }).start();
+            }
+        });
+        col.addView(testBtn);
+        col.addView(testOut);
+
         // personal words: the keyboard offers them when their first letters are typed
         col.addView(text("6. My words (email, name, address)", 17, INK));
         col.addView(text("One on each line. Type the first 3 letters on the English keys and the keyboard will offer it.", 14, MUTED));
