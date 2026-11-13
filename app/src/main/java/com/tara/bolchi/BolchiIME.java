@@ -113,6 +113,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private final TextView[] sug = new TextView[3];
     private final String[] sugVal = {"", "", ""};
     private boolean sugKeepsTyped;
+    private String[] myWords = new String[0];   // her own entries (email, name) from the Bolchi app
     private boolean autoFix = true;
     private boolean noFix;
     private String fixTyped, fixDone;
@@ -656,6 +657,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (c.size() > 0) v[1] = c.get(0);
                 if (c.size() > 1) v[0] = c.get(1);
                 if (c.size() > 2) v[2] = c.get(2);
+            }
+        }
+        if (w.length() >= 3) {
+            String lw = w.toLowerCase();
+            for (String m : myWords) {
+                if (m.length() > w.length() && m.toLowerCase().startsWith(lw)) { v[2] = m; break; }
             }
         }
         for (int i = 0; i < 3; i++) {
@@ -1412,6 +1419,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         cands = new ArrayList<>();
         word.setLength(0);
         fixTyped = null;
+        List<String> mine = new ArrayList<>();
+        for (String m : prefs().getString("myWords", "").split("\n")) {
+            m = m.trim();
+            if (m.isEmpty()) continue;
+            mine.add(m);
+            for (String part : m.split("[^A-Za-z]+")) Words.addOwn(part);   // never auto-correct her own words
+        }
+        myWords = mine.toArray(new String[0]);
         int cls = info.inputType & EditorInfo.TYPE_MASK_CLASS;
         int var = info.inputType & EditorInfo.TYPE_MASK_VARIATION;
         boolean wasNoFix = noFix;

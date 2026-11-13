@@ -159,6 +159,31 @@ public class SetupActivity extends Activity {
         });
         col.addView(saveKey);
 
+        // personal words: the keyboard offers them when their first letters are typed
+        col.addView(text("6. My words (email, name, address)", 17, INK));
+        col.addView(text("One on each line. Type the first 3 letters on the English keys and the keyboard will offer it.", 14, MUTED));
+        final EditText myBox = new EditText(this);
+        myBox.setHint("yourname@gmail.com");
+        myBox.setMinLines(3);
+        myBox.setGravity(android.view.Gravity.TOP);
+        myBox.setTextColor(INK);
+        myBox.setTextSize(15);
+        myBox.setBackground(box(CARD, LINE, 12));
+        myBox.setPadding(dp(12), dp(12), dp(12), dp(12));
+        myBox.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                | android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        myBox.setText(prefs.getString("myWords", ""));
+        col.addView(myBox, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        TextView saveMy = button("Save my words");
+        saveMy.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                prefs.edit().putString("myWords", myBox.getText().toString().trim()).apply();
+                Toast.makeText(SetupActivity.this, "Saved", Toast.LENGTH_SHORT).show();
+            }
+        });
+        col.addView(saveMy);
+
         // problem report, shown only when the keyboard closed unexpectedly
         problemBox = new LinearLayout(this);
         problemBox.setOrientation(LinearLayout.VERTICAL);

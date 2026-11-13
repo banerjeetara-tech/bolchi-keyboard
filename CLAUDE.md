@@ -53,6 +53,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   build-13 behaviour by default (phone's own engine, 5 s / 4 s silence, 15 s minimum): Bangla/Hindi speech is written exactly as heard. `Spoken.java` rules run only in English mode.
   AI tidy (Gemini `Converter.tidy`, cleans everything spoken so far after each pause) is OFF by default; holding the Speak
   button turns it on/off (pref `aiTidy`). Do not turn voice changes on by default again without her testing them.
+- My words: box 6 in the Bolchi app (pref `myWords`, one entry per line, e.g. her email). Typing the first 3+ letters on the EN keys
+  shows the entry in the right suggestion slot. Never put her email or other personal text in the repo.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
