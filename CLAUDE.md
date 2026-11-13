@@ -79,6 +79,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Enter key label follows the box (`paintEnter`): Go / Search / Send / Next / Done, else ⏎ (Tara asked, like Samsung).
 - Version 23: stammer handling ("wh what's" → "What's"): AI prompt covers false starts/fillers; `Spoken.fix` drops a 1–3 letter
   broken start locally (English chip only). Silence wait shortened to 2.5 s / 2 s so the AI fix arrives sooner. Untested on phone.
+- OTP (version 24): Android 11+ inline suggestions. `onCreateInlineSuggestionsRequest` / `onInlineSuggestionsResponse` show the
+  one-time code above the keys in `otpRow`; tapping it fills the box via Android. Tara's phone is Android 17. Compile-checked
+  against Robolectric android-all 14 jar (real API 34 classes), not run on a phone. Needs Android's SMS/autofill to supply the code.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

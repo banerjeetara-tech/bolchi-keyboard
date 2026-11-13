@@ -25,6 +25,13 @@ import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.text.TextUtils;
 import android.util.SparseArray;
+import android.util.Size;
+import android.view.inputmethod.InlineSuggestion;
+import android.view.inputmethod.InlineSuggestionsRequest;
+import android.view.inputmethod.InlineSuggestionsResponse;
+import android.widget.inline.InlinePresentationSpec;
+import android.widget.inline.InlineContentView;
+import android.os.Build;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
@@ -416,6 +423,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(cBg);
         root.setPadding(0, 0, 0, dp(6));
+
+        otpRow = new LinearLayout(this);
+        otpRow.setOrientation(LinearLayout.HORIZONTAL);
+        otpRow.setGravity(Gravity.CENTER_VERTICAL);
+        otpRow.setPadding(dp(3), dp(4), dp(3), 0);
+        otpRow.setVisibility(View.GONE);
+        root.addView(otpRow, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         keysBox = new KeyArea(this);
         keysBox.setOrientation(LinearLayout.VERTICAL);
@@ -869,6 +884,43 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private TextView enterKey;
+
+    // ---------- one-time codes (OTP) offered by Android above the keys ----------
+    private LinearLayout otpRow;   // holds the suggestions; hidden when there are none
+
+    /** Asks Android for code suggestions (Android 11+). Android fills the box when one is tapped. */
+    @Override
+    public InlineSuggestionsRequest onCreateInlineSuggestionsRequest(Bundle uiExtras) {
+        if (Build.VERSION.SDK_INT < 30) return null;
+        List<InlinePresentationSpec> specs = new ArrayList<>();
+        specs.add(new InlinePresentationSpec.Builder(new Size(dp(90), dp(44)), new Size(dp(260), dp(44))).build());
+        return new InlineSuggestionsRequest.Builder(specs).setMaxSuggestionCount(3).build();
+    }
+
+    /** Android sent code suggestions: show them above the keys. */
+    @Override
+    public boolean onInlineSuggestionsResponse(InlineSuggestionsResponse response) {
+        if (Build.VERSION.SDK_INT < 30 || response == null || otpRow == null) return false;
+        List<InlineSuggestion> items = response.getInlineSuggestions();
+        clearOtp();
+        if (items == null || items.isEmpty()) return true;
+        for (InlineSuggestion item : items) {
+            item.inflate(this, new Size(dp(260), dp(44)), getMainExecutor(), new java.util.function.Consumer<InlineContentView>() {
+                @Override public void accept(InlineContentView view) {
+                    if (view == null || otpRow == null) return;
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(260), dp(44));
+                    lp.setMargins(dp(GAP), 0, dp(GAP), 0);
+                    otpRow.addView(view, lp);
+                    otpRow.setVisibility(View.VISIBLE);
+                }
+            });
+        }
+        return true;
+    }
+
+    private void clearOtp() {
+        if (otpRow != null) { otpRow.removeAllViews(); otpRow.setVisibility(View.GONE); }
+    }
 
     /** The enter key says what it will do in this box: Go, Search, Send, Next or Done. */
     private void paintEnter() {
@@ -1483,6 +1535,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         cands = new ArrayList<>();
         word.setLength(0);
         fixTyped = null;
+        clearOtp();
         List<String> mine = new ArrayList<>();
         for (String m : prefs().getString("myWords", "").split("\n")) {
             m = m.trim();
