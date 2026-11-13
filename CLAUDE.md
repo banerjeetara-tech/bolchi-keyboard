@@ -74,6 +74,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Her AI key starts with `AQ.` (new AI Studio "Auth key" format, not `AIza`). Forum reports say many AQ. keys get
   401 ACCESS_TOKEN_TYPE_UNSUPPORTED on generativelanguage.googleapis.com. Get her Test AI key result before more AI work.
   Never write her key in the repo or in chat.
+- CONFIRMED on her phone (build-25, app 21.0): Test AI key says "AI works" — Gemini connects and her AQ. key is accepted.
+  The AI fix only runs when a voice round ends, i.e. after about 5 s of silence; if she finds that slow, shorten the silence wait.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
