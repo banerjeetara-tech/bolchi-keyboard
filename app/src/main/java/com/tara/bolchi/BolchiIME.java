@@ -115,7 +115,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private boolean sugKeepsTyped;
     private String[] myWords = new String[0];   // her own entries (email, name) from the Bolchi app
     private boolean autoFix = true;
-    private boolean noFix;
+    private boolean noFix;        // password box: no suggestions at all
+    private boolean plainField;   // email / web address / number box: only her own saved words are offered
+    private final StringBuilder token = new StringBuilder();   // everything typed since the last space (to spot an email)
     private String fixTyped, fixDone;
     private float letterDp = 32;
 
@@ -647,7 +649,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         boolean bold = false;
         sugKeepsTyped = false;
         sugSwipe = false;
-        if (w.length() > 0 && Words.ready) {
+        if (w.length() > 0 && Words.ready && !plainField) {
             String fx = Words.fix(w);
             List<String> c = Words.complete(w, 3);
             if (fx != null) {
@@ -661,8 +663,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         if (w.length() >= 3) {
             String lw = w.toLowerCase();
+            int[] slot = plainField || !sugKeepsTyped ? new int[]{2, 0, 1} : new int[]{2};
+            if (plainField) slot = new int[]{1, 0, 2};
+            int used = 0;
             for (String m : myWords) {
-                if (m.length() > w.length() && m.toLowerCase().startsWith(lw)) { v[2] = m; break; }
+                if (used >= slot.length) break;
+                if (m.length() > w.length() && m.toLowerCase().startsWith(lw)) v[slot[used++]] = m;
             }
         }
         for (int i = 0; i < 3; i++) {
@@ -727,9 +733,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         word.setLength(0);
         fixTyped = null;
         if (w.isEmpty()) return;
-        if (autoFix && Words.ready && layout == 0 && !noFix) {
+        if (Words.ready && layout == 0 && !noFix && !plainField) {
             String fx = Words.fix(w);
-            if (fx != null && wordIsThere(ic, w)) {
+            if (fx == null) {
+                // a new word of hers: remember it so it is offered next time
+                if (w.length() >= 3 && !Words.known(w)) learn(w);
+            } else if (autoFix && wordIsThere(ic, w)) {
                 ic.beginBatchEdit();
                 ic.deleteSurroundingText(w.length(), 0);
                 ic.commitText(fx, 1);
@@ -739,6 +748,21 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             }
         }
         paintSugs();
+    }
+
+    /** A space or Enter ended a stretch of typing: if it was an email address, remember it. */
+    private void tokenEnd() {
+        String t = token.toString().replaceAll("[.,;:!?)]+$", "");
+        token.setLength(0);
+        if (noFix || t.length() > 80 || !t.matches("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")) return;
+        for (String m : myWords) if (m.equalsIgnoreCase(t)) return;
+        String all = prefs().getString("myWords", "").trim();
+        prefs().edit().putString("myWords", all.isEmpty() ? t : all + "\n" + t).apply();
+        String[] more = new String[myWords.length + 1];
+        System.arraycopy(myWords, 0, more, 0, myWords.length);
+        more[myWords.length] = t;
+        myWords = more;
+        flashSpace("Saved " + t);
     }
 
     /** Backspace right after an auto-correct puts the typed word back and remembers it. */
@@ -784,7 +808,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                                   int candidatesStart, int candidatesEnd) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
         // the cursor was moved by hand: forget the word we were tracking
-        if (word.length() > 0 && (newSelStart != newSelEnd || Math.abs(newSelStart - oldSelStart) > 1)) {
+        boolean jumped = newSelStart != newSelEnd || Math.abs(newSelStart - oldSelStart) > 1;
+        if (jumped) token.setLength(0);
+        if (word.length() > 0 && jumped) {
             word.setLength(0);
             paintSugs();
         }
@@ -1267,12 +1293,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (wordsOn() && s.length() == 1 && (Character.isLetter(s.charAt(0)) || (s.charAt(0) == '\'' && word.length() > 0))) {
             ic.commitText(s, 1);
             word.append(s);
+            token.append(s);
             fixTyped = null;
             paintSugs();
             return;
         }
         flushPhon(true);
-        if (" ".equals(s)) endWord(ic); else resetWord();
+        if (" ".equals(s)) { endWord(ic); tokenEnd(); }
+        else { resetWord(); if (s.length() == 1) token.append(s); else token.setLength(0); }
         ic.commitText(s, 1);
     }
 
@@ -1289,6 +1317,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.finishComposingText();
         composing = false;
         endWord(ic);
+        if (".".equals(m) && (plainField || token.indexOf("@") >= 0)) {
+            // inside an email or web address: a plain dot, no space after it
+            ic.commitText(".", 1);
+            token.append('.');
+            return;
+        }
+        tokenEnd();
         CharSequence before = ic.getTextBeforeCursor(1, 0);
         if (before != null && before.length() == 1 && before.charAt(0) == ' ') ic.deleteSurroundingText(1, 0);
         ic.commitText(m + " ", 1);
@@ -1307,6 +1342,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             return;
         }
         if (composing) { ic.finishComposingText(); composing = false; }
+        if (token.length() > 0) token.setLength(token.length() - 1);
         if (undoFix(ic)) return;
         if (swipeDone != null) {
             boolean there = swipeWordIsThere(ic);
@@ -1338,6 +1374,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.finishComposingText();
         composing = false;
         endWord(ic);
+        tokenEnd();
         EditorInfo ei = getCurrentInputEditorInfo();
         if (ei != null) {
             int action = ei.imeOptions & EditorInfo.IME_MASK_ACTION;
@@ -1430,9 +1467,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         int cls = info.inputType & EditorInfo.TYPE_MASK_CLASS;
         int var = info.inputType & EditorInfo.TYPE_MASK_VARIATION;
         boolean wasNoFix = noFix;
-        noFix = cls != EditorInfo.TYPE_CLASS_TEXT || var == EditorInfo.TYPE_TEXT_VARIATION_PASSWORD
-                || var == EditorInfo.TYPE_TEXT_VARIATION_WEB_PASSWORD || var == EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-                || var == EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS || var == EditorInfo.TYPE_TEXT_VARIATION_URI;
+        boolean text = cls == EditorInfo.TYPE_CLASS_TEXT;
+        noFix = text && (var == EditorInfo.TYPE_TEXT_VARIATION_PASSWORD
+                || var == EditorInfo.TYPE_TEXT_VARIATION_WEB_PASSWORD || var == EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+        plainField = !text || var == EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS || var == EditorInfo.TYPE_TEXT_VARIATION_URI;
+        token.setLength(0);
         if (keysBox == null) return;
         capsLock = false;
         int want = (cls == EditorInfo.TYPE_CLASS_NUMBER || cls == EditorInfo.TYPE_CLASS_PHONE) ? PAGE_SYM1 : PAGE_ABC;

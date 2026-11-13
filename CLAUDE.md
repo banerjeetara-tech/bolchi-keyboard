@@ -55,6 +55,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   button turns it on/off (pref `aiTidy`). Do not turn voice changes on by default again without her testing them.
 - My words: box 6 in the Bolchi app (pref `myWords`, one entry per line, e.g. her email). Typing the first 3+ letters on the EN keys
   shows the entry in the right suggestion slot. Never put her email or other personal text in the repo.
+- Learning: an email typed once on the keys is saved to `myWords` automatically (`tokenEnd`); a new word not in the dictionary is
+  saved to `ownWords` and offered first next time. Email/web boxes show the strip with only her saved entries; a dot inside an
+  email gets no space. Password boxes show no strip.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

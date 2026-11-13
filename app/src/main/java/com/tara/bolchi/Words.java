@@ -176,18 +176,17 @@ public final class Words {
         List<String> out = new ArrayList<>();
         if (typed == null || typed.isEmpty()) return out;
         String p = typed.toLowerCase(Locale.ROOT);
+        // her own words first, then the common English ones
+        synchronized (own) {
+            for (String s : own) {
+                if (out.size() >= max - 1) break;
+                if (s.length() > p.length() && s.startsWith(p)) out.add(matchCase(typed, s));
+            }
+        }
         String[] l = list;
         for (int i = 0; i < l.length && out.size() < max; i++) {
             String s = l[i];
-            if (s.length() > p.length() && s.startsWith(p)) out.add(matchCase(typed, s));
-        }
-        if (out.size() < max) {
-            synchronized (own) {
-                for (String s : own) {
-                    if (out.size() >= max) break;
-                    if (s.length() > p.length() && s.startsWith(p) && !out.contains(s)) out.add(matchCase(typed, s));
-                }
-            }
+            if (s.length() > p.length() && s.startsWith(p) && !out.contains(matchCase(typed, s))) out.add(matchCase(typed, s));
         }
         return out;
     }
