@@ -78,6 +78,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String lastPartial = "";
     private int tidyJob;
     private boolean tidyBusy, tidyFailed;
+    private boolean aiTidy;   // off unless she turns it on by holding Speak
     private String tidyPendSaid, tidyPendOut, tidyDone = "";
 
     private int mode = MODE_BN;
@@ -402,6 +403,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         voiceScript[0] = p.getBoolean("bnScript", false);
         voiceScript[1] = p.getBoolean("hiScript", false);
         autoFix = p.getBoolean("autoFix", true);
+        aiTidy = p.getBoolean("aiTidy", false);
         theme = p.getInt("theme", 0);
         if (theme < 0 || theme >= Themes.count()) theme = 0;
         loadColors();
@@ -483,6 +485,15 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             @Override public void onClick(View v) {
                 tick(v);
                 if (listening) stopListening(null); else startListening();
+            }
+        });
+        mic.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override public boolean onLongClick(View v) {
+                tick(v);
+                aiTidy = !aiTidy;
+                prefs().edit().putBoolean("aiTidy", aiTidy).apply();
+                flashSpace(aiTidy ? "AI tidy ON (hold Speak to turn off)" : "AI tidy OFF");
+                return true;
             }
         });
         bar.addView(mic);
@@ -1585,7 +1596,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
      * corrected version when she changes her mind, drops fumbles and adds punctuation. No need to tap Stop.
      */
     private void tidyAsk() {
-        if (tidyBusy || tidyFailed) return;
+        if (!aiTidy || tidyBusy || tidyFailed) return;
         final String said = spokenAll.toString();
         final String key = prefs().getString("aikey", "");
         if (key.trim().isEmpty() || said.equals(tidyDone) || said.trim().split("\\s+").length < 3) return;
@@ -1673,7 +1684,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     @Override
     public void onResults(Bundle results) {
         if (!listening) return;
-        String heard = Spoken.fix(first(results));
+        String heard = first(results);
+        if (mode == MODE_EN) heard = Spoken.fix(heard);   // Bangla/Hindi speech is written exactly as heard
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) {
             if (!heard.isEmpty()) {
