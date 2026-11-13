@@ -980,18 +980,6 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (otpRow != null) { otpRow.removeAllViews(); otpRow.setVisibility(View.GONE); }
     }
 
-    /** Many web pages ask for "Go" in a search box: read the box's own hint ("Search...") to tell. */
-    private boolean looksLikeSearch(EditorInfo ei) {
-        int var = ei.inputType & EditorInfo.TYPE_MASK_VARIATION;
-        if (var == EditorInfo.TYPE_TEXT_VARIATION_URI) return false;     // address bar stays "Go"
-        String all = "";
-        if (Build.VERSION.SDK_INT >= 26 && ei.hintText != null) all += ei.hintText + " ";
-        if (ei.label != null) all += ei.label + " ";
-        if (ei.privateImeOptions != null) all += ei.privateImeOptions;
-        all = all.toLowerCase();
-        return all.contains("search") || all.contains("খুঁজ") || all.contains("खोज");
-    }
-
     /** The enter key says what it will do in this box: Go, Search, Send, Next or Done. */
     private void paintEnter() {
         if (enterKey == null) return;
@@ -1002,7 +990,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             boolean noEnterAction = (ei.imeOptions & EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0;
             boolean multiLine = (ei.inputType & EditorInfo.TYPE_TEXT_FLAG_MULTI_LINE) != 0;
             if (!noEnterAction && !multiLine) {
-                if (action == EditorInfo.IME_ACTION_GO) label = looksLikeSearch(ei) ? "Search" : "Go";
+                if (action == EditorInfo.IME_ACTION_GO) label = "Go";
                 else if (action == EditorInfo.IME_ACTION_SEARCH) label = "Search";
                 else if (action == EditorInfo.IME_ACTION_SEND) label = "Send";
                 else if (action == EditorInfo.IME_ACTION_NEXT) label = "Next";
