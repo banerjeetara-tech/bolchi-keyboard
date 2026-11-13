@@ -864,6 +864,32 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         TextView enter = makeKey("⏎", 1.5f, cAcc, cOnAcc, 20);
         onPress(enter, cAcc, new Runnable() { @Override public void run() { onEnter(); } });
         r4.addView(enter);
+        enterKey = enter;
+        paintEnter();
+    }
+
+    private TextView enterKey;
+
+    /** The enter key says what it will do in this box: Go, Search, Send, Next or Done. */
+    private void paintEnter() {
+        if (enterKey == null) return;
+        String label = "⏎";
+        EditorInfo ei = getCurrentInputEditorInfo();
+        if (ei != null) {
+            int action = ei.imeOptions & EditorInfo.IME_MASK_ACTION;
+            boolean noEnterAction = (ei.imeOptions & EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0;
+            boolean multiLine = (ei.inputType & EditorInfo.TYPE_TEXT_FLAG_MULTI_LINE) != 0;
+            if (!noEnterAction && !multiLine) {
+                if (action == EditorInfo.IME_ACTION_GO) label = "Go";
+                else if (action == EditorInfo.IME_ACTION_SEARCH) label = "Search";
+                else if (action == EditorInfo.IME_ACTION_SEND) label = "Send";
+                else if (action == EditorInfo.IME_ACTION_NEXT) label = "Next";
+                else if (action == EditorInfo.IME_ACTION_DONE) label = "Done";
+            }
+        }
+        enterKey.setText(label);
+        enterKey.setTextSize(label.length() > 1 ? 14 : 20);
+        enterKey.setTypeface(label.length() > 1 ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
     }
 
     private void buildScriptKeys() {
@@ -1477,6 +1503,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         capsLock = false;
         int want = (cls == EditorInfo.TYPE_CLASS_NUMBER || cls == EditorInfo.TYPE_CLASS_PHONE) ? PAGE_SYM1 : PAGE_ABC;
         if (page != want || wasNoFix != noFix) { page = want; buildKeys(); }
+        paintEnter();
         paintSugs();
         autoShift();
         spaceText = null;
