@@ -19,6 +19,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - `Translit.java` — Bengali script to Banglish (rules + word list). `HindiTranslit.java` — Hindi to Hinglish.
 - `ScriptKeys.java` — Bangla/Hindi letter layouts; top row shows full vowels at word start, vowel signs after a consonant.
 - `Phonetic.java` — type English, get Bangla/Hindi suggestions (inputtools.google.com, no key).
+- `Words.java` — English suggestions + auto-correct (word list in `app/src/main/assets/words.txt`, Banglish/Hinglish words protected).
+  `Spoken.java` — voice self-correction ("five no sorry six" → "six", "scratch that").
 - `Converter.java` — converter options (see below). `Themes.java` — 27 themes. `Emojis.java` — emoji tabs.
 
 ## Current features (app version 9 / build-13)
@@ -30,6 +32,13 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Keys type on touch-down with press highlight; touch area covers the gaps. Bigger lowercase letters, wide space bar.
 - Long-press space opens the keyboard picker. `onEvaluateFullscreenMode` returns false.
 - 27 themes: 10 bold (black combos, navy/coral, plum/peach, forest/cream/gold, teal/white/yellow) + 17 light.
+
+## Added in app version 10 (not yet confirmed by Tara)
+- Letter size follows key width (28–38 dp, bold, ignores system font scale); keys 54 dp tall.
+- English keys: suggestion strip (3 words + Auto ✓/✕ toggle). Space/punctuation auto-corrects typos;
+  backspace right after puts the typed word back and remembers it (prefs `ownWords`).
+- 📋 paste button in the bottom bar. Key press only recolours the key (no re-layout) for faster typing.
+- Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
 - Gemini (generativelanguage.googleapis.com) could not connect from her phone (connect hung > 30 s; report showed

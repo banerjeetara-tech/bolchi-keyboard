@@ -1,6 +1,8 @@
 package com.tara.bolchi;
 
 import android.Manifest;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -18,6 +20,7 @@ import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.text.TextUtils;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
@@ -57,7 +60,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             "° • ○ ● □ ■ ♤ ♡ ◇ ♧",
             "☆ ▪ ¤ 《 》 ¡ ¿"};
 
-    private static final int KEY_H = 46;     // dp
+    private static final int KEY_H = 50;     // dp
     private static final float GAP = 1.5f;   // dp between keys
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -92,6 +95,17 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private long convStarted;
     private boolean shift, capsLock;
     private long lastShiftTap;
+
+    // word being typed on the English keys: suggestions and auto-correct
+    private final StringBuilder word = new StringBuilder();
+    private LinearLayout sugRow;
+    private final TextView[] sug = new TextView[3];
+    private final String[] sugVal = {"", "", ""};
+    private boolean sugKeepsTyped;
+    private boolean autoFix = true;
+    private boolean noFix;
+    private String fixTyped, fixDone;
+    private float letterDp = 32;
 
     private int cBg, cKey, cFn, cInk, cMuted, cAcc, cOnAcc;
 
@@ -148,6 +162,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         return new InsetDrawable(box(fill, 7), dp(GAP), dp(2), dp(GAP), dp(2));
     }
 
+    /** Changes a key's colour without rebuilding its background. */
+    private void face(View v, int fill) {
+        Object g = v.getTag();
+        if (g instanceof GradientDrawable) ((GradientDrawable) g).setColor(fill);
+        else v.setBackground(keyFace(fill));
+    }
+
     private TextView makeKey(String label, float weight, int fill, int textColor, float textSp) {
         TextView t = new TextView(this);
         t.setText(label);
@@ -155,7 +176,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         t.setTextSize(textSp);
         t.setGravity(Gravity.CENTER);
         t.setSingleLine(true);
-        t.setBackground(keyFace(fill));
+        t.setIncludeFontPadding(false);
+        GradientDrawable g = box(fill, 7);
+        t.setTag(g);
+        t.setBackground(new InsetDrawable(g, dp(GAP), dp(2), dp(GAP), dp(2)));
         t.setLayoutParams(new LinearLayout.LayoutParams(0, dp(KEY_H + 4), weight));
         return t;
     }
@@ -175,11 +199,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             @Override public boolean onTouch(View v, MotionEvent e) {
                 int a = e.getActionMasked();
                 if (a == MotionEvent.ACTION_DOWN) {
-                    v.setBackground(keyFace(pressedOf(fill)));
+                    face(v, pressedOf(fill));
                     tick(v);
                     try { action.run(); } catch (Exception ex) { saveProblem(ex); }
                 } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
-                    v.setBackground(keyFace(fill));
+                    face(v, fill);
                 }
                 return true;
             }
@@ -210,6 +234,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (layout < 0 || layout > 4) layout = 0;
         voiceScript[0] = p.getBoolean("bnScript", false);
         voiceScript[1] = p.getBoolean("hiScript", false);
+        autoFix = p.getBoolean("autoFix", true);
         theme = p.getInt("theme", 0);
         if (theme < 0 || theme >= Themes.count()) theme = 0;
         loadColors();
@@ -257,6 +282,22 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             }
         });
         bar.addView(convBtn);
+
+        TextView pasteBtn = new TextView(this);
+        pasteBtn.setText("\uD83D\uDCCB");
+        pasteBtn.setTextSize(17);
+        pasteBtn.setGravity(Gravity.CENTER);
+        pasteBtn.setBackground(box(cFn, 20));
+        LinearLayout.LayoutParams ptp = new LinearLayout.LayoutParams(dp(46), dp(40));
+        ptp.setMargins(dp(GAP), 0, dp(GAP), 0);
+        pasteBtn.setLayoutParams(ptp);
+        pasteBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                tick(v);
+                try { paste(); } catch (Exception ex) { saveProblem(ex); }
+            }
+        });
+        bar.addView(pasteBtn);
 
         chips.clear();
         for (int i = 0; i < 3; i++) {
@@ -329,6 +370,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (prev != null) prev.uncaughtException(th, ex);
             }
         });
+        for (String w : prefs().getString("ownWords", "").split(" ")) Words.addOwn(w);
+        if (!Words.ready) new Thread(new Runnable() { @Override public void run() {
+            try { Words.load(getAssets().open("words.txt")); } catch (Throwable t) { saveProblem(t); }
+        } }).start();
     }
 
     private void buildKeys() {
@@ -336,6 +381,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         letterKeys.clear();
         shiftKey = null;
         spaceKey = null;
+        sugRow = null;
+        float keyW = getResources().getDisplayMetrics().widthPixels / getResources().getDisplayMetrics().density / 10f;
+        letterDp = Math.max(28f, Math.min(38f, keyW * 0.8f));
         if (convBtn != null) {
             boolean on = page == PAGE_CONVERT;
             convBtn.setBackground(box(on ? cInk : cFn, 20));
@@ -355,6 +403,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             keysBox.addView(candRow);
             paintCands();
         } else {
+            if (wordsOn()) buildSugRow();
             LinearLayout nums = row();
             for (String k : NUMBERS.split(" ")) nums.addView(charKey(k));
             keysBox.addView(nums);
@@ -396,6 +445,166 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         updateShift();
     }
 
+    // ---------- suggestions and auto-correct (English keys) ----------
+    private boolean wordsOn() { return layout == 0 && page == PAGE_ABC && !noFix; }
+
+    private void buildSugRow() {
+        sugRow = row();
+        for (int i = 0; i < 3; i++) {
+            final int idx = i;
+            TextView t = makeKey("", 1f, cBg, cInk, 18);
+            t.setLayoutParams(new LinearLayout.LayoutParams(0, dp(40), 1f));
+            t.setEllipsize(TextUtils.TruncateAt.END);
+            onPress(t, cBg, new Runnable() { @Override public void run() { pickSug(idx); } });
+            sug[i] = t;
+            sugRow.addView(t);
+        }
+        final TextView auto = makeKey(autoFix ? "Auto \u2713" : "Auto \u2715", 0.7f, cFn, autoFix ? cInk : cMuted, 13);
+        auto.setLayoutParams(new LinearLayout.LayoutParams(0, dp(40), 0.7f));
+        onPress(auto, cFn, new Runnable() { @Override public void run() {
+            autoFix = !autoFix;
+            prefs().edit().putBoolean("autoFix", autoFix).apply();
+            auto.setText(autoFix ? "Auto \u2713" : "Auto \u2715");
+            auto.setTextColor(autoFix ? cInk : cMuted);
+            flashSpace(autoFix ? "Auto-correct on" : "Auto-correct off");
+            paintSugs();
+        } });
+        sugRow.addView(auto);
+        keysBox.addView(sugRow);
+        paintSugs();
+    }
+
+    private void paintSugs() {
+        if (sugRow == null) return;
+        String w = word.toString();
+        String[] v = {"", "", ""};
+        boolean bold = false;
+        sugKeepsTyped = false;
+        if (w.length() > 0 && Words.ready) {
+            String fx = Words.fix(w);
+            List<String> c = Words.complete(w, 3);
+            if (fx != null) {
+                v[0] = w; v[1] = fx; sugKeepsTyped = true; bold = autoFix;
+                for (String x : c) if (!x.equals(fx)) { v[2] = x; break; }
+            } else {
+                if (c.size() > 0) v[1] = c.get(0);
+                if (c.size() > 1) v[0] = c.get(1);
+                if (c.size() > 2) v[2] = c.get(2);
+            }
+        }
+        for (int i = 0; i < 3; i++) {
+            sugVal[i] = v[i];
+            String show = i == 0 && sugKeepsTyped ? "\u201C" + v[i] + "\u201D" : v[i];
+            sug[i].setText(show);
+            sug[i].setTypeface(i == 1 && bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
+        }
+    }
+
+    private void resetWord() {
+        fixTyped = null;
+        if (word.length() == 0) return;
+        word.setLength(0);
+        paintSugs();
+    }
+
+    private void learn(String w) {
+        Words.addOwn(w);
+        prefs().edit().putString("ownWords", Words.ownAsText()).apply();
+    }
+
+    /** True when the text just before the cursor is exactly the word we tracked. */
+    private boolean wordIsThere(InputConnection ic, String w) {
+        CharSequence b = ic.getTextBeforeCursor(w.length() + 1, 0);
+        if (b == null) return false;
+        String bs = b.toString();
+        return bs.endsWith(w) && (bs.length() == w.length() || !Character.isLetter(bs.charAt(0)));
+    }
+
+    private void pickSug(int i) {
+        String val = sugVal[i];
+        String w = word.toString();
+        InputConnection ic = getCurrentInputConnection();
+        if (val.isEmpty() || w.isEmpty() || ic == null) return;
+        boolean keep = i == 0 && sugKeepsTyped;
+        if (!wordIsThere(ic, w)) { resetWord(); return; }
+        ic.beginBatchEdit();
+        ic.deleteSurroundingText(w.length(), 0);
+        ic.commitText(val + " ", 1);
+        ic.endBatchEdit();
+        if (keep) learn(w);
+        resetWord();
+        autoShift();
+    }
+
+    /** A word just ended (space or punctuation): fix it if it is a typing mistake. */
+    private void endWord(InputConnection ic) {
+        String w = word.toString();
+        word.setLength(0);
+        fixTyped = null;
+        if (w.isEmpty()) return;
+        if (autoFix && Words.ready && layout == 0 && !noFix) {
+            String fx = Words.fix(w);
+            if (fx != null && wordIsThere(ic, w)) {
+                ic.beginBatchEdit();
+                ic.deleteSurroundingText(w.length(), 0);
+                ic.commitText(fx, 1);
+                ic.endBatchEdit();
+                fixTyped = w;
+                fixDone = fx;
+            }
+        }
+        paintSugs();
+    }
+
+    /** Backspace right after an auto-correct puts the typed word back and remembers it. */
+    private boolean undoFix(InputConnection ic) {
+        if (fixTyped == null) return false;
+        String typed = fixTyped, done = fixDone;
+        fixTyped = null;
+        CharSequence b = ic.getTextBeforeCursor(done.length() + 2, 0);
+        if (b == null) return false;
+        String bs = b.toString();
+        int at = bs.lastIndexOf(done);
+        if (at < 0) return false;
+        String tail = bs.substring(at + done.length());
+        if (tail.length() > 2) return false;
+        ic.beginBatchEdit();
+        ic.deleteSurroundingText(bs.length() - at, 0);
+        ic.commitText(typed + tail, 1);
+        ic.endBatchEdit();
+        learn(typed);
+        flashSpace("Kept \u201C" + typed + "\u201D");
+        return true;
+    }
+
+    private void paste() {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return;
+        flushPhon(false);
+        resetWord();
+        CharSequence txt = null;
+        try {
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData d = cm == null ? null : cm.getPrimaryClip();
+            if (d != null && d.getItemCount() > 0) txt = d.getItemAt(0).coerceToText(this);
+        } catch (Exception ignored) { /* fall back to the app's own paste */ }
+        ic.finishComposingText();
+        composing = false;
+        if (txt != null && txt.length() > 0) ic.commitText(txt.toString(), 1);
+        else if (!ic.performContextMenuAction(android.R.id.paste)) flashSpace("Nothing copied yet");
+    }
+
+    @Override
+    public void onUpdateSelection(int oldSelStart, int oldSelEnd, int newSelStart, int newSelEnd,
+                                  int candidatesStart, int candidatesEnd) {
+        super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
+        // the cursor was moved by hand: forget the word we were tracking
+        if (word.length() > 0 && (newSelStart != newSelEnd || Math.abs(newSelStart - oldSelStart) > 1)) {
+            word.setLength(0);
+            paintSugs();
+        }
+    }
+
     private TextView layoutKey() {
         TextView k = makeKey(LAYOUT_KEY[layout], 1.4f, cFn, cInk, layout == 0 ? 14 : 15);
         onPress(k, cFn, new Runnable() { @Override public void run() {
@@ -425,12 +634,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 int a = e.getActionMasked();
                 if (a == MotionEvent.ACTION_DOWN) {
                     held = false;
-                    v.setBackground(keyFace(pressedOf(cKey)));
+                    face(v, pressedOf(cKey));
                     tick(v);
                     handler.postDelayed(longHold, 600);
                 } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
                     handler.removeCallbacks(longHold);
-                    v.setBackground(keyFace(cKey));
+                    face(v, cKey);
                     if (a == MotionEvent.ACTION_UP && !held) {
                         try { typeSpace(); refreshVowelRow(); } catch (Exception ex) { saveProblem(ex); }
                     }
@@ -481,7 +690,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private TextView scriptKey(final String ch0) {
-        final TextView t = makeKey(ch0, 1f, cKey, cInk, 24);
+        final TextView t = makeKey(ch0, 1f, cKey, cInk, 28);
         onPress(t, cKey, new Runnable() { @Override public void run() {
             String ch = t.getText().toString();
             if ("।".equals(ch) || ",".equals(ch) || "?".equals(ch) || "!".equals(ch)) typeMark(ch);
@@ -574,7 +783,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         for (int i = 0; i < show.size(); i++) {
             final String c = show.get(i);
             boolean top = i == 0;
-            TextView t = makeKey(c, 1f, top ? cFn : cKey, cInk, 19);
+            TextView t = makeKey(c, 1f, top ? cFn : cKey, cInk, 21);
             if (top) t.setTypeface(Typeface.DEFAULT_BOLD);
             onPress(t, top ? cFn : cKey, new Runnable() { @Override public void run() { pickCand(c); } });
             candRow.addView(t);
@@ -593,12 +802,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             @Override public boolean onTouch(View v, MotionEvent e) {
                 int a = e.getActionMasked();
                 if (a == MotionEvent.ACTION_DOWN) {
-                    v.setBackground(keyFace(pressedOf(cFn)));
+                    face(v, pressedOf(cFn));
                     tick(v);
                     try { deleteOne(); refreshVowelRow(); } catch (Exception ex) { saveProblem(ex); }
                     handler.postDelayed(repeatDelete, 400);
                 } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
-                    v.setBackground(keyFace(cFn));
+                    face(v, cFn);
                     handler.removeCallbacks(repeatDelete);
                 }
                 return true;
@@ -610,7 +819,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private TextView charKey(final String ch) {
         final TextView t = makeKey(ch, 1f, cKey, cInk, 26);
         final boolean letter = page == PAGE_ABC && ch.length() == 1 && Character.isLetter(ch.charAt(0));
-        if (letter) letterKeys.add(t);
+        if (letter) { letterKeys.add(t); t.setTypeface(Typeface.DEFAULT_BOLD); }
         onPress(t, cKey, new Runnable() { @Override public void run() {
             String out = t.getText().toString();
             if (".".equals(ch) || ",".equals(ch) || "?".equals(ch) || "!".equals(ch)) typeMark(out);
@@ -859,9 +1068,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (phonetic() && s.length() == 1 && Character.isLetter(s.charAt(0)) && s.charAt(0) < 128) {
             typePhon(s); return;
         }
+        if (composing) { ic.finishComposingText(); composing = false; }
+        if (wordsOn() && s.length() == 1 && (Character.isLetter(s.charAt(0)) || (s.charAt(0) == '\'' && word.length() > 0))) {
+            ic.commitText(s, 1);
+            word.append(s);
+            fixTyped = null;
+            paintSugs();
+            return;
+        }
         flushPhon(true);
-        ic.finishComposingText();
-        composing = false;
+        if (" ".equals(s)) endWord(ic); else resetWord();
         ic.commitText(s, 1);
     }
 
@@ -877,6 +1093,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         flushPhon(true);
         ic.finishComposingText();
         composing = false;
+        endWord(ic);
         CharSequence before = ic.getTextBeforeCursor(1, 0);
         if (before != null && before.length() == 1 && before.charAt(0) == ' ') ic.deleteSurroundingText(1, 0);
         ic.commitText(m + " ", 1);
@@ -894,15 +1111,22 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             else askSuggestions();
             return;
         }
-        ic.finishComposingText();
-        composing = false;
+        if (composing) { ic.finishComposingText(); composing = false; }
+        if (undoFix(ic)) return;
         CharSequence sel = ic.getSelectedText(0);
-        if (sel != null && sel.length() > 0) { ic.commitText("", 1); return; }
-        CharSequence b = ic.getTextBeforeCursor(2, 0);
-        if (b != null && b.length() == 2 && Character.isSurrogatePair(b.charAt(0), b.charAt(1))) {
-            ic.deleteSurroundingText(2, 0);
-        } else {
-            sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
+        if (sel != null && sel.length() > 0) { ic.commitText("", 1); resetWord(); return; }
+        CharSequence b = ic.getTextBeforeCursor(26, 0);
+        int n = b == null ? 0 : b.length();
+        boolean pair = n >= 2 && Character.isSurrogatePair(b.charAt(n - 2), b.charAt(n - 1));
+        if (pair) ic.deleteSurroundingText(2, 0);
+        else sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
+        if (wordsOn()) {
+            // keep following the word that is left before the cursor
+            int end = Math.max(0, n - (pair ? 2 : 1)), st = end;
+            while (st > 0 && (Character.isLetter(b.charAt(st - 1)) || b.charAt(st - 1) == '\'')) st--;
+            word.setLength(0);
+            if (end - st < 25 && st < end) word.append(b, st, end);
+            paintSugs();
         }
     }
 
@@ -912,6 +1136,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         flushPhon(true);
         ic.finishComposingText();
         composing = false;
+        endWord(ic);
         EditorInfo ei = getCurrentInputEditorInfo();
         if (ei != null) {
             int action = ei.imeOptions & EditorInfo.IME_MASK_ACTION;
@@ -967,7 +1192,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         for (TextView t : letterKeys) {
             String s = t.getText().toString();
             t.setText(up ? s.toUpperCase() : s.toLowerCase());
-            t.setTextSize(up ? 26 : 31);
+            t.setTextSize(TypedValue.COMPLEX_UNIT_DIP, up ? letterDp * 0.86f : letterDp);
         }
         if (shiftKey != null) {
             shiftKey.setText(capsLock ? "⇪" : "⇧");
@@ -991,11 +1216,19 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         super.onStartInputView(info, restarting);
         phon.setLength(0);
         cands = new ArrayList<>();
+        word.setLength(0);
+        fixTyped = null;
+        int cls = info.inputType & EditorInfo.TYPE_MASK_CLASS;
+        int var = info.inputType & EditorInfo.TYPE_MASK_VARIATION;
+        boolean wasNoFix = noFix;
+        noFix = cls != EditorInfo.TYPE_CLASS_TEXT || var == EditorInfo.TYPE_TEXT_VARIATION_PASSWORD
+                || var == EditorInfo.TYPE_TEXT_VARIATION_WEB_PASSWORD || var == EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                || var == EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS || var == EditorInfo.TYPE_TEXT_VARIATION_URI;
         if (keysBox == null) return;
         capsLock = false;
-        int cls = info.inputType & EditorInfo.TYPE_MASK_CLASS;
         int want = (cls == EditorInfo.TYPE_CLASS_NUMBER || cls == EditorInfo.TYPE_CLASS_PHONE) ? PAGE_SYM1 : PAGE_ABC;
-        if (page != want) { page = want; buildKeys(); }
+        if (page != want || wasNoFix != noFix) { page = want; buildKeys(); }
+        paintSugs();
         autoShift();
         spaceText = null;
         paintSpace();
@@ -1185,7 +1418,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     @Override
     public void onResults(Bundle results) {
         if (!listening) return;
-        String heard = first(results);
+        String heard = Spoken.fix(first(results));
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) {
             if (!heard.isEmpty()) {
