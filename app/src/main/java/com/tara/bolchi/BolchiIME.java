@@ -563,8 +563,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         smsWatch = new SharedPreferences.OnSharedPreferenceChangeListener() {
             @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
                 if ("smsCode".equals(key)) handler.post(new Runnable() { @Override public void run() {
-                    prefs().edit().putString("smsCodeApp", curApp).apply();
-                    showSmsCode();
+                    showSmsCode(isInputViewShown());
                 } });
             }
         };
@@ -908,15 +907,19 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String curApp = "";   // the app whose box is open now
 
     /** Shows the newest SMS code (from SmsCodeReceiver) above the keys, for 3 minutes, once. */
-    private void showSmsCode() {
+    private void showSmsCode(boolean boxIsOpen) {
         if (smsRow == null) return;
         SharedPreferences p = prefs();
         final String code = p.getString("smsCode", "");
         long at = p.getLong("smsCodeAt", 0);
         if (code.isEmpty() || System.currentTimeMillis() - at > 2 * 60 * 1000L) return;
-        // show only in the app the code arrived in (or the app she left last, if it arrived with the keyboard closed)
+        // the first box opened after the code arrives claims it; other apps never get it
         String target = p.getString("smsCodeApp", "");
-        if (target.isEmpty()) target = p.getString("lastApp", "");
+        if (target.isEmpty()) {
+            if (!boxIsOpen) return;
+            target = curApp;
+            p.edit().putString("smsCodeApp", curApp).apply();
+        }
         if (!target.equals(curApp)) return;
         clearSms();
         TextView t = makeKey("Code " + code + "  (tap to fill)", 1f, cAcc, cOnAcc, 16);
@@ -929,6 +932,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         } });
         smsRow.addView(t, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 4)));
         smsRow.setVisibility(View.VISIBLE);
+        handler.removeCallbacks(expireSms);
+        handler.postDelayed(expireSms, 2 * 60 * 1000L);
     }
 
     /** Asks Android for code suggestions (Android 11+). Android fills the box when one is tapped. */
@@ -961,7 +966,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         return true;
     }
 
+    private final Runnable expireSms = new Runnable() {
+        @Override public void run() { clearSms(); }
+    };
+
     private void clearSms() {
+        handler.removeCallbacks(expireSms);
         if (smsRow != null) { smsRow.removeAllViews(); smsRow.setVisibility(View.GONE); }
     }
 
@@ -1586,7 +1596,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         curApp = info == null || info.packageName == null ? "" : info.packageName;
         clearOtp();
         clearSms();
-        handler.post(new Runnable() { @Override public void run() { showSmsCode(); } });
+        handler.post(new Runnable() { @Override public void run() { showSmsCode(true); } });
         List<String> mine = new ArrayList<>();
         for (String m : prefs().getString("myWords", "").split("\n")) {
             m = m.trim();
