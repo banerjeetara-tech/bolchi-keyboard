@@ -555,7 +555,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         for (String w : prefs().getString("ownWords", "").split(" ")) Words.addOwn(w);
         smsWatch = new SharedPreferences.OnSharedPreferenceChangeListener() {
             @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
-                if ("smsCode".equals(key)) handler.post(new Runnable() { @Override public void run() { showSmsCode(); } });
+                if ("smsCode".equals(key)) handler.post(new Runnable() { @Override public void run() {
+                    prefs().edit().putString("smsCodeApp", curApp).apply();
+                    showSmsCode();
+                } });
             }
         };
         prefs().registerOnSharedPreferenceChangeListener(smsWatch);
@@ -894,6 +897,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     // ---------- one-time codes (OTP) offered by Android above the keys ----------
     private LinearLayout otpRow;   // holds the suggestions; hidden when there are none
     private SharedPreferences.OnSharedPreferenceChangeListener smsWatch;
+    private String curApp = "";   // the app whose box is open now
 
     /** Shows the newest SMS code (from SmsCodeReceiver) above the keys, for 3 minutes, once. */
     private void showSmsCode() {
@@ -901,7 +905,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         SharedPreferences p = prefs();
         final String code = p.getString("smsCode", "");
         long at = p.getLong("smsCodeAt", 0);
-        if (code.isEmpty() || System.currentTimeMillis() - at > 3 * 60 * 1000L) return;
+        if (code.isEmpty() || System.currentTimeMillis() - at > 2 * 60 * 1000L) return;
+        // show only in the app the code arrived in (or the app she left last, if it arrived with the keyboard closed)
+        String target = p.getString("smsCodeApp", "");
+        if (target.isEmpty()) target = p.getString("lastApp", "");
+        if (!target.equals(curApp)) return;
         clearOtp();
         TextView t = makeKey("Code " + code + "  (tap to fill)", 1f, cAcc, cOnAcc, 16);
         t.setTypeface(Typeface.DEFAULT_BOLD);
@@ -1563,6 +1571,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         cands = new ArrayList<>();
         word.setLength(0);
         fixTyped = null;
+        curApp = info == null || info.packageName == null ? "" : info.packageName;
         clearOtp();
         handler.post(new Runnable() { @Override public void run() { showSmsCode(); } });
         List<String> mine = new ArrayList<>();
@@ -1932,6 +1941,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     @Override
     public void onFinishInputView(boolean finishingInput) {
+        clearOtp();                                   // leaving the box: the code strip goes
+        prefs().edit().putString("lastApp", curApp).apply();
         if (listening) stopListening(null);
         handler.removeCallbacks(repeatDelete);
         super.onFinishInputView(finishingInput);

@@ -32,7 +32,7 @@ public class SmsCodeReceiver extends BroadcastReceiver {
             Matcher m = CODE.matcher(text);
             if (!m.find()) return;
             SharedPreferences p = c.getSharedPreferences("bolchi", Context.MODE_PRIVATE);
-            p.edit().putString("smsCode", m.group(1)).putLong("smsCodeAt", System.currentTimeMillis()).apply();
+            p.edit().putString("smsCode", m.group(1)).putLong("smsCodeAt", System.currentTimeMillis()).putString("smsCodeApp", "").apply();
         } catch (Exception ignored) {
             // a bad message must never break the phone's messages
         }
