@@ -28,10 +28,13 @@ public class SmsCodeReceiver extends BroadcastReceiver {
             StringBuilder body = new StringBuilder();
             for (SmsMessage m : msgs) if (m != null && m.getMessageBody() != null) body.append(m.getMessageBody()).append(' ');
             String text = body.toString();
-            if (!HINT.matcher(text).find()) return;          // not a code message
+            SharedPreferences p = c.getSharedPreferences("bolchi", Context.MODE_PRIVATE);
+            boolean isCode = HINT.matcher(text).find() && CODE.matcher(text).find();
+            // only the time and a yes/no are kept, to help find problems; never the text
+            p.edit().putLong("smsAnyAt", System.currentTimeMillis()).putBoolean("smsAnyHadCode", isCode).apply();
+            if (!isCode) return;
             Matcher m = CODE.matcher(text);
             if (!m.find()) return;
-            SharedPreferences p = c.getSharedPreferences("bolchi", Context.MODE_PRIVATE);
             p.edit().putString("smsCode", m.group(1)).putLong("smsCodeAt", System.currentTimeMillis()).putString("smsCodeApp", "").apply();
         } catch (Exception ignored) {
             // a bad message must never break the phone's messages

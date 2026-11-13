@@ -37,6 +37,7 @@ public class SetupActivity extends Activity {
 
     private TextView micBtn;
     private TextView smsBtn;
+    private TextView smsInfo;
     private TextView enableBtn;
     private LinearLayout problemBox;
     private TextView problemText;
@@ -108,6 +109,8 @@ public class SetupActivity extends Activity {
             }
         });
         col.addView(smsBtn);
+        smsInfo = text("", 13, MUTED);
+        col.addView(smsInfo);
 
         col.addView(text("2. Turn on Bolchi in your keyboard list", 17, INK));
         enableBtn = button("Open keyboard settings");
@@ -263,6 +266,11 @@ public class SetupActivity extends Activity {
         boolean sms = checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED;
         smsBtn.setText(sms ? "\u2713 SMS codes allowed" : "Allow reading codes from SMS");
         smsBtn.setBackground(box(sms ? OK : ACCENT, 0, 12));
+        SharedPreferences sp = getSharedPreferences("bolchi", Context.MODE_PRIVATE);
+        long seen = sp.getLong("smsAnyAt", 0);
+        smsInfo.setText(!sms ? "" : seen == 0 ? "No text message seen by Bolchi yet."
+                : "Last text seen by Bolchi: " + java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(new java.util.Date(seen))
+                + (sp.getBoolean("smsAnyHadCode", false) ? " (a code was found)" : " (no code found in it)"));
 
         boolean on = false;
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);

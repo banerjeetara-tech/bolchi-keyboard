@@ -86,6 +86,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   that mentions code/OTP/verification, in prefs `smsCode`/`smsCodeAt`. The keyboard shows "Code 123456 (tap to fill)" above the keys
   for 2 minutes, once, ONLY in the app it arrived in (`smsCodeApp`, else `lastApp`); the strip clears when the box closes.
   Never store the SMS text. Not tested on a phone.
+- Version 27: the SMS code button lives in its own `smsRow` (Android's inline-suggestion updates were wiping it via `clearOtp`), and
+  it also shows in password-type boxes. The Bolchi app shows "Last text seen by Bolchi: time (code found?)" under the SMS button
+  to tell "no SMS broadcast" from "no code recognised". Ask Tara what that line says if the code still does not appear.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

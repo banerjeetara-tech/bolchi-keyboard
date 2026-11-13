@@ -424,6 +424,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         root.setBackgroundColor(cBg);
         root.setPadding(0, 0, 0, dp(6));
 
+        smsRow = new LinearLayout(this);
+        smsRow.setOrientation(LinearLayout.HORIZONTAL);
+        smsRow.setPadding(dp(3), dp(4), dp(3), 0);
+        smsRow.setVisibility(View.GONE);
+        root.addView(smsRow, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
         otpRow = new LinearLayout(this);
         otpRow.setOrientation(LinearLayout.HORIZONTAL);
         otpRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -895,13 +902,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private TextView enterKey;
 
     // ---------- one-time codes (OTP) offered by Android above the keys ----------
-    private LinearLayout otpRow;   // holds the suggestions; hidden when there are none
+    private LinearLayout otpRow;   // Android's own suggestions; hidden when there are none
+    private LinearLayout smsRow;   // the code read from SMS; separate so Android's updates never wipe it
     private SharedPreferences.OnSharedPreferenceChangeListener smsWatch;
     private String curApp = "";   // the app whose box is open now
 
     /** Shows the newest SMS code (from SmsCodeReceiver) above the keys, for 3 minutes, once. */
     private void showSmsCode() {
-        if (otpRow == null || noFix) return;
+        if (smsRow == null) return;
         SharedPreferences p = prefs();
         final String code = p.getString("smsCode", "");
         long at = p.getLong("smsCodeAt", 0);
@@ -910,17 +918,17 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String target = p.getString("smsCodeApp", "");
         if (target.isEmpty()) target = p.getString("lastApp", "");
         if (!target.equals(curApp)) return;
-        clearOtp();
+        clearSms();
         TextView t = makeKey("Code " + code + "  (tap to fill)", 1f, cAcc, cOnAcc, 16);
         t.setTypeface(Typeface.DEFAULT_BOLD);
         onPress(t, cAcc, new Runnable() { @Override public void run() {
             InputConnection ic = getCurrentInputConnection();
             if (ic != null) ic.commitText(code, 1);
             prefs().edit().remove("smsCode").apply();   // used: do not offer it again
-            clearOtp();
+            clearSms();
         } });
-        otpRow.addView(t, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 4)));
-        otpRow.setVisibility(View.VISIBLE);
+        smsRow.addView(t, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 4)));
+        smsRow.setVisibility(View.VISIBLE);
     }
 
     /** Asks Android for code suggestions (Android 11+). Android fills the box when one is tapped. */
@@ -951,6 +959,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             });
         }
         return true;
+    }
+
+    private void clearSms() {
+        if (smsRow != null) { smsRow.removeAllViews(); smsRow.setVisibility(View.GONE); }
     }
 
     private void clearOtp() {
@@ -1573,6 +1585,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         fixTyped = null;
         curApp = info == null || info.packageName == null ? "" : info.packageName;
         clearOtp();
+        clearSms();
         handler.post(new Runnable() { @Override public void run() { showSmsCode(); } });
         List<String> mine = new ArrayList<>();
         for (String m : prefs().getString("myWords", "").split("\n")) {
@@ -1941,7 +1954,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     @Override
     public void onFinishInputView(boolean finishingInput) {
-        clearOtp();                                   // leaving the box: the code strip goes
+        clearOtp();                                   // leaving the box: the code strips go
+        clearSms();
         prefs().edit().putString("lastApp", curApp).apply();
         if (listening) stopListening(null);
         handler.removeCallbacks(repeatDelete);
