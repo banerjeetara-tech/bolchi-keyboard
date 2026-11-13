@@ -36,6 +36,7 @@ public class SetupActivity extends Activity {
     private static final int LINE = Color.parseColor("#E6D7C3");
 
     private TextView micBtn;
+    private TextView smsBtn;
     private TextView enableBtn;
     private LinearLayout problemBox;
     private TextView problemText;
@@ -97,6 +98,16 @@ public class SetupActivity extends Activity {
             }
         });
         col.addView(micBtn);
+
+        col.addView(text("Codes from SMS (OTP)", 17, INK));
+        col.addView(text("Allow this and Bolchi shows the one-time code above the keys, so you can tap it. Bolchi keeps only the code, not your messages.", 14, MUTED));
+        smsBtn = button("Allow reading codes from SMS");
+        smsBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                requestPermissions(new String[]{Manifest.permission.RECEIVE_SMS}, 2);
+            }
+        });
+        col.addView(smsBtn);
 
         col.addView(text("2. Turn on Bolchi in your keyboard list", 17, INK));
         enableBtn = button("Open keyboard settings");
@@ -249,6 +260,9 @@ public class SetupActivity extends Activity {
         boolean mic = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
         micBtn.setText(mic ? "✓ Microphone allowed" : "Allow microphone");
         micBtn.setBackground(box(mic ? OK : ACCENT, 0, 12));
+        boolean sms = checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED;
+        smsBtn.setText(sms ? "\u2713 SMS codes allowed" : "Allow reading codes from SMS");
+        smsBtn.setBackground(box(sms ? OK : ACCENT, 0, 12));
 
         boolean on = false;
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);

@@ -82,6 +82,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - OTP (version 24): Android 11+ inline suggestions. `onCreateInlineSuggestionsRequest` / `onInlineSuggestionsResponse` show the
   one-time code above the keys in `otpRow`; tapping it fills the box via Android. Tara's phone is Android 17. Compile-checked
   against Robolectric android-all 14 jar (real API 34 classes), not run on a phone. Needs Android's SMS/autofill to supply the code.
+- SMS codes (version 25): `SmsCodeReceiver` (RECEIVE_SMS, asked on the setup screen) keeps only a 4–8 digit code from a message
+  that mentions code/OTP/verification, in prefs `smsCode`/`smsCodeAt`. The keyboard shows "Code 123456 (tap to fill)" above the keys
+  for 3 minutes, once (`showSmsCode`). Never store the SMS text. Not tested on a phone.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

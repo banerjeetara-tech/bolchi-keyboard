@@ -553,6 +553,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             }
         });
         for (String w : prefs().getString("ownWords", "").split(" ")) Words.addOwn(w);
+        smsWatch = new SharedPreferences.OnSharedPreferenceChangeListener() {
+            @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
+                if ("smsCode".equals(key)) handler.post(new Runnable() { @Override public void run() { showSmsCode(); } });
+            }
+        };
+        prefs().registerOnSharedPreferenceChangeListener(smsWatch);
         if (!Words.ready) new Thread(new Runnable() { @Override public void run() {
             try { Words.load(getAssets().open("words.txt")); } catch (Throwable t) { saveProblem(t); }
         } }).start();
@@ -887,6 +893,27 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     // ---------- one-time codes (OTP) offered by Android above the keys ----------
     private LinearLayout otpRow;   // holds the suggestions; hidden when there are none
+    private SharedPreferences.OnSharedPreferenceChangeListener smsWatch;
+
+    /** Shows the newest SMS code (from SmsCodeReceiver) above the keys, for 3 minutes, once. */
+    private void showSmsCode() {
+        if (otpRow == null || noFix) return;
+        SharedPreferences p = prefs();
+        final String code = p.getString("smsCode", "");
+        long at = p.getLong("smsCodeAt", 0);
+        if (code.isEmpty() || System.currentTimeMillis() - at > 3 * 60 * 1000L) return;
+        clearOtp();
+        TextView t = makeKey("Code " + code + "  (tap to fill)", 1f, cAcc, cOnAcc, 16);
+        t.setTypeface(Typeface.DEFAULT_BOLD);
+        onPress(t, cAcc, new Runnable() { @Override public void run() {
+            InputConnection ic = getCurrentInputConnection();
+            if (ic != null) ic.commitText(code, 1);
+            prefs().edit().remove("smsCode").apply();   // used: do not offer it again
+            clearOtp();
+        } });
+        otpRow.addView(t, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 4)));
+        otpRow.setVisibility(View.VISIBLE);
+    }
 
     /** Asks Android for code suggestions (Android 11+). Android fills the box when one is tapped. */
     @Override
@@ -919,6 +946,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private void clearOtp() {
+        // (code shown by showSmsCode is cleared here too)
         if (otpRow != null) { otpRow.removeAllViews(); otpRow.setVisibility(View.GONE); }
     }
 
@@ -1536,6 +1564,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         word.setLength(0);
         fixTyped = null;
         clearOtp();
+        handler.post(new Runnable() { @Override public void run() { showSmsCode(); } });
         List<String> mine = new ArrayList<>();
         for (String m : prefs().getString("myWords", "").split("\n")) {
             m = m.trim();
