@@ -407,7 +407,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         voiceScript[0] = p.getBoolean("bnScript", false);
         voiceScript[1] = p.getBoolean("hiScript", false);
         autoFix = p.getBoolean("autoFix", true);
-        aiTidy = p.getBoolean("aiTidy", false);
+        aiTidy = p.getBoolean("aiFix", true);
         theme = p.getInt("theme", 0);
         if (theme < 0 || theme >= Themes.count()) theme = 0;
         loadColors();
@@ -495,8 +495,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             @Override public boolean onLongClick(View v) {
                 tick(v);
                 aiTidy = !aiTidy;
-                prefs().edit().putBoolean("aiTidy", aiTidy).apply();
-                flashSpace(aiTidy ? "AI tidy ON (hold Speak to turn off)" : "AI tidy OFF");
+                prefs().edit().putBoolean("aiFix", aiTidy).apply();
+                flashSpace(aiTidy ? "AI fix ON (hold Speak to turn off)" : "AI fix OFF");
                 return true;
             }
         });

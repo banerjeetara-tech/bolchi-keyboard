@@ -63,6 +63,12 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Tara's main ask: speak Bengali mixed with English words. The engine listens only in the dark chip's language. Her screenshots
   showed the English chip dark; she also reported the app shows "Bolchi 7.0" (so check which build is really installed).
   Idea not yet tried: language-switch extras (API 34 `ENABLE_LANGUAGE_SWITCH`) for mixed speech — only with her testing.
+- MAIN ASK (clarified, version 20): she speaks Bengali mixed with English on the Bangla chip and wants Banglish for the Bengali
+  and correct English spelling for the English. The bn-IN engine writes English by sound ("aai em apdeting phrom the link").
+  Only the AI can repair that, so the AI fix (`Converter.tidy`, pref `aiFix`) is ON by default when an AI key is saved; holding
+  Speak turns it off. If Gemini does not connect from her phone the text stays as spoken (space bar says so) — then a local
+  phonetic respelling table (CMUdict-based) is the fallback idea. On the English chip the phone engine mishears words
+  ("app version and GitHub version" → "abortion and guitar version"); that is engine quality, not Bolchi.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
