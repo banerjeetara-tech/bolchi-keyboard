@@ -77,6 +77,9 @@ public final class Words {
         ready = true;
     }
 
+    /** All words, most used first. */
+    public static String[] all() { return list; }
+
     /** Words the user wants kept as typed. */
     public static void addOwn(String w) {
         if (w == null || w.isEmpty()) return;

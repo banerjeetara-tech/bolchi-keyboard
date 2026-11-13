@@ -7,7 +7,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -107,7 +110,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private LinearLayout sugRow;
     private final TextView[] sug = new TextView[3];
     private final String[] sugVal = {"", "", ""};
-    private boolean sugKeepsTyped, sugPaste;
+    private boolean sugKeepsTyped;
     private boolean autoFix = true;
     private boolean noFix;
     private String fixTyped, fixDone;
@@ -123,7 +126,25 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
      * second thumb when the first finger rests on an empty spot, and ignores taps that land between keys.
      */
     private class KeyArea extends LinearLayout {
-        KeyArea(Context c) { super(c); }
+        KeyArea(Context c) { super(c); setWillNotDraw(false); }
+
+        @Override
+        protected void dispatchDraw(Canvas canvas) {
+            super.dispatchDraw(canvas);
+            if (!swiping || swN < 2) return;
+            swPaint.setColor(cAcc);
+            swPaint.setAlpha(170);
+            swPaint.setStyle(Paint.Style.STROKE);
+            swPaint.setStrokeWidth(dp(7));
+            swPaint.setStrokeCap(Paint.Cap.ROUND);
+            swPaint.setStrokeJoin(Paint.Join.ROUND);
+            swPaint.setAntiAlias(true);
+            swPath.rewind();
+            int from = Math.max(0, swN - 60);
+            swPath.moveTo(swX[from], swY[from]);
+            for (int i = from + 1; i < swN; i++) swPath.lineTo(swX[i], swY[i]);
+            canvas.drawPath(swPath, swPaint);
+        }
 
         @Override
         public boolean dispatchTouchEvent(MotionEvent ev) {
@@ -135,18 +156,94 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (a == MotionEvent.ACTION_DOWN) heldKeys.clear();
                 if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_POINTER_DOWN) {
                     View k = keyAt(ev.getX(idx), ev.getY(idx));
+                    if (swId != -1) { swId = -1; swiping = false; invalidate(); }   // a second finger: plain typing
+                    else if (a == MotionEvent.ACTION_DOWN && k != null && wordsOn() && letterKeys.contains(k)) {
+                        swId = id; swN = 0; swiping = false; swKeyW = k.getWidth();
+                        swFirst = ((TextView) k).getText().toString();
+                        swAdd(ev.getX(idx), ev.getY(idx));
+                    }
                     if (k != null) { heldKeys.put(id, k); sendTo(k, MotionEvent.ACTION_DOWN, ev); }
+                } else if (a == MotionEvent.ACTION_MOVE) {
+                    int pi = swId == -1 ? -1 : ev.findPointerIndex(swId);
+                    if (pi >= 0) {
+                        for (int h = 0; h < ev.getHistorySize(); h++) swAdd(ev.getHistoricalX(pi, h), ev.getHistoricalY(pi, h));
+                        swAdd(ev.getX(pi), ev.getY(pi));
+                        if (!swiping && Math.hypot(ev.getX(pi) - swX[0], ev.getY(pi) - swY[0]) > swKeyW * 0.75f) swiping = true;
+                        if (swiping) invalidate();
+                    }
                 } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_POINTER_UP) {
                     View k = heldKeys.get(id);
                     heldKeys.remove(id);
                     if (k != null) sendTo(k, MotionEvent.ACTION_UP, ev);
+                    if (id == swId) {
+                        boolean was = swiping;
+                        swId = -1; swiping = false; invalidate();
+                        if (was) finishSwipe();
+                    }
                 } else if (a == MotionEvent.ACTION_CANCEL) {
+                    swId = -1; swiping = false; invalidate();
                     for (int i = 0; i < heldKeys.size(); i++) sendTo(heldKeys.valueAt(i), MotionEvent.ACTION_CANCEL, ev);
                     heldKeys.clear();
                 }
             } catch (Exception ex) { saveProblem(ex); }
             return true;
         }
+    }
+
+    // ---------- gesture typing: slide over the letters of a word ----------
+    private final float[] swX = new float[600], swY = new float[600];
+    private int swN, swId = -1;
+    private boolean swiping;
+    private float swKeyW;
+    private String swFirst = "";
+    private String swipeDone;          // the word (with its space) the last slide wrote
+    private boolean sugSwipe;
+    private final Paint swPaint = new Paint();
+    private final Path swPath = new Path();
+
+    private void swAdd(float x, float y) {
+        if (swN > 0 && Math.hypot(x - swX[swN - 1], y - swY[swN - 1]) < dp(3)) return;
+        if (swN < swX.length) { swX[swN] = x; swY[swN] = y; swN++; }
+    }
+
+    private void finishSwipe() {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null || !Words.ready || letterKeys.size() < 26) return;
+        float[] cx = new float[26], cy = new float[26];
+        for (TextView t : letterKeys) {
+            String s = t.getText().toString().toLowerCase();
+            if (s.length() != 1 || s.charAt(0) < 'a' || s.charAt(0) > 'z' || !(t.getParent() instanceof View)) continue;
+            View row = (View) t.getParent();
+            cx[s.charAt(0) - 'a'] = row.getLeft() + t.getLeft() + t.getWidth() / 2f;
+            cy[s.charAt(0) - 'a'] = row.getTop() + t.getTop() + t.getHeight() / 2f;
+        }
+        List<String> got = Swipe.decode(swX, swY, swN, cx, cy, swKeyW, 3);
+        if (got.isEmpty()) return;                       // nothing fits: the first letter stays
+        String w = Words.matchCase(swFirst, got.get(0));
+        ic.beginBatchEdit();
+        ic.deleteSurroundingText(1, 0);                  // the letter typed when the finger touched down
+        CharSequence b = ic.getTextBeforeCursor(1, 0);
+        boolean glue = b == null || b.length() == 0 || Character.isWhitespace(b.charAt(0)) || "([{\"'".indexOf(b.charAt(0)) >= 0;
+        ic.commitText((glue ? "" : " ") + w + " ", 1);
+        ic.endBatchEdit();
+        word.setLength(0);
+        fixTyped = null;
+        swipeDone = w + " ";
+        if (sugRow != null) {
+            sugKeepsTyped = false;
+            sugSwipe = true;
+            String[] v = {got.size() > 2 ? Words.matchCase(swFirst, got.get(2)) : "", "", got.size() > 1 ? Words.matchCase(swFirst, got.get(1)) : ""};
+            v[1] = v[2]; v[2] = v[0]; v[0] = "";
+            for (int i = 0; i < 3; i++) { sugVal[i] = v[i]; sug[i].setText(v[i]); sug[i].setTypeface(Typeface.DEFAULT); }
+        }
+        autoShift();
+    }
+
+    /** Backspace or another choice right after a slide works on the whole word. */
+    private boolean swipeWordIsThere(InputConnection ic) {
+        if (swipeDone == null) return false;
+        CharSequence b = ic.getTextBeforeCursor(swipeDone.length(), 0);
+        return b != null && b.toString().equals(swipeDone);
     }
 
     private void sendTo(View k, int action, MotionEvent from) {
@@ -536,7 +633,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String[] v = {"", "", ""};
         boolean bold = false;
         sugKeepsTyped = false;
-        sugPaste = false;
+        sugSwipe = false;
         if (w.length() > 0 && Words.ready) {
             String fx = Words.fix(w);
             List<String> c = Words.complete(w, 3);
@@ -581,6 +678,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
+        if (sugSwipe) {
+            // another guess for the word that was just slid
+            if (val.isEmpty() || ic == null || !swipeWordIsThere(ic)) return;
+            ic.beginBatchEdit();
+            ic.deleteSurroundingText(swipeDone.length(), 0);
+            ic.commitText(val + " ", 1);
+            ic.endBatchEdit();
+            swipeDone = val + " ";
+            sugVal[i] = "";
+            sug[i].setText("");
+            return;
+        }
         if (val.isEmpty() || w.isEmpty() || ic == null) return;
         boolean keep = i == 0 && sugKeepsTyped;
         if (!wordIsThere(ic, w)) { resetWord(); return; }
@@ -1135,6 +1244,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             typePhon(s); return;
         }
         if (composing) { ic.finishComposingText(); composing = false; }
+        swipeDone = null;
         if (wordsOn() && s.length() == 1 && (Character.isLetter(s.charAt(0)) || (s.charAt(0) == '\'' && word.length() > 0))) {
             ic.commitText(s, 1);
             word.append(s);
@@ -1179,6 +1289,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         if (composing) { ic.finishComposingText(); composing = false; }
         if (undoFix(ic)) return;
+        if (swipeDone != null) {
+            boolean there = swipeWordIsThere(ic);
+            int len = swipeDone.length();
+            swipeDone = null;
+            if (there) { ic.deleteSurroundingText(len, 0); word.setLength(0); paintSugs(); autoShift(); return; }
+        }
         CharSequence sel = ic.getSelectedText(0);
         if (sel != null && sel.length() > 0) { ic.commitText("", 1); resetWord(); return; }
         CharSequence b = ic.getTextBeforeCursor(26, 0);

@@ -21,6 +21,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - `Phonetic.java` — type English, get Bangla/Hindi suggestions (inputtools.google.com, no key).
 - `Words.java` — English suggestions + auto-correct (word list in `app/src/main/assets/words.txt`, Banglish/Hinglish words protected).
   `Spoken.java` — voice self-correction ("five no sorry six" → "six", "scratch that").
+  `Swipe.java` — gesture typing decoder.
 - `Converter.java` — converter options (see below). `Themes.java` — 27 themes. `Emojis.java` — emoji tabs.
 
 ## Current features (app version 9 / build-13)
@@ -45,6 +46,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (`keyAt`, within 34 dp), because normal Android delivery dropped the second thumb when the first finger rested on an empty
   spot and ignored taps between keys. Emoji and converter pages still use normal touch. Keys type first, then buzz.
   Tara reported on version 10/11: letters come late, taps missed, wrong neighbour letter (English too) — not yet confirmed fixed.
+- Gesture typing (version 14, EN keys only): slide over a word's letters and lift. `Swipe.java` matches the path against the
+  word list (top-1 about 92% on synthetic paths, untested on a real phone). The letter typed at touch-down is replaced by the word
+  plus a space; other guesses show in the suggestion row; backspace right after removes the whole word. Trail drawn in `KeyArea`.
 - Voice AI tidy (Wispr Flow style, no Stop needed): after every pause, if an AI key is saved, Gemini (`Converter.tidy`) cleans
   everything spoken so far in this Speak session (keeps the corrected version, drops fumbles, punctuation) and swaps it in while
   she keeps talking. If Gemini cannot connect it stops trying for that session; rules in `Spoken.java` still apply.
