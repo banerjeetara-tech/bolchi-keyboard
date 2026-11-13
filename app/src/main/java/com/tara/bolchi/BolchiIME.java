@@ -1532,15 +1532,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (recognizer != null) {
             try { recognizer.destroy(); } catch (Exception e) { /* already gone */ }
         }
-        recognizer = null;
-        // Prefer Google's voice engine: Samsung's default often sends no live text for Bangla/Hindi.
-        try {
-            getPackageManager().getPackageInfo("com.google.android.googlequicksearchbox", 0);
-            recognizer = SpeechRecognizer.createSpeechRecognizer(this, new android.content.ComponentName(
-                    "com.google.android.googlequicksearchbox",
-                    "com.google.android.voicesearch.serviceapi.GoogleRecognitionService"));
-        } catch (Exception e) { recognizer = null; }
-        if (recognizer == null || googleFailed) recognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        // Phone's own voice engine, as in build-13 (forcing Google's engine made Bangla worse for Tara).
+        recognizer = SpeechRecognizer.createSpeechRecognizer(this);
         recognizer.setRecognitionListener(this);
     }
 
@@ -1555,8 +1548,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
             i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
             i.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
-            i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L);
-            i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L);
+            i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5000L);
+            i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 4000L);
+            i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 15000L);
             recognizer.startListening(i);
         } catch (Exception e) {
             retryLater();

@@ -49,8 +49,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Gesture typing (version 14, EN keys only): slide over a word's letters and lift. `Swipe.java` matches the path against the
   word list (top-1 about 92% on synthetic paths, untested on a real phone). The letter typed at touch-down is replaced by the word
   plus a space; other guesses show in the suggestion row; backspace right after removes the whole word. Trail drawn in `KeyArea`.
-- Voice (version 15): Tara said Bengali voice got worse after version 10–14 ("was better yesterday"). So voice is back to
-  build-13 behaviour by default: Bangla/Hindi speech is written exactly as heard. `Spoken.java` rules run only in English mode.
+- Voice (version 16): build-19 (another session) forced Google's voice engine and a 1.5 s silence wait; after that Tara said Bengali voice got worse after version 10–14 ("was better yesterday"). So voice is back to
+  build-13 behaviour by default (phone's own engine, 5 s / 4 s silence, 15 s minimum): Bangla/Hindi speech is written exactly as heard. `Spoken.java` rules run only in English mode.
   AI tidy (Gemini `Converter.tidy`, cleans everything spoken so far after each pause) is OFF by default; holding the Speak
   button turns it on/off (pref `aiTidy`). Do not turn voice changes on by default again without her testing them.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
