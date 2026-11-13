@@ -34,8 +34,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - 27 themes: 10 bold (black combos, navy/coral, plum/peach, forest/cream/gold, teal/white/yellow) + 17 light.
 
 ## Added in app version 10 (not yet confirmed by Tara)
-- Letter size follows key width, 25–33 dp (capitals 0.88×), regular weight, ignores system font scale; keys 50 dp tall.
-  (Version 10 tried 38 dp bold: Tara said "very big, looking very bad". Do not go bigger again without a real screenshot check.)
+- Letter size 22–26 dp (capitals 0.9×), regular weight, ignores system font scale; keys 50 dp tall. Tara rejected 38 dp bold
+  and 33 dp as "too large, odd": keep letters about the size of the number row. Rows use `setBaselineAligned(false)` so keys stay level.
 - English keys: suggestion strip (3 words + Auto ✓/✕ toggle). Space/punctuation auto-corrects typos;
   backspace right after puts the typed word back and remembers it (prefs `ownWords`).
 - No paste button or paste suggestion: Tara wants only the app's normal long-press Paste (`paste()` in BolchiIME is unused).

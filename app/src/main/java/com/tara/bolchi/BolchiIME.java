@@ -271,6 +271,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                     tick(v);
                 } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
                     face(v, fill);
+                    if (v == shiftKey) updateShift();
                 }
                 return true;
             }
@@ -286,6 +287,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private LinearLayout row() {
         LinearLayout r = new LinearLayout(this);
         r.setOrientation(LinearLayout.HORIZONTAL);
+        r.setBaselineAligned(false);   // keep every key level, whatever its text size
         r.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         return r;
@@ -437,7 +439,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         spaceKey = null;
         sugRow = null;
         float keyW = getResources().getDisplayMetrics().widthPixels / getResources().getDisplayMetrics().density / 10f;
-        letterDp = Math.max(25f, Math.min(33f, keyW * 0.72f));
+        letterDp = Math.max(22f, Math.min(26f, keyW * 0.6f));
         if (convBtn != null) {
             boolean on = page == PAGE_CONVERT;
             convBtn.setBackground(box(on ? cInk : cFn, 20));
@@ -1256,11 +1258,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         for (TextView t : letterKeys) {
             String s = t.getText().toString();
             t.setText(up ? s.toUpperCase() : s.toLowerCase());
-            t.setTextSize(TypedValue.COMPLEX_UNIT_DIP, up ? letterDp * 0.88f : letterDp);
+            t.setTextSize(TypedValue.COMPLEX_UNIT_DIP, up ? letterDp * 0.9f : letterDp);
         }
         if (shiftKey != null) {
             shiftKey.setText(capsLock ? "⇪" : "⇧");
-            shiftKey.setBackground(box(up ? cKey : cFn, 7));
+            face(shiftKey, up ? cKey : cFn);
             shiftKey.setTextColor(up ? cAcc : cInk);
         }
     }
