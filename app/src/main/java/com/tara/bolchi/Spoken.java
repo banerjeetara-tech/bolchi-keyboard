@@ -34,6 +34,11 @@ public final class Spoken {
     public static String fix(String heard) {
         if (heard == null) return "";
         List<String> tok = new ArrayList<>(Arrays.asList(heard.trim().split("\\s+")));
+        // stammer: a broken start of the next word ("wh what's") is dropped
+        for (int i = tok.size() - 2; i >= 0; i--) {
+            String a = norm(tok.get(i)), b = norm(tok.get(i + 1));
+            if (a.length() >= 1 && a.length() <= 3 && b.length() > a.length() && b.startsWith(a) && !Words.common(a)) tok.remove(i);
+        }
         for (int round = 0; round < 6; round++) {
             List<String> n = new ArrayList<>();
             for (String t : tok) n.add(norm(t));

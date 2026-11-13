@@ -125,7 +125,9 @@ final class Converter {
                         + "spelling ('I am updating from the link you provided', 'meeting', 'office', 'section'). If the text is "
                         + "in Bengali or Hindi script, keep that script and write the English words in English letters. "
                         + "When the speaker corrects themselves (for example 'at five, no sorry, six'), keep only the corrected "
-                        + "version. Remove accidental repeats. Add basic punctuation and capital letters. Do not add or remove "
+                        + "version. Remove stammering and false starts: a broken piece of a word followed by the full word "
+                        + "('wh what's' becomes 'What's', 'I I think' becomes 'I think', 'ami ami jabo' becomes 'ami jabo'), and "
+                        + "filler sounds like 'um', 'uh', 'aa'. Remove accidental repeats. Add basic punctuation and capital letters. Do not add or remove "
                         + "meaning and do not answer the text. Reply with only the cleaned text.",
                 text);
     }

@@ -103,6 +103,14 @@ public final class Words {
         synchronized (own) { return own.contains(l); }
     }
 
+    /** True for very common real words (so "to tomorrow" is not taken for a stammer). */
+    public static boolean common(String w) {
+        String l = w.toLowerCase(Locale.ROOT);
+        if (isOwnOrDesi(l)) return true;
+        Integer r = rank.get(l);
+        return r != null && r < 1500;
+    }
+
     /** Gives the word the same capital letters as the typed one. */
     public static String matchCase(String typed, String cand) {
         if (cand.equals("i") || cand.startsWith("i'")) return "I" + cand.substring(1);
