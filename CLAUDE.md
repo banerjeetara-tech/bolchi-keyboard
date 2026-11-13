@@ -77,6 +77,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - CONFIRMED on her phone (build-25, app 21.0): Test AI key says "AI works" — Gemini connects and her AQ. key is accepted.
   The AI fix only runs when a voice round ends, i.e. after about 5 s of silence; if she finds that slow, shorten the silence wait.
 - Enter key label follows the box (`paintEnter`): Go / Search / Send / Next / Done, else ⏎ (Tara asked, like Samsung).
+  If a web box asks for Go but its hint/label says "search", it shows Search (`looksLikeSearch`); address bar (URI) stays Go.
 - Version 23: stammer handling ("wh what's" → "What's"): AI prompt covers false starts/fillers; `Spoken.fix` drops a 1–3 letter
   broken start locally (English chip only). Silence wait shortened to 2.5 s / 2 s so the AI fix arrives sooner. Untested on phone.
 - OTP (version 24): Android 11+ inline suggestions. `onCreateInlineSuggestionsRequest` / `onInlineSuggestionsResponse` show the
