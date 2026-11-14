@@ -203,6 +203,36 @@ public class SetupActivity extends Activity {
         col.addView(testBtn);
         col.addView(testOut);
 
+        // GIF suggestions (Giphy free key)
+        col.addView(text("GIFs (Giphy key)", 17, INK));
+        col.addView(text("Get a free key at developers.giphy.com (Create an App, choose API), copy it and paste it here. Then GIFs appear above the keys next to the emoji when you type a word like love or happy.", 14, MUTED));
+        final EditText gifKeyBox = new EditText(this);
+        gifKeyBox.setHint("Paste your Giphy key");
+        gifKeyBox.setSingleLine(true);
+        gifKeyBox.setTextColor(INK);
+        gifKeyBox.setTextSize(15);
+        gifKeyBox.setBackground(box(CARD, LINE, 12));
+        gifKeyBox.setPadding(dp(12), dp(12), dp(12), dp(12));
+        gifKeyBox.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+        gifKeyBox.setText(prefs.getString("giphyKey", ""));
+        col.addView(gifKeyBox, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        final TextView gifOut = text("", 14, MUTED);
+        TextView gifBtn = button("Save and test GIF key");
+        gifBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                final String k = gifKeyBox.getText().toString().trim();
+                prefs.edit().putString("giphyKey", k).apply();
+                gifOut.setText("Testing\u2026");
+                new Thread(new Runnable() { @Override public void run() {
+                    final String r = Gifs.test(k);
+                    runOnUiThread(new Runnable() { @Override public void run() { gifOut.setText(r); } });
+                } }).start();
+            }
+        });
+        col.addView(gifBtn);
+        col.addView(gifOut);
+
         // her own phone numbers, offered when she types phone / mobile / number
         col.addView(text("My phone numbers", 17, INK));
         col.addView(text("One on each line. When you type the word phone, mobile or number, the keyboard offers these numbers to tap. (If your own number is in the Me card of your phone book it is found by itself.)", 14, MUTED));

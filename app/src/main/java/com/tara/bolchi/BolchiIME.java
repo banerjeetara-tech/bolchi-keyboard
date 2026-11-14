@@ -32,6 +32,10 @@ import android.view.inputmethod.InlineSuggestionsResponse;
 import android.widget.inline.InlinePresentationSpec;
 import android.widget.inline.InlineContentView;
 import android.os.Build;
+import android.content.ClipDescription;
+import android.graphics.Bitmap;
+import android.view.inputmethod.InputContentInfo;
+import android.widget.ImageView;
 import android.net.Uri;
 import android.database.Cursor;
 import android.provider.ContactsContract;
@@ -438,6 +442,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         root.addView(smsRow, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        gifScroll = new HorizontalScrollView(this);
+        gifScroll.setHorizontalScrollBarEnabled(false);
+        gifScroll.setPadding(dp(3), dp(4), dp(3), 0);
+        gifScroll.setVisibility(View.GONE);
+        gifBox = new LinearLayout(this);
+        gifBox.setOrientation(LinearLayout.HORIZONTAL);
+        gifScroll.addView(gifBox, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(gifScroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
         contactScroll = new HorizontalScrollView(this);
         contactScroll.setHorizontalScrollBarEnabled(false);
         contactScroll.setPadding(dp(3), 0, dp(3), 0);
@@ -833,6 +847,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             sug[i].setText(show);
             sug[i].setTypeface(i == 1 && bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
         }
+        maybeGifs(w);
     }
 
     private void resetWord() {
@@ -1124,6 +1139,106 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         for (String n : myNumbers) { String d = n.replaceAll("[^0-9]", ""); if (!d.isEmpty() && seen.add(d)) out.add(n); }
         for (String n : meNumbers) { String d = n.replaceAll("[^0-9]", ""); if (!d.isEmpty() && seen.add(d)) out.add(n); }
         return out;
+    }
+
+    // ---------- GIFs beside the emoji suggestions (Giphy) ----------
+    private HorizontalScrollView gifScroll;
+    private LinearLayout gifBox;
+    private String gifFor = "";
+    private int gifJob;
+    private Runnable gifAsk;
+
+    private void hideGifs() {
+        gifJob++;
+        gifFor = "";
+        if (gifAsk != null) handler.removeCallbacks(gifAsk);
+        if (gifScroll != null) { gifBox.removeAllViews(); gifScroll.setVisibility(View.GONE); }
+    }
+
+    /** A word that has emoji also gets GIFs (after a short pause, so typing is never held up). */
+    private void maybeGifs(String w) {
+        if (gifScroll == null) return;
+        final String key = prefs().getString("giphyKey", "").trim();
+        String[] em = (!plainField && layout == 0 && wordsOn() && !key.isEmpty() && w.length() >= 3) ? EmojiHints.get(w) : null;
+        if (em == null) { if (!gifFor.isEmpty()) hideGifs(); return; }
+        final String q = w.toLowerCase();
+        if (q.equals(gifFor)) return;
+        hideGifs();
+        gifFor = q;
+        final int job = gifJob;
+        gifAsk = new Runnable() { @Override public void run() {
+            new Thread(new Runnable() { @Override public void run() {
+                final List<Gifs.Item> items;
+                final List<Bitmap> pics = new ArrayList<>();
+                List<Gifs.Item> got;
+                try { got = Gifs.search(key, q); } catch (Throwable t) { got = null; }
+                items = got;
+                if (items != null) for (int i = 0; i < items.size() && i < 6; i++) pics.add(Gifs.bitmap(items.get(i).thumb));
+                handler.post(new Runnable() { @Override public void run() {
+                    if (job != gifJob || items == null || items.isEmpty()) return;
+                    gifBox.removeAllViews();
+                    for (int i = 0; i < pics.size(); i++) {
+                        if (pics.get(i) == null) continue;
+                        final Gifs.Item it = items.get(i);
+                        ImageView iv = new ImageView(BolchiIME.this);
+                        iv.setImageBitmap(pics.get(i));
+                        iv.setAdjustViewBounds(true);
+                        iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                        iv.setBackground(box(cKey, 8));
+                        iv.setOnClickListener(new View.OnClickListener() {
+                            @Override public void onClick(View v) { tick(v); sendGif(it); }
+                        });
+                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(64));
+                        lp.setMargins(0, 0, dp(4), 0);
+                        gifBox.addView(iv, lp);
+                    }
+                    if (gifBox.getChildCount() > 0) { gifScroll.scrollTo(0, 0); gifScroll.setVisibility(View.VISIBLE); }
+                } });
+            } }).start();
+        } };
+        handler.postDelayed(gifAsk, 450);
+    }
+
+    private boolean acceptsGif(EditorInfo ei) {
+        try {
+            String[] t = (String[]) EditorInfo.class.getField("contentMimeTypes").get(ei);
+            if (t == null && ei.extras != null) t = ei.extras.getStringArray("androidx.core.view.inputmethod.EditorInfoCompat.CONTENT_MIME_TYPES");
+            if (t == null) return false;
+            for (String m : t) if ("image/gif".equals(m) || "image/*".equals(m) || "*/*".equals(m)) return true;
+            return false;
+        } catch (Throwable ignored) {
+            return true;   // cannot tell: try, and fall back to the link
+        }
+    }
+
+    private void sendGif(final Gifs.Item it) {
+        flashSpace("Getting the GIF\u2026");
+        new Thread(new Runnable() { @Override public void run() {
+            java.io.File f = null;
+            try { f = Gifs.download(BolchiIME.this, it.gif); } catch (Throwable ignored) { }
+            final java.io.File file = f;
+            handler.post(new Runnable() { @Override public void run() {
+                InputConnection ic = getCurrentInputConnection();
+                if (ic == null) return;
+                boolean ok = false;
+                EditorInfo ei = getCurrentInputEditorInfo();
+                if (file != null && Build.VERSION.SDK_INT >= 25 && ei != null && acceptsGif(ei)) {
+                    try {
+                        Uri uri = Uri.parse("content://com.tara.bolchi.gifs/" + file.getName());
+                        InputContentInfo info = new InputContentInfo(uri, new ClipDescription("GIF", new String[]{"image/gif"}), Uri.parse(it.gif));
+                        ok = ic.commitContent(info, InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION, null);
+                    } catch (Throwable ignored) { ok = false; }
+                }
+                if (ok) { flashSpace("GIF sent"); }
+                else {
+                    // this app does not take pictures from the keyboard: the link still shows the GIF in chats
+                    ic.commitText(it.gif + " ", 1);
+                    flashSpace("This app takes links: GIF link sent");
+                }
+                word.setLength(0);
+                paintSugs();
+            } });
+        } }).start();
     }
 
     private long contactsLoadedAt;
@@ -2262,6 +2377,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         clearOtp();                                   // leaving the box: the code strips go
         clearSms();
         if (contactScroll != null) contactScroll.setVisibility(View.GONE);
+        hideGifs();
         prefs().edit().putString("lastApp", curApp).apply();
         if (listening) stopListening(null);
         handler.removeCallbacks(repeatDelete);

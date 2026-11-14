@@ -29,7 +29,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Tapping the already-selected Bangla/Hindi chip switches voice output to script (বাংলা / हिंदी) and back.
 - Voice keeps listening through pauses until Stop (restarts Android SpeechRecognizer each round).
 - Layout key next to the smiley cycles: EN → ab→বাং → ab→हिं → বাং keys → हिं keys.
-- Number row, Samsung-style !#1 → 1/2, 2/2 symbol pages, emoji panel. No GIFs/stickers (Samsung has them).
+- Number row, Samsung-style !#1 → 1/2, 2/2 symbol pages, emoji panel. GIFs: see version 43 below (she first said Samsung only, then asked for GIFs beside the emoji suggestions).
 - Keys type on touch-down with press highlight; touch area covers the gaps. Bigger lowercase letters, wide space bar.
 - Long-press space opens the keyboard picker. `onEvaluateFullscreenMode` returns false.
 - 27 themes: 10 bold (black combos, navy/coral, plum/peach, forest/cream/gold, teal/white/yellow) + 17 light.
@@ -124,6 +124,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 42: auto-correct was turning Banglish into English on the EN keys ("bhat" → "beat", so her words were never learned and no
   predictions appeared after "ami bhat khabo" typed 3-4 times). `Words.fix` now skips Banglish-looking spellings (`looksBanglish`: bh/kh/gh/jh/dh
   starts, "aa", verb endings bo/chi/cho/che/lam...) and the protected word list (`DESI`) is longer.
+- Version 43: GIF suggestions (Giphy). Free key pasted in the Bolchi app (pref `giphyKey`, "Save and test GIF key"). When a typed word has emoji
+  (`EmojiHints`) and a key exists, `maybeGifs` waits 450 ms, searches Giphy (`Gifs.search`, rating g) and shows up to 6 still thumbnails in `gifScroll`
+  above the keys; tap sends the GIF with `InputConnection.commitContent` via `GifProvider` (content://com.tara.bolchi.gifs, cache dir), or a
+  link if the app takes no pictures. Only the typed word and her key go to Giphy. Not tested on a phone; the extra row can move the keys.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
