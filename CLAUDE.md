@@ -163,6 +163,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   top row, backspace-undo, saved names, migrated old ownWords; prefs `keptWords`, `keep()`), no longer from usage counts or auto-learned words.
   A word she typed before (`autoReplaceOk` false) is left as typed but the corrected word is still offered in bold (`fixPrompt`): tap the bold word to
   swap it in, tap her original to keep it forever. Tara: "even if I use wrong words multiple times... it will show the wrong one".
+- Version 62: font MODE. Choosing Bold / Italic / Bold italic or a Font style chip in the converter also sets `typeStyle`, so everything she types next on the EN keys
+  comes out in that font (`commit` swaps each letter/digit via `FontStyles.apply`; word suggestions step aside); the space bar shows the font and "(font on)".
+  The first chip "Normal" (fontStyle -1) turns it off and restores plain letters. Not for upside down / strikethrough / underline. In memory only.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

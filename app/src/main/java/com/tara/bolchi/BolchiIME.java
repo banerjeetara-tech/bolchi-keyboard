@@ -116,6 +116,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private final List<TextView> vowelKeys = new ArrayList<>();
     private boolean vowelRowFull;
     private int convOption = 0;
+    private int typeStyle = -1;   // a font chosen in the converter: new English typing comes out in it (-1 = normal)
     private int fontStyle = 3;   // the style chosen under "Font style" (starts on Script)
     private int convJob = 0;
     private String convResult = null;
@@ -248,7 +249,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.deleteSurroundingText(1, 0);                  // the letter typed when the finger touched down
         CharSequence b = ic.getTextBeforeCursor(1, 0);
         boolean glue = b == null || b.length() == 0 || Character.isWhitespace(b.charAt(0)) || "([{\"'".indexOf(b.charAt(0)) >= 0;
-        ic.commitText((glue ? "" : " ") + w + " ", 1);
+        ic.commitText((glue ? "" : " ") + (typeStyle >= 0 ? FontStyles.apply(typeStyle, w) : w) + " ", 1);
         ic.endBatchEdit();
         word.setLength(0);
         fixTyped = null;
@@ -1867,14 +1868,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             hs.setHorizontalScrollBarEnabled(false);
             LinearLayout fb = new LinearLayout(this);
             fb.setOrientation(LinearLayout.HORIZONTAL);
-            for (int i = 0; i < FontStyles.NAMES.length; i++) {
+            for (int i = -1; i < FontStyles.NAMES.length; i++) {
                 final int st = i;
                 TextView chip = new TextView(this);
-                chip.setText(FontStyles.apply(i, "Abc 12"));
+                chip.setText(i < 0 ? "Normal" : FontStyles.apply(i, "Abc 12"));
                 chip.setTextSize(17);
                 chip.setGravity(Gravity.CENTER);
                 chip.setPadding(dp(14), 0, dp(14), 0);
-                boolean sel = i == fontStyle;
+                boolean sel = i == (fontStyle);
                 chip.setTextColor(sel ? cKey : cInk);
                 chip.setBackground(box(sel ? cInk : cKey, 10));
                 chip.setOnClickListener(new View.OnClickListener() {
@@ -1941,9 +1942,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final String key = prefs().getString("aikey", "");
         if (opt == 2) { showResult(job, Converter.toEnglishLetters(src)); return; }
         if (opt >= 8) {   // fonts work on the phone at once, no internet
-            int st = opt == 8 ? FontStyles.BOLD : opt == 9 ? FontStyles.ITALIC : opt == 10 ? FontStyles.BOLD_ITALIC : fontStyle;
-            String styled = FontStyles.apply(st, src);
+            int st = opt == 8 ? FontStyles.BOLD : opt == 9 ? FontStyles.ITALIC : opt == 10 ? FontStyles.BOLD_ITALIC : fontStyle;   // -1 = Normal
+            String styled = st < 0 ? FontStyles.plain(src) : FontStyles.apply(st, src);
+            typeStyle = st >= 0 && st <= 19 ? st : -1;     // new typing follows the chosen font (not for upside down / strikethrough / underline)
             replaceText(styled);            // applied right away: it stays when she leaves the converter
+            paintSpace();
             showResult(job, styled);
             return;
         }
@@ -2018,6 +2021,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         if (composing) { ic.finishComposingText(); composing = false; }
         swipeDone = null;
+        if (typeStyle >= 0 && layout == 0 && s.length() == 1 && s.charAt(0) < 128 && Character.isLetterOrDigit(s.charAt(0))) {
+            // font mode: the letter goes in as its styled look-alike; suggestions and auto-correct step aside
+            resetWord();
+            lastWord = "";
+            token.setLength(0);
+            ic.commitText(FontStyles.apply(typeStyle, s), 1);
+            return;
+        }
         if (wordsOn() && s.length() == 1 && (Character.isLetter(s.charAt(0)) || (s.charAt(0) == '\'' && word.length() > 0))) {
             ic.commitText(s, 1);
             word.append(s);
@@ -2297,7 +2308,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     private void paintSpace() {
         if (spaceKey == null) return;
-        String s = spaceText != null ? spaceText : listening ? "Listening…" : "Bolchi";
+        String s = spaceText != null ? spaceText : listening ? "Listening…"
+                : typeStyle >= 0 ? FontStyles.apply(typeStyle, FontStyles.NAMES[typeStyle]) + "  (font on)" : "Bolchi";
         spaceKey.setText(s);
     }
 
