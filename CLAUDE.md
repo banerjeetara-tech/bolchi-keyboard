@@ -155,6 +155,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 59: fonts in the converter (`FontStyles.java`, 23 Unicode look-alike styles: bold, italic, script, fraktur, circled, small caps, upside down,
   strikethrough...). New tabs Bold / Italic / Bold italic (options 8-10) and "Font style" (option 11) which shows a scrolling row of every style as a chip
   (`fontStyle`); all local, no internet. Result box + "Replace my text" as usual. 12 tabs now (3 rows of 4). Bangla/Hindi letters are left unchanged.
+- Version 60: (1) fonts apply AT ONCE when picked (Bold/Italic/Bold italic tabs and the Font style chips call `replaceText`; `FontStyles.plain` turns
+  already-styled text back to plain letters first so another font can be chosen; the button says "Done"). (2) After an auto-correct the top row keeps
+  her ORIGINAL word (quoted) and the CORRECTED word (bold) until she types on (`fixShownTyped/Done`, `slotFix`): tap the original to put it back
+  and learn it. Tara: "keep original / correct word in the tab with bold so that I can understand which one is correct".
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

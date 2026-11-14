@@ -52,7 +52,39 @@ public final class FontStyles {
 
     private static boolean letter(int c) { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'); }
 
+    private static java.util.HashMap<Integer, Character> rev;
+
+    /** Turns text that is already in a font back into plain letters, so a new font can be chosen. */
+    public static String plain(String text) {
+        if (text == null) return "";
+        if (rev == null) {
+            java.util.HashMap<Integer, Character> m = new java.util.HashMap<>();
+            String all = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+            for (int st = 0; st < NAMES.length; st++) {
+                if (st == 20 || st == 21 || st == 22) continue;
+                for (int i = 0; i < all.length(); i++) {
+                    String o = applyRaw(st, String.valueOf(all.charAt(i)));
+                    if (o.codePointCount(0, o.length()) == 1 && o.codePointAt(0) != all.charAt(i)) m.put(o.codePointAt(0), all.charAt(i));
+                }
+            }
+            rev = m;
+        }
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < text.length(); ) {
+            int cp = text.codePointAt(i);
+            i += Character.charCount(cp);
+            Character c = rev.get(cp);
+            if (c != null) b.append(c.charValue());
+            else if (cp != 0x0336 && cp != 0x0332) b.appendCodePoint(cp);
+        }
+        return b.toString();
+    }
+
     public static String apply(int style, String text) {
+        return applyRaw(style, plain(text));
+    }
+
+    private static String applyRaw(int style, String text) {
         if (text == null || text.isEmpty() || style < 0 || style >= NAMES.length) return text == null ? "" : text;
         StringBuilder b = new StringBuilder();
         if (style == 20) {                                       // upside down: flip every letter and read backwards

@@ -813,10 +813,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         sugSwipe = false;
         slotEmoji[0] = slotEmoji[1] = slotEmoji[2] = false;
         slotNext[0] = slotNext[1] = slotNext[2] = false;
+        slotFix[0] = slotFix[1] = slotFix[2] = false;
         slotNum[0] = slotNum[1] = slotNum[2] = false;
         slotNumFill[0] = slotNumFill[1] = slotNumFill[2] = false;
         boolean[] ownSlot = new boolean[3];
-        if (w.isEmpty() && !plainField && layout == 0 && Words.ready) {
+        if (w.isEmpty() && fixShownTyped != null && !plainField && layout == 0) {
+            // a word was just corrected: show what she typed and what it became (in bold), so she can see which is which
+            v[0] = fixShownTyped; v[1] = fixShownDone;
+            slotFix[0] = true; slotFix[1] = true;
+            bold = true;
+        } else if (w.isEmpty() && !plainField && layout == 0 && Words.ready) {
             // after a space: the words she usually writes next
             List<String> nx = Words.nextAfter(lastWord, 3);
             int[] order = {1, 0, 2};
@@ -870,7 +876,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         for (int i = 0; i < 3; i++) {
             sugVal[i] = v[i];
-            String show = i == 0 && sugKeepsTyped ? "\u201C" + v[i] + "\u201D" : v[i];
+            String show = i == 0 && (sugKeepsTyped || slotFix[0]) ? "\u201C" + v[i] + "\u201D" : v[i];
             sug[i].setText(show);
             sug[i].setTypeface(i == 1 && bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
         }
@@ -901,6 +907,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
+        if (slotFix[i] && ic != null && fixShownDone != null) {
+            if (i == 0) {                    // tap her original word: put it back and remember it
+                String done = fixShownDone, typed = fixShownTyped;
+                CharSequence b = ic.getTextBeforeCursor(done.length() + 1, 0);
+                String bs = b == null ? "" : b.toString();
+                if (bs.endsWith(done + " ")) { ic.deleteSurroundingText(done.length() + 1, 0); ic.commitText(typed + " ", 1); learn(typed); }
+                else if (bs.endsWith(done)) { ic.deleteSurroundingText(done.length(), 0); ic.commitText(typed, 1); learn(typed); }
+            }
+            fixShownTyped = fixShownDone = null;
+            paintSugs();
+            return;
+        }
         if (slotNumFill[i] && !val.isEmpty() && ic != null) {
             int n = numTyped.length();
             CharSequence b = ic.getTextBeforeCursor(n, 0);
@@ -983,6 +1001,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 ic.endBatchEdit();
                 fixTyped = w;
                 fixDone = fx;
+                fixShownTyped = w;
+                fixShownDone = fx;
                 finalWord = fx;
             }
             // count the word she wrote (the corrected one if it was fixed) and which word came before it
@@ -1157,6 +1177,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String curApp = "";   // the app whose box is open now
     private HorizontalScrollView contactScroll;   // full phone book names for the word being typed
     private LinearLayout contactBox;
+    private String fixShownTyped, fixShownDone;                 // the last auto-correct, kept in the top row
+    private final boolean[] slotFix = new boolean[3];            // slot 0 = her original word, slot 1 = the corrected word
     private String lastWord = "";          // the word before the cursor position (for next-word suggestions)
     private int usageEdits;
     private final boolean[] slotNext = new boolean[3];   // this slot holds a predicted next word
@@ -1868,6 +1890,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             page = PAGE_ABC; buildKeysSoon();
         } });
         if (convOption == 3) use.setText("Add result");
+        else if (convOption >= 8) use.setText("Done");
         if (convResult != null && convResult.startsWith("\u26A0")) use.setText("Try again");
         act.addView(use);
         keysBox.addView(act);
@@ -1891,7 +1914,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (opt == 2) { showResult(job, Converter.toEnglishLetters(src)); return; }
         if (opt >= 8) {   // fonts work on the phone at once, no internet
             int st = opt == 8 ? FontStyles.BOLD : opt == 9 ? FontStyles.ITALIC : opt == 10 ? FontStyles.BOLD_ITALIC : fontStyle;
-            showResult(job, FontStyles.apply(st, src));
+            String styled = FontStyles.apply(st, src);
+            replaceText(styled);            // applied right away: it stays when she leaves the converter
+            showResult(job, styled);
             return;
         }
         if (opt == 3 && !Converter.hasCurrency(src)) {
@@ -1970,6 +1995,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             word.append(s);
             token.append(s);
             fixTyped = null;
+            fixShownTyped = fixShownDone = null;
             paintSugs();
             return;
         }
@@ -2023,6 +2049,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (composing) { ic.finishComposingText(); composing = false; }
         if (token.length() > 0) token.setLength(token.length() - 1);
         if (numTyped.length() > 0) numTyped.setLength(numTyped.length() - 1);
+        fixShownTyped = fixShownDone = null;
         if (undoFix(ic)) return;
         if (swipeDone != null) {
             boolean there = swipeWordIsThere(ic);
@@ -2141,6 +2168,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         fixTyped = null;
         curApp = info == null || info.packageName == null ? "" : info.packageName;
         lastWord = "";
+        fixShownTyped = fixShownDone = null;
         clearOtp();
         clearSms();
         loadContactsSoon();
