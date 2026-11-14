@@ -169,6 +169,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 63: the top row while typing a word has a fixed meaning (Tara: "the predictive one will show the corrected one in bold, and mine will come as from the memory"):
   MIDDLE slot in BOLD = the keyboard's own correction (`Words.fix`) or dictionary prediction (`dictCompletions`); LEFT/RIGHT, normal weight = HER word:
   what she typed (quoted, when a correction exists) or words from her memory (`memoryMatches`: most used, learned words, contacts).
+- Version 64: strikethrough and underline are font modes too (Tara asked why not): `FontStyles.apply` marks spaces as well so the line runs on, `commit` styles a typed space in
+  those modes, and backspace deletes letter+mark together (`marked` in `deleteOne`). Only upside down stays a one-time conversion.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

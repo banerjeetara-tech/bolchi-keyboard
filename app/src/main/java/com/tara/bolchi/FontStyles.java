@@ -127,7 +127,7 @@ public final class FontStyles {
                 else b.append(c);
             } else {                                             // 21 strikethrough, 22 underline
                 b.append(c);
-                if (c != ' ' && c != '\n') b.append(style == 21 ? '̶' : '̲');
+                if (c != '\n') b.append(style == 21 ? '̶' : '̲');
             }
         }
         return b.toString();

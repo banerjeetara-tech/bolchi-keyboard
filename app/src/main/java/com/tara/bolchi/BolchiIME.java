@@ -1952,7 +1952,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (opt >= 8) {   // fonts work on the phone at once, no internet
             int st = opt == 8 ? FontStyles.BOLD : opt == 9 ? FontStyles.ITALIC : opt == 10 ? FontStyles.BOLD_ITALIC : fontStyle;   // -1 = Normal
             String styled = st < 0 ? FontStyles.plain(src) : FontStyles.apply(st, src);
-            typeStyle = st >= 0 && st <= 19 ? st : -1;     // new typing follows the chosen font (not for upside down / strikethrough / underline)
+            typeStyle = st >= 0 && st != 20 ? st : -1;     // new typing follows the chosen font (not upside down: it would have to be written backwards)
             replaceText(styled);            // applied right away: it stays when she leaves the converter
             paintSpace();
             showResult(job, styled);
@@ -2029,7 +2029,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         if (composing) { ic.finishComposingText(); composing = false; }
         swipeDone = null;
-        if (typeStyle >= 0 && layout == 0 && s.length() == 1 && s.charAt(0) < 128 && Character.isLetterOrDigit(s.charAt(0))) {
+        if (typeStyle >= 0 && layout == 0 && s.length() == 1 && s.charAt(0) < 128
+                && (Character.isLetterOrDigit(s.charAt(0)) || (typeStyle >= 21 && s.charAt(0) == ' '))) {
             // font mode: the letter goes in as its styled look-alike; suggestions and auto-correct step aside
             resetWord();
             lastWord = "";
@@ -2109,11 +2110,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         CharSequence b = ic.getTextBeforeCursor(26, 0);
         int n = b == null ? 0 : b.length();
         boolean pair = n >= 2 && Character.isSurrogatePair(b.charAt(n - 2), b.charAt(n - 1));
-        if (pair) ic.deleteSurroundingText(2, 0);
+        boolean marked = n >= 2 && (b.charAt(n - 1) == 0x0336 || b.charAt(n - 1) == 0x0332);   // letter + strikethrough/underline mark
+        if (pair || marked) ic.deleteSurroundingText(2, 0);
         else sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
         if (wordsOn()) {
             // keep following the word that is left before the cursor
-            int end = Math.max(0, n - (pair ? 2 : 1)), st = end;
+            int end = Math.max(0, n - (pair || marked ? 2 : 1)), st = end;
             while (st > 0 && (Character.isLetter(b.charAt(st - 1)) || b.charAt(st - 1) == '\'')) st--;
             word.setLength(0);
             if (end - st < 25 && st < end) word.append(b, st, end);
