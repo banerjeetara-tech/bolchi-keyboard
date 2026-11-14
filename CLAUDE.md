@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 74 = build-81** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 75 = build-83** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -227,6 +227,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   - Not built: shortcuts, slide on space bar, keyboard size.
 - Version 74: "today" / "time" showed emoji and GIFs instead of the date (the GIF row replaced the word row, because those words have emoji). `paintSugs` now
   skips GIFs while a date, time or sum is in the word row. Tara did not understand the text steps for the 📋 💬 🔍 tabs: explain with pictures, not lists.
+- Version 75 (Tara: "why anything is not working like auto correct in other app or search"; she did not say which app). Two likely causes fixed, unconfirmed:
+  (1) browser address / search bars are URI boxes, where the word row, corrections, emoji were all off (`plainField`). Now `uriBox`: words are suggested and a correction
+  is OFFERED in bold but never swapped in (web addresses must not change); a dot gets no space; no emoji/GIFs there. Email and password boxes stay off.
+  (2) `onUpdateSelection`: browsers and web pages report several typed letters as one big cursor move, which wiped the tracked word (so no suggestions / corrections).
+  A move within 400 ms of her own typing (`lastTypeAt`), or with the tracked word still before the cursor, is no longer a jump. If it still fails, ask WHICH app and box.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

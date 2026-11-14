@@ -130,6 +130,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String justEnded = "";  // the word that was just finished: its emoji and GIFs stay until she types on
     private long justEndedAt;
     private String typeStyleApp = "";   // the app where she turned the font on: the font is used only there
+    private boolean uriBox;             // a web address / browser search bar: words are suggested and corrections offered, never swapped in by themselves
+    private long lastTypeAt;            // when she last typed or deleted (to tell her own typing from a cursor moved by hand)
     private boolean plainBox;           // search, address, email, password boxes: real letters only
 
     /** The font stays on in every app (Tara), but never in boxes that need real letters (search, folder names, emails...). */
@@ -951,7 +953,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         // a word that has emojis (being typed, or just finished with a space): offer them, never over her saved words
         final String ew = w.isEmpty() ? justEnded : w;
-        if (!plainField && !sugKeepsTyped && ew.length() >= 2) {
+        if (!plainField && !uriBox && !sugKeepsTyped && ew.length() >= 2) {
             String[] em = EmojiHints.get(ew);
             if (em != null) {
                 int[] order = {2, 0};
@@ -970,7 +972,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             sug[i].setTypeface(i == 1 && bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
         }
         // a date, the time or a sum is showing in the word row: GIFs must not cover it
-        maybeGifs(slotDate[2] || slotCalc[1] ? "" : ew);
+        maybeGifs(slotDate[2] || slotCalc[1] || uriBox ? "" : ew);
     }
 
     private static final String[] DATE_WORDS = {"today", "tomorrow", "yesterday", "date", "now", "time"};
@@ -1164,7 +1166,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             } else if (fx == null) {
                 // a new word of hers: remember it so it is offered next time
                 if (w.length() >= 3 && !Words.known(w)) learn(w);
-            } else if (autoFix && calm && Words.sureFix(w) && wordIsThere(ic, w) && Words.autoReplaceOk(w)) {
+            } else if (autoFix && calm && !uriBox && Words.sureFix(w) && wordIsThere(ic, w) && Words.autoReplaceOk(w)) {
                 ic.beginBatchEdit();
                 ic.deleteSurroundingText(shown(w).length(), 0);
                 ic.commitText(shown(fx), 1);
@@ -1258,6 +1260,15 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         // with a font on, one typed letter is two characters long (a styled letter, or a letter plus its line), so the cursor moves by 2 per letter
         int step = fontOn() ? 2 : 1;
         boolean jumped = newSelStart != newSelEnd || Math.abs(newSelStart - oldSelStart) > step;
+        // Some apps (browsers, web pages, search bars) report several typed letters as one big cursor move. That is her own typing, not a jump:
+        // she typed a moment ago, or the tracked word still sits right before the cursor.
+        if (jumped && newSelStart == newSelEnd) {
+            if (System.currentTimeMillis() - lastTypeAt < 400) jumped = false;
+            else if (word.length() > 0) {
+                InputConnection jc = getCurrentInputConnection();
+                if (jc != null && wordIsThere(jc, word.toString())) jumped = false;
+            }
+        }
         if (jumped && System.currentTimeMillis() - justEndedAt > 400) justEnded = "";
         if (jumped) { token.setLength(0); lastWord = ""; if (numTyped.length() > 0) { numTyped.setLength(0); paintSugs(); } }
         if (word.length() > 0 && jumped) {
@@ -2244,6 +2255,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void commit(String s) {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
+        lastTypeAt = System.currentTimeMillis();
         if (emoSearch && page == PAGE_ABC) {
             if (s.length() == 1 && Character.isLetterOrDigit(s.charAt(0)) && s.charAt(0) < 128) {
                 if (emoQuery.length() < 20) emoQuery.append(Character.toLowerCase(s.charAt(0)));
@@ -2310,7 +2322,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         composing = false;
         endWord(ic);
         lastWord = "";
-        if (".".equals(m) && (plainField || token.indexOf("@") >= 0)) {
+        if (".".equals(m) && (plainField || uriBox || token.indexOf("@") >= 0)) {
             // inside an email or web address: a plain dot, no space after it
             ic.commitText(".", 1);
             token.append('.');
@@ -2583,6 +2595,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void deleteOne() {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
+        lastTypeAt = System.currentTimeMillis();
         if (emoSearch && page == PAGE_ABC) {
             if (emoQuery.length() == 0) endEmojiSearch();
             else { emoQuery.setLength(emoQuery.length() - 1); paintEmojiSearch(); }
@@ -2757,9 +2770,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         boolean text = cls == EditorInfo.TYPE_CLASS_TEXT;
         noFix = text && (var == EditorInfo.TYPE_TEXT_VARIATION_PASSWORD
                 || var == EditorInfo.TYPE_TEXT_VARIATION_WEB_PASSWORD || var == EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
-        plainField = !text || var == EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS || var == EditorInfo.TYPE_TEXT_VARIATION_URI;
+        uriBox = text && var == EditorInfo.TYPE_TEXT_VARIATION_URI;
+        plainField = !text || var == EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS;
         int act = info.imeOptions & EditorInfo.IME_MASK_ACTION;
-        plainBox = plainField || noFix || var == EditorInfo.TYPE_TEXT_VARIATION_FILTER
+        plainBox = plainField || uriBox || noFix || var == EditorInfo.TYPE_TEXT_VARIATION_FILTER
                 || act == EditorInfo.IME_ACTION_SEARCH || act == EditorInfo.IME_ACTION_GO;
         token.setLength(0);
         if (keysBox == null) return;
