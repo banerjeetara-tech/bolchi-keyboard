@@ -1168,35 +1168,43 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final int job = gifJob;
         gifAsk = new Runnable() { @Override public void run() {
             new Thread(new Runnable() { @Override public void run() {
-                final List<Gifs.Item> items;
-                final List<Bitmap> pics = new ArrayList<>();
                 List<Gifs.Item> got;
                 try { got = Gifs.search(key, q); } catch (Throwable t) { got = null; }
-                items = got;
-                if (items != null) for (int i = 0; i < items.size() && i < 6; i++) pics.add(Gifs.bitmap(items.get(i).thumb));
+                final List<Gifs.Item> items = got;
+                if (items == null || items.isEmpty()) return;
+                // show the row at once with empty frames, then every picture fills in the moment it arrives
                 handler.post(new Runnable() { @Override public void run() {
-                    if (job != gifJob || items == null || items.isEmpty()) return;
+                    if (job != gifJob) return;
                     gifBox.removeAllViews();
-                    for (int i = 0; i < pics.size(); i++) {
-                        if (pics.get(i) == null) continue;
+                    for (int i = 0; i < items.size(); i++) {
                         final Gifs.Item it = items.get(i);
-                        ImageView iv = new ImageView(BolchiIME.this);
-                        iv.setImageBitmap(pics.get(i));
+                        final ImageView iv = new ImageView(BolchiIME.this);
                         iv.setAdjustViewBounds(true);
                         iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
                         iv.setBackground(box(cKey, 8));
                         iv.setOnClickListener(new View.OnClickListener() {
                             @Override public void onClick(View v) { tick(v); sendGif(it); }
                         });
-                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(64));
+                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(72), dp(64));
                         lp.setMargins(0, 0, dp(4), 0);
                         gifBox.addView(iv, lp);
+                        new Thread(new Runnable() { @Override public void run() {
+                            final Bitmap bm = Gifs.bitmap(it.thumb);
+                            if (bm == null) return;
+                            handler.post(new Runnable() { @Override public void run() {
+                                if (job != gifJob) return;
+                                iv.setImageBitmap(bm);
+                                iv.getLayoutParams().width = ViewGroup.LayoutParams.WRAP_CONTENT;
+                                iv.requestLayout();
+                            } });
+                        } }).start();
                     }
-                    if (gifBox.getChildCount() > 0) { gifScroll.scrollTo(0, 0); gifScroll.setVisibility(View.VISIBLE); }
+                    gifScroll.scrollTo(0, 0);
+                    gifScroll.setVisibility(View.VISIBLE);
                 } });
             } }).start();
         } };
-        handler.postDelayed(gifAsk, 450);
+        handler.postDelayed(gifAsk, 200);
     }
 
     private boolean acceptsGif(EditorInfo ei) {

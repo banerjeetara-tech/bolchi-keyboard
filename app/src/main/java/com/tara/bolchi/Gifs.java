@@ -3,6 +3,7 @@ package com.tara.bolchi;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.util.LruCache;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -26,9 +27,15 @@ final class Gifs {
         String gif;     // the animated GIF that is sent
     }
 
+    private static final LruCache<String, Bitmap> PICS = new LruCache<>(60);
+    private static final LruCache<String, List<Item>> FOUND = new LruCache<>(40);
+
     static List<Item> search(String key, String word) throws Exception {
+        List<Item> cached = FOUND.get(word);
+        if (cached != null) return cached;
+        // bundle=messaging_non_clips: Giphy sends only the few sizes a keyboard needs (a much smaller answer)
         URL u = new URL("https://api.giphy.com/v1/gifs/search?api_key=" + URLEncoder.encode(key.trim(), "UTF-8")
-                + "&q=" + URLEncoder.encode(word, "UTF-8") + "&limit=8&rating=g&lang=en");
+                + "&q=" + URLEncoder.encode(word, "UTF-8") + "&limit=6&rating=g&lang=en&bundle=messaging_non_clips");
         HttpURLConnection c = (HttpURLConnection) u.openConnection();
         c.setConnectTimeout(6000);
         c.setReadTimeout(10000);
@@ -48,18 +55,28 @@ final class Gifs {
             Item it = new Item();
             it.thumb = th.optString("url");
             it.gif = gf.optString("url");
+            // a very big GIF is slow to send: use the smaller one
+            JSONObject small = im.optJSONObject("fixed_height_small");
+            if (small != null && gf.optLong("size", 0) > 1500000L && !small.optString("url").isEmpty()) it.gif = small.optString("url");
             if (!it.thumb.isEmpty() && !it.gif.isEmpty()) out.add(it);
         }
+        if (!out.isEmpty()) FOUND.put(word, out);
         return out;
     }
 
     static Bitmap bitmap(String url) {
+        Bitmap hit = PICS.get(url);
+        if (hit != null) return hit;
         try {
             HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
             c.setConnectTimeout(6000);
             c.setReadTimeout(10000);
             InputStream in = c.getInputStream();
-            try { return BitmapFactory.decodeStream(in); } finally { in.close(); }
+            try {
+                Bitmap b = BitmapFactory.decodeStream(in);
+                if (b != null) PICS.put(url, b);
+                return b;
+            } finally { in.close(); }
         } catch (Throwable t) {
             return null;
         }

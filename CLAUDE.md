@@ -128,6 +128,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (`EmojiHints`) and a key exists, `maybeGifs` waits 450 ms, searches Giphy (`Gifs.search`, rating g) and shows up to 6 still thumbnails in `gifScroll`
   above the keys; tap sends the GIF with `InputConnection.commitContent` via `GifProvider` (content://com.tara.bolchi.gifs, cache dir), or a
   link if the app takes no pictures. Only the typed word and her key go to Giphy. Not tested on a phone; the extra row can move the keys.
+- Version 44: GIFs were slow (Tara). Now: 200 ms wait, Giphy `bundle=messaging_non_clips` + limit 6 (smaller answer), the row shows at once with
+  empty frames and each thumbnail fills in as it arrives (parallel), searches and thumbnails are cached in memory (`Gifs.FOUND`, `Gifs.PICS`),
+  and a very big GIF (>1.5 MB) is swapped for the small one when sending.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
