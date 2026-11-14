@@ -102,6 +102,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Phone book (version 34): READ_CONTACTS asked on the setup screen; `loadContactsSoon()` reads contact display names into memory only
   (`Words.setContacts`, never saved or sent), refreshed every 10 min. Name parts are offered by `Words.complete` (after her own words,
   max 2) and in the Bangla/Hindi candidate rows, and are never auto-corrected. English letters only (Bengali-script names ignored).
+- Version 35: full phone book names. Typing 2+ letters of any word of a contact name (e.g. "Ritu" for "Emami Rituparna") shows every
+  matching full name in a scrollable row above the keys (`contactScroll`, `Words.contactNamesFor`, up to 10, names starting with the
+  letters first); tapping one replaces the typed letters (and a first name already typed before them) with the whole name. EN keys only.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

@@ -26,7 +26,34 @@ public final class Words {
     /** Name parts from the phone book (lower case -> as written). Kept in memory only. */
     private static final java.util.TreeMap<String, String> CONTACT = new java.util.TreeMap<>();
 
+    private static final class Person {
+        final String name;
+        final String[] words;
+        Person(String n) { name = n; words = n.toLowerCase(Locale.ROOT).split("[^a-z]+"); }
+    }
+    private static volatile List<Person> PEOPLE = new ArrayList<>();
+
+    /** Full phone book names with a word that starts with these letters; names starting with them come first. */
+    public static List<String> contactNamesFor(String prefix, int max) {
+        List<String> first = new ArrayList<>(), later = new ArrayList<>();
+        if (prefix == null || prefix.length() < 2) return first;
+        String p = prefix.toLowerCase(Locale.ROOT);
+        for (Person x : PEOPLE) {
+            int hit = -1;
+            for (int i = 0; i < x.words.length; i++) if (x.words[i].startsWith(p)) { hit = i; break; }
+            if (hit == 0) first.add(x.name); else if (hit > 0) later.add(x.name);
+            if (first.size() >= max) break;
+        }
+        first.addAll(later);
+        return first.size() > max ? new ArrayList<>(first.subList(0, max)) : first;
+    }
+
     public static void setContacts(java.util.Collection<String> names) {
+        java.util.LinkedHashSet<String> uniq = new java.util.LinkedHashSet<>();
+        for (String n : names) if (n != null && n.length() <= 40 && n.matches(".*[A-Za-z]{2}.*")) uniq.add(n.trim());
+        List<Person> people = new ArrayList<>();
+        for (String n : uniq) people.add(new Person(n));
+        PEOPLE = people;
         java.util.TreeMap<String, String> m = new java.util.TreeMap<>();
         for (String n : names) {
             if (n == null) continue;

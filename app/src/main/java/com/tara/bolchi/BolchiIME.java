@@ -40,11 +40,13 @@ import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.ExtractedText;
 import android.view.inputmethod.ExtractedTextRequest;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -435,6 +437,17 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         root.addView(smsRow, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        contactScroll = new HorizontalScrollView(this);
+        contactScroll.setHorizontalScrollBarEnabled(false);
+        contactScroll.setPadding(dp(3), dp(4), dp(3), 0);
+        contactScroll.setVisibility(View.GONE);
+        contactBox = new LinearLayout(this);
+        contactBox.setOrientation(LinearLayout.HORIZONTAL);
+        contactScroll.addView(contactBox, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(contactScroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
         otpRow = new LinearLayout(this);
         otpRow.setOrientation(LinearLayout.HORIZONTAL);
         otpRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -678,9 +691,64 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         paintSugs();
     }
 
-    private void paintSugs() {
-        if (sugRow == null) return;
+    /** Shows the full phone book names that match the word being typed, as a row she can scroll. */
+    private void paintContacts(String w) {
+        if (contactScroll == null) return;
+        contactBox.removeAllViews();
+        List<String> names = (layout == 0 && wordsOn() && !plainField && w.length() >= 2)
+                ? Words.contactNamesFor(w, 10) : new ArrayList<String>();
+        if (names.isEmpty()) { contactScroll.setVisibility(View.GONE); return; }
+        for (final String n : names) {
+            TextView t = new TextView(this);
+            t.setText(n);
+            t.setTextColor(cInk);
+            t.setTextSize(15);
+            t.setGravity(Gravity.CENTER);
+            t.setSingleLine(true);
+            t.setEllipsize(TextUtils.TruncateAt.END);
+            t.setMaxWidth(dp(250));
+            t.setPadding(dp(14), 0, dp(14), 0);
+            t.setBackground(box(cKey, 12));
+            t.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { tick(v); pickContact(n); }
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
+            lp.setMargins(0, 0, dp(4), 0);
+            contactBox.addView(t, lp);
+        }
+        contactScroll.scrollTo(0, 0);
+        contactScroll.setVisibility(View.VISIBLE);
+    }
+
+    /** Puts the whole name in place of the typed letters (and any first name already typed before them). */
+    private void pickContact(String name) {
+        InputConnection ic = getCurrentInputConnection();
         String w = word.toString();
+        if (ic != null && !w.isEmpty() && wordIsThere(ic, w)) {
+            int cut = 0;
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("[A-Za-z]+").matcher(name);
+            int at = 0;
+            while (m.find()) { if (m.group().toLowerCase().startsWith(w.toLowerCase())) { at = m.start(); break; } }
+            String lead = name.substring(0, at);                      // e.g. "Emami " when she typed "Ritu"
+            if (!lead.isEmpty()) {
+                CharSequence b = ic.getTextBeforeCursor(w.length() + lead.length(), 0);
+                if (b != null && b.toString().toLowerCase().startsWith(lead.toLowerCase())) cut = lead.length();
+            }
+            ic.beginBatchEdit();
+            ic.deleteSurroundingText(w.length() + cut, 0);
+            ic.commitText(name + " ", 1);
+            ic.endBatchEdit();
+        }
+        fixTyped = null;
+        word.setLength(0);
+        paintSugs();
+        autoShift();
+    }
+
+    private void paintSugs() {
+        if (sugRow == null) { if (contactScroll != null) contactScroll.setVisibility(View.GONE); return; }
+        String w = word.toString();
+        paintContacts(w);
         String[] v = {"", "", ""};
         boolean bold = false;
         sugKeepsTyped = false;
@@ -930,6 +998,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private LinearLayout smsRow;   // the code read from SMS; separate so Android's updates never wipe it
     private SharedPreferences.OnSharedPreferenceChangeListener smsWatch;
     private String curApp = "";   // the app whose box is open now
+    private HorizontalScrollView contactScroll;   // full phone book names for the word being typed
+    private LinearLayout contactBox;
     private long contactsLoadedAt;
     private boolean contactsLoading;
 
@@ -2035,6 +2105,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     public void onFinishInputView(boolean finishingInput) {
         clearOtp();                                   // leaving the box: the code strips go
         clearSms();
+        if (contactScroll != null) contactScroll.setVisibility(View.GONE);
         prefs().edit().putString("lastApp", curApp).apply();
         if (listening) stopListening(null);
         handler.removeCallbacks(repeatDelete);
