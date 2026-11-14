@@ -171,6 +171,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   what she typed (quoted, when a correction exists) or words from her memory (`memoryMatches`: most used, learned words, contacts).
 - Version 64: strikethrough and underline are font modes too (Tara asked why not): `FontStyles.apply` marks spaces as well so the line runs on, `commit` styles a typed space in
   those modes, and backspace deletes letter+mark together (`marked` in `deleteOne`). Only upside down stays a one-time conversion.
+- Version 65: font mode no longer switches off suggestions and auto-correct (Tara: "auto correct is not working in case of selecting font"). Letters are tracked plain in
+  `word` but WRITTEN styled (`shown()`); every place that deletes or matches the word in the text (`wordIsThere`, `endWord`, `pickSug`, `undoFix`, fix taps,
+  `pickContact`, swipe) uses `shown(w)`; backspace in font mode just drops the last tracked letter.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

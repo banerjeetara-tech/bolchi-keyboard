@@ -246,7 +246,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (got.isEmpty()) return;                       // nothing fits: the first letter stays
         String w = Words.matchCase(swFirst, got.get(0));
         ic.beginBatchEdit();
-        ic.deleteSurroundingText(1, 0);                  // the letter typed when the finger touched down
+        ic.deleteSurroundingText(typeStyle >= 0 ? FontStyles.apply(typeStyle, swFirst).length() : 1, 0);   // the letter typed when the finger touched down
         CharSequence b = ic.getTextBeforeCursor(1, 0);
         boolean glue = b == null || b.length() == 0 || Character.isWhitespace(b.charAt(0)) || "([{\"'".indexOf(b.charAt(0)) >= 0;
         ic.commitText((glue ? "" : " ") + (typeStyle >= 0 ? FontStyles.apply(typeStyle, w) : w) + " ", 1);
@@ -800,8 +800,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             java.util.regex.Matcher m = java.util.regex.Pattern.compile("[A-Za-z]+").matcher(name);
             while (m.find()) { if (m.group().toLowerCase().startsWith(w.toLowerCase())) { pick = m.group(); break; } }
             ic.beginBatchEdit();
-            ic.deleteSurroundingText(w.length(), 0);
-            ic.commitText(pick + " ", 1);
+            ic.deleteSurroundingText(shown(w).length(), 0);
+            ic.commitText(shown(pick + " "), 1);
             ic.endBatchEdit();
         }
         fixTyped = null;
@@ -917,12 +917,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         prefs().edit().putString("ownWords", Words.ownAsText()).apply();
     }
 
+    /** How a word is written in the text: in the chosen font when font mode is on (letters are tracked plain, the text is styled). */
+    private String shown(String raw) {
+        return typeStyle >= 0 && typeStyle != 20 ? FontStyles.apply(typeStyle, raw) : raw;
+    }
+
     /** True when the text just before the cursor is exactly the word we tracked. */
     private boolean wordIsThere(InputConnection ic, String w) {
-        CharSequence b = ic.getTextBeforeCursor(w.length() + 1, 0);
+        String sw = shown(w);
+        CharSequence b = ic.getTextBeforeCursor(sw.length() + 1, 0);
         if (b == null) return false;
         String bs = b.toString();
-        return bs.endsWith(w) && (bs.length() == w.length() || !Character.isLetter(bs.charAt(0)));
+        return bs.endsWith(sw) && (bs.length() == sw.length() || !Character.isLetter(bs.charAt(0)));
     }
 
     private void pickSug(int i) {
@@ -934,16 +940,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (fixPrompt) {
                 if (i == 0) keep(typed);     // she means her spelling: never flag it again
                 else {                       // she wants the right word: swap it in
-                    CharSequence b = ic.getTextBeforeCursor(typed.length() + 1, 0);
+                    String st = shown(typed), sd = shown(done), sp = shown(" ");
+                    CharSequence b = ic.getTextBeforeCursor(st.length() + sp.length(), 0);
                     String bs = b == null ? "" : b.toString();
-                    if (bs.endsWith(typed + " ")) { ic.deleteSurroundingText(typed.length() + 1, 0); ic.commitText(done + " ", 1); }
-                    else if (bs.endsWith(typed)) { ic.deleteSurroundingText(typed.length(), 0); ic.commitText(done, 1); }
+                    if (bs.endsWith(st + sp)) { ic.deleteSurroundingText(st.length() + sp.length(), 0); ic.commitText(sd + sp, 1); }
+                    else if (bs.endsWith(st)) { ic.deleteSurroundingText(st.length(), 0); ic.commitText(sd, 1); }
                 }
             } else if (i == 0) {             // tap her original word: put it back and remember it
-                CharSequence b = ic.getTextBeforeCursor(done.length() + 1, 0);
+                String st = shown(typed), sd = shown(done), sp = shown(" ");
+                CharSequence b = ic.getTextBeforeCursor(sd.length() + sp.length(), 0);
                 String bs = b == null ? "" : b.toString();
-                if (bs.endsWith(done + " ")) { ic.deleteSurroundingText(done.length() + 1, 0); ic.commitText(typed + " ", 1); keep(typed); }
-                else if (bs.endsWith(done)) { ic.deleteSurroundingText(done.length(), 0); ic.commitText(typed, 1); keep(typed); }
+                if (bs.endsWith(sd + sp)) { ic.deleteSurroundingText(sd.length() + sp.length(), 0); ic.commitText(st + sp, 1); keep(typed); }
+                else if (bs.endsWith(sd)) { ic.deleteSurroundingText(sd.length(), 0); ic.commitText(st, 1); keep(typed); }
             }
             fixShownTyped = fixShownDone = null;
             paintSugs();
@@ -1003,8 +1011,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         boolean keep = i == 0 && sugKeepsTyped;
         if (!wordIsThere(ic, w)) { resetWord(); return; }
         ic.beginBatchEdit();
-        ic.deleteSurroundingText(w.length(), 0);
-        ic.commitText(val + " ", 1);
+        ic.deleteSurroundingText(shown(w).length(), 0);
+        ic.commitText(shown(val + " "), 1);
         ic.endBatchEdit();
         if (!keep) { Words.record(lastWord, val); lastWord = val.toLowerCase(); if (++usageEdits >= 25) saveUsage(); }
         if (keep) keep(w);
@@ -1026,8 +1034,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (w.length() >= 3 && !Words.known(w)) learn(w);
             } else if (autoFix && wordIsThere(ic, w) && Words.autoReplaceOk(w)) {
                 ic.beginBatchEdit();
-                ic.deleteSurroundingText(w.length(), 0);
-                ic.commitText(fx, 1);
+                ic.deleteSurroundingText(shown(w).length(), 0);
+                ic.commitText(shown(fx), 1);
                 ic.endBatchEdit();
                 fixTyped = w;
                 fixDone = fx;
@@ -1071,16 +1079,17 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (fixTyped == null) return false;
         String typed = fixTyped, done = fixDone;
         fixTyped = null;
-        CharSequence b = ic.getTextBeforeCursor(done.length() + 2, 0);
+        String sd = shown(done), st = shown(typed);
+        CharSequence b = ic.getTextBeforeCursor(sd.length() + 4, 0);
         if (b == null) return false;
         String bs = b.toString();
-        int at = bs.lastIndexOf(done);
+        int at = bs.lastIndexOf(sd);
         if (at < 0) return false;
-        String tail = bs.substring(at + done.length());
-        if (tail.length() > 2) return false;
+        String tail = bs.substring(at + sd.length());
+        if (tail.length() > 4) return false;
         ic.beginBatchEdit();
         ic.deleteSurroundingText(bs.length() - at, 0);
-        ic.commitText(typed + tail, 1);
+        ic.commitText(st + tail, 1);
         ic.endBatchEdit();
         keep(typed);
         flashSpace("Kept \u201C" + typed + "\u201D");
@@ -2030,16 +2039,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (composing) { ic.finishComposingText(); composing = false; }
         swipeDone = null;
         if (typeStyle >= 0 && layout == 0 && s.length() == 1 && s.charAt(0) < 128
-                && (Character.isLetterOrDigit(s.charAt(0)) || (typeStyle >= 21 && s.charAt(0) == ' '))) {
-            // font mode: the letter goes in as its styled look-alike; suggestions and auto-correct step aside
-            resetWord();
-            lastWord = "";
-            token.setLength(0);
+                && (Character.isDigit(s.charAt(0)) || (Character.isLetter(s.charAt(0)) && !wordsOn())
+                    || (typeStyle >= 21 && s.charAt(0) == ' '))) {
+            // font mode, digits and boxes without suggestions: the character goes in as its styled look-alike
+            if (s.charAt(0) == ' ') { endWord(ic); tokenEnd(); }          // the word just ended: correct it first
+            else { resetWord(); lastWord = ""; token.setLength(0); }
             ic.commitText(FontStyles.apply(typeStyle, s), 1);
             return;
         }
         if (wordsOn() && s.length() == 1 && (Character.isLetter(s.charAt(0)) || (s.charAt(0) == '\'' && word.length() > 0))) {
-            ic.commitText(s, 1);
+            ic.commitText(shown(s), 1);        // in font mode the letter is written styled but tracked plain, so suggestions and auto-correct keep working
             word.append(s);
             token.append(s);
             fixTyped = null;
@@ -2117,8 +2126,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             // keep following the word that is left before the cursor
             int end = Math.max(0, n - (pair || marked ? 2 : 1)), st = end;
             while (st > 0 && (Character.isLetter(b.charAt(st - 1)) || b.charAt(st - 1) == '\'')) st--;
-            word.setLength(0);
-            if (end - st < 25 && st < end) word.append(b, st, end);
+            if (typeStyle >= 0) { if (word.length() > 0) word.setLength(word.length() - 1); }   // text is styled: keep the plain letters in step
+            else {
+                word.setLength(0);
+                if (end - st < 25 && st < end) word.append(b, st, end);
+            }
             paintSugs();
         } else if (sugRow != null) {
             paintSugs();
