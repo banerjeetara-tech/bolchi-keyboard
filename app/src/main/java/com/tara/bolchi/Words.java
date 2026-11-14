@@ -133,6 +133,8 @@ public final class Words {
         String f = FIXED.get(w);
         if (f != null) return f.equals(typed) ? null : (f.startsWith("I") ? f : matchCase(typed, f));
         if (w.length() < 3 || rank.containsKey(w)) return null;
+        // a word typed with a capital letter is most likely a name: never "correct" it (common typos like Teh are in FIXED above)
+        if (typed.length() >= 3 && Character.isUpperCase(typed.charAt(0))) return null;
         if (typed.length() > 1 && typed.equals(typed.toUpperCase(Locale.ROOT))) return null;
         int limit = w.length() <= 4 ? 5000 : Integer.MAX_VALUE;
         String best = null;

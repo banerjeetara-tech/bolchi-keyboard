@@ -94,6 +94,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Emoji suggestions (version 31, automatic): `EmojiHints` + `assets/emoji.txt` (built from Emojibase data via a script; ~2800 words).
   Typing a whole word that has emojis (e.g. "family") puts up to 2 emojis in the suggestion slots (right, then left; never over her saved
   words and not while a typo fix is offered); tapping inserts " 😀 " after the word. Saved names (`myWords`) stay automatic, no switch.
+- Version 32 (names): `Words.fix` never auto-corrects a word typed with a capital letter (names like Tara were turned into "tar" and never
+  learned); saved names (`myWords`) are offered from 2 typed letters. Tara said "name suggestion not working" on version 31.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

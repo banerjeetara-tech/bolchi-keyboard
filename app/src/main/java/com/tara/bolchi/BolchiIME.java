@@ -697,7 +697,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (c.size() > 2) v[2] = c.get(2);
             }
         }
-        if (w.length() >= 3) {
+        if (w.length() >= 2) {
             String lw = w.toLowerCase();
             int[] slot = plainField || !sugKeepsTyped ? new int[]{2, 0, 1} : new int[]{2};
             if (plainField) slot = new int[]{1, 0, 2};
