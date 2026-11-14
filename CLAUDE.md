@@ -114,6 +114,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (no dictionary word starts with the typed letters) or the word has a capital letter mid-sentence (`nameLike`). Tara needs English
   predictions to keep working and keys must not shift under her finger. The row REPLACES the word row (same height) instead of adding a row, so the
   keyboard no longer jumps. Tara: "typing anything, it is [bringing] the name".
+- Version 40: her own phone numbers. Typing phone/mobile/number/whatsapp/contact/mob/cell/tel/num on the EN keys offers her numbers in the
+  top row (up to 3, tap inserts " number "): from the "My phone numbers" box in the Bolchi app (pref `myNumbers`) and from the phone book
+  "Me" card (`ContactsContract.Profile`, needs the contacts permission; may be empty). Her message was cut off ("my phone number in a t"),
+  so ask if she meant something else. Never put real numbers in the repo.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

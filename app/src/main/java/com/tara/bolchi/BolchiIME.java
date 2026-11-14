@@ -32,6 +32,7 @@ import android.view.inputmethod.InlineSuggestionsResponse;
 import android.widget.inline.InlinePresentationSpec;
 import android.widget.inline.InlineContentView;
 import android.os.Build;
+import android.net.Uri;
 import android.database.Cursor;
 import android.provider.ContactsContract;
 import android.util.TypedValue;
@@ -771,6 +772,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         sugSwipe = false;
         slotEmoji[0] = slotEmoji[1] = slotEmoji[2] = false;
         slotNext[0] = slotNext[1] = slotNext[2] = false;
+        slotNum[0] = slotNum[1] = slotNum[2] = false;
         boolean[] ownSlot = new boolean[3];
         if (w.isEmpty() && !plainField && layout == 0 && Words.ready) {
             // after a space: the words she usually writes next
@@ -799,6 +801,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (used >= slot.length) break;
                 if (m.length() > w.length() && m.toLowerCase().startsWith(lw)) { ownSlot[slot[used]] = true; v[slot[used++]] = m; }
             }
+        }
+        // she typed "phone", "mobile", "number"...: offer her own phone numbers
+        if (!plainField && !sugKeepsTyped && NUM_WORDS.contains(w.toLowerCase())) {
+            List<String> nums = allMyNumbers();
+            int[] order = {2, 0, 1};
+            for (int k = 0; k < nums.size() && k < 3; k++) { v[order[k]] = nums.get(k); slotNum[order[k]] = true; ownSlot[order[k]] = true; }
         }
         // a typed word that has emojis (not a typo being fixed): offer them, never over her saved words
         if (!plainField && !sugKeepsTyped && w.length() >= 3) {
@@ -844,6 +852,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
+        if (slotNum[i] && !val.isEmpty() && ic != null) {
+            if (wordIsThere(ic, w)) ic.commitText(" " + val + " ", 1);
+            resetWord();
+            return;
+        }
         if (slotNext[i] && !val.isEmpty() && ic != null) {
             String out = (shift || capsLock) ? Character.toUpperCase(val.charAt(0)) + val.substring(1) : val;
             if (val.equals("i")) out = "I";
@@ -1053,6 +1066,21 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         prefs().edit().putString("usage", Words.exportUsage()).apply();
     }
 
+    // her own phone numbers: typed in the Bolchi app, plus the "Me" card of the phone book
+    private String[] myNumbers = new String[0];
+    private volatile String[] meNumbers = new String[0];
+    private final boolean[] slotNum = new boolean[3];
+    private static final java.util.Set<String> NUM_WORDS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "phone", "mobile", "number", "whatsapp", "contact", "mob", "cell", "tel", "num"));
+
+    private List<String> allMyNumbers() {
+        List<String> out = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (String n : myNumbers) { String d = n.replaceAll("[^0-9]", ""); if (!d.isEmpty() && seen.add(d)) out.add(n); }
+        for (String n : meNumbers) { String d = n.replaceAll("[^0-9]", ""); if (!d.isEmpty() && seen.add(d)) out.add(n); }
+        return out;
+    }
+
     private long contactsLoadedAt;
     private boolean contactsLoading;
 
@@ -1070,6 +1098,21 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 while (c != null && c.moveToNext()) { String n = c.getString(0); if (n != null) names.add(n); }
                 Words.setContacts(names);
                 contactsLoadedAt = System.currentTimeMillis();
+                Cursor pc = null;
+                try {
+                    List<String> mine = new ArrayList<>();
+                    pc = getContentResolver().query(
+                            Uri.withAppendedPath(ContactsContract.Profile.CONTENT_URI, ContactsContract.Contacts.Data.CONTENT_DIRECTORY),
+                            new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER},
+                            ContactsContract.Data.MIMETYPE + "=?",
+                            new String[]{ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE}, null);
+                    while (pc != null && pc.moveToNext()) { String n = pc.getString(0); if (n != null && !n.trim().isEmpty()) mine.add(n.trim()); }
+                    meNumbers = mine.toArray(new String[0]);
+                } catch (Throwable ignored) {
+                    // no "Me" card or no access: the numbers typed in the Bolchi app still work
+                } finally {
+                    if (pc != null) try { pc.close(); } catch (Throwable ignored) { }
+                }
             } catch (Throwable ignored) {
                 // permission taken away or no phone book: carry on without it
             } finally {
@@ -1800,6 +1843,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             for (String part : m.split("[^A-Za-z]+")) Words.addOwn(part);   // never auto-correct her own words
         }
         myWords = mine.toArray(new String[0]);
+        List<String> nums = new ArrayList<>();
+        for (String n : prefs().getString("myNumbers", "").split("\n")) { n = n.trim(); if (!n.isEmpty()) nums.add(n); }
+        myNumbers = nums.toArray(new String[0]);
         int cls = info.inputType & EditorInfo.TYPE_MASK_CLASS;
         int var = info.inputType & EditorInfo.TYPE_MASK_VARIATION;
         boolean wasNoFix = noFix;

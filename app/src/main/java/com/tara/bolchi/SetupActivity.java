@@ -203,6 +203,31 @@ public class SetupActivity extends Activity {
         col.addView(testBtn);
         col.addView(testOut);
 
+        // her own phone numbers, offered when she types phone / mobile / number
+        col.addView(text("My phone numbers", 17, INK));
+        col.addView(text("One on each line. When you type the word phone, mobile or number, the keyboard offers these numbers to tap. (If your own number is in the Me card of your phone book it is found by itself.)", 14, MUTED));
+        final EditText numBox = new EditText(this);
+        numBox.setHint("+91 9XXXXXXXXX");
+        numBox.setMinLines(2);
+        numBox.setGravity(android.view.Gravity.TOP);
+        numBox.setTextColor(INK);
+        numBox.setTextSize(15);
+        numBox.setBackground(box(CARD, LINE, 12));
+        numBox.setPadding(dp(12), dp(12), dp(12), dp(12));
+        numBox.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                | android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        numBox.setText(prefs.getString("myNumbers", ""));
+        col.addView(numBox, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        TextView saveNum = button("Save my numbers");
+        saveNum.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                prefs.edit().putString("myNumbers", numBox.getText().toString().trim()).apply();
+                Toast.makeText(SetupActivity.this, "Saved", Toast.LENGTH_SHORT).show();
+            }
+        });
+        col.addView(saveNum);
+
         // personal words: the keyboard offers them when their first letters are typed
         col.addView(text("6. My words (email, name, address)", 17, INK));
         col.addView(text("One on each line. Type the first 3 letters on the English keys and the keyboard will offer it.", 14, MUTED));
