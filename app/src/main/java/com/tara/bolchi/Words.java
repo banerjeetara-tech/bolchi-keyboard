@@ -639,20 +639,45 @@ public final class Words {
         if (typed == null || typed.isEmpty() || typed.length() > 20) return null;
         String key = autoCap ? "^" + typed : typed;
         synchronized (FIXED) { if (key.equals(cacheKey)) return cacheVal; }
-        String out = fix0(typed, autoCap);
+        String out = fix0(typed, autoCap, false);
         synchronized (FIXED) { cacheKey = key; cacheVal = out; }
         return out;
     }
 
+    /**
+     * One-time clean-up. Older versions saved every unknown word she typed as "her word", typos included, and those were then never corrected.
+     * Every kept word and every counted word that is really a slip of a dictionary word is forgotten (her saved names are put back by the keyboard).
+     * Returns how many were dropped.
+     */
+    public static int cleanKept() {
+        int n = 0;
+        List<String> all;
+        synchronized (KEPT) { all = new ArrayList<>(KEPT); }
+        for (String k : all) {
+            if (fix0(k, false, true) != null) { synchronized (KEPT) { KEPT.remove(k); } synchronized (own) { own.remove(k); } n++; }
+        }
+        List<String> seen;
+        synchronized (USE) { seen = new ArrayList<>(USE.keySet()); }
+        for (String k : seen) {
+            if (rank.containsKey(k)) continue;
+            if (fix0(k, false, true) != null) { synchronized (USE) { USE.remove(k); NEXT.remove(k); } n++; }
+        }
+        List<String> mine;
+        synchronized (own) { mine = new ArrayList<>(own); }
+        for (String k : mine) if (fix0(k, false, true) != null) { synchronized (own) { own.remove(k); } n++; }
+        forget();
+        return n;
+    }
+
     private static void forget() { synchronized (FIXED) { cacheKey = null; } }
 
-    private static String fix0(String typed, boolean autoCap) {
+    private static String fix0(String typed, boolean autoCap, boolean ignoreKept) {
         String w = typed.toLowerCase(Locale.ROOT);
         for (int i = 0; i < w.length(); i++) {
             char c = w.charAt(i);
             if (!(c >= 'a' && c <= 'z') && c != '\'') return null;
         }
-        if (DESI.contains(w) || isContact(w) || isKept(w)) return null;   // only words she explicitly kept are left alone
+        if (DESI.contains(w) || isContact(w) || (!ignoreKept && isKept(w))) return null;   // only words she explicitly kept are left alone
         if (looksBanglish(w) && !rank.containsKey(w) && !FIXED.containsKey(w)) return null;   // Bangla/Hindi in English letters is not an English typo
         String f = FIXED.get(w);
         if (f != null) return f.equals(typed) ? null : (f.startsWith("I") ? f : matchCase(typed, f));

@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 80 = build-91** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 81 = build-93** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -254,6 +254,13 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
     switched the next two corrections to offer-only.
   - The LAST word cannot be corrected when she taps the app's own Send button without a space or full stop: the keyboard is not told. Space, punctuation and the keyboard's
     own Enter/Send key do correct it. Told her.
+- Version 81: on version 80 her test sentence came back as "am really  happy  to recieve yuor mesage tommorow." ("no, same"). Reading of it: really / happy were tapped from
+  the top row (hence the double spaces), and recieve / yuor / mesage / tommorow were NOT corrected although all four are in `FIXED`. The only thing that stops a `FIXED` word is
+  `KEPT`: version 61 had copied her whole auto-learned `ownWords` list (typos included) into `keptWords`, and a backspace right after a correction also kept the typo for good.
+  Fixes: (1) one-time `Words.cleanKept()` (pref `keptCleaned81`) drops every kept / learned / counted word that is a slip of a dictionary word; saved names come back from
+  `myWords`. (2) Backspace after a correction only puts the word back the first time; the second time for the same word keeps it (`undoneOnce`). (3) A space typed right
+  after tapping a suggestion adds no second space (`pickedSpace`). NOT confirmed that KEPT was the cause: if it still fails, ask for a screenshot of the top row while the
+  wrong word is typed (is the bold correction shown? is "Auto ✓" on?).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

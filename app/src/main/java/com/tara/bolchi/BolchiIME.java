@@ -132,6 +132,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String typeStyleApp = "";   // the app where she turned the font on: the font is used only there
     private boolean uriBox;             // a web address / browser search bar: words are suggested and corrections offered, never swapped in by themselves
     private long lastTypeAt;            // when she last typed or deleted (to tell her own typing from a cursor moved by hand)
+    private final java.util.HashSet<String> undoneOnce = new java.util.HashSet<>();
+    private boolean pickedSpace;        // a suggestion she tapped already put a space after the word: the next space key adds no second one
     private boolean spaceEnd;           // the word is being ended by a space (not by a dot or other mark)
 
     /** In a browser address bar: true when she is typing search words (a space, and no dot, slash or colon in the piece), not a web address. */
@@ -685,6 +687,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         prefs().registerOnSharedPreferenceChangeListener(smsWatch);
         if (!Words.ready) new Thread(new Runnable() { @Override public void run() {
             try { Words.load(getAssets().open("words.txt")); } catch (Throwable t) { saveProblem(t); }
+            try {
+                // once: forget the typos that older versions had saved as "her words" (they blocked auto-correct for good)
+                if (!prefs().getBoolean("keptCleaned81", false)) {
+                    Words.cleanKept();
+                    prefs().edit().putString("keptWords", Words.keptAsText()).putString("ownWords", Words.ownAsText())
+                            .putString("usage", Words.exportUsage()).putBoolean("keptCleaned81", true).apply();
+                }
+            } catch (Throwable t) { saveProblem(t); }
             try { EmojiHints.load(getAssets().open("emoji.txt")); } catch (Throwable t) { saveProblem(t); }
         } }).start();
     }
@@ -1158,6 +1168,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (!keep) { Words.record(lastWord, val); lastWord = val.toLowerCase(); if (++usageEdits >= 25) saveUsage(); }
         if (keep) keep(w);
         resetWord();
+        pickedSpace = true;
         autoShift();
     }
 
@@ -1247,8 +1258,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.deleteSurroundingText(bs.length() - at, 0);
         ic.commitText(st + tail, 1);
         ic.endBatchEdit();
-        keep(typed);
-        flashSpace("Kept \u201C" + typed + "\u201D");
+        // the first backspace only puts her word back this once; doing it again for the same word means she wants it for good
+        if (undoneOnce.contains(typed.toLowerCase())) { keep(typed); flashSpace("Kept \u201C" + typed + "\u201D"); }
+        else undoneOnce.add(typed.toLowerCase());
         return true;
     }
 
@@ -2310,6 +2322,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
         lastTypeAt = System.currentTimeMillis();
+        if (pickedSpace) {
+            pickedSpace = false;
+            if (" ".equals(s)) {
+                CharSequence pb = ic.getTextBeforeCursor(1, 0);
+                if (pb != null && pb.length() == 1 && pb.charAt(0) == ' ') return;     // the space is already there
+            }
+        }
         if (emoSearch && page == PAGE_ABC) {
             if (s.length() == 1 && Character.isLetterOrDigit(s.charAt(0)) && s.charAt(0) < 128) {
                 if (emoQuery.length() < 20) emoQuery.append(Character.toLowerCase(s.charAt(0)));
