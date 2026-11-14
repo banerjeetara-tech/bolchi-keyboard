@@ -72,7 +72,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private static final String[] MODE_LANG = {"bn-IN", "hi-IN", "en-IN"};
 
     private static final int PAGE_ABC = 0, PAGE_SYM1 = 1, PAGE_SYM2 = 2, PAGE_EMOJI = 3, PAGE_CONVERT = 4, PAGE_THEMES = 5;
-    private static final String[] CONV_NAMES = {"Translate to English", "To Bangla script", "To English letters", "Units and currency", "Fix my grammar", "Rewrite it better", "To Hindi script"};
+    private static final String[] CONV_NAMES = {"Translate to English", "To Bangla script", "To English letters", "Units and currency", "Fix my grammar", "Rewrite it better", "To Hindi script", "Translate to Hindi"};
 
     private static final String NUMBERS = "1 2 3 4 5 6 7 8 9 0";
     private static final String[] LETTERS = {"q w e r t y u i o p", "a s d f g h j k l", "z x c v b n m"};
@@ -1789,14 +1789,19 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         boolean[] isSel = new boolean[1];
         final String src = currentText(isSel).trim();
 
-        for (int rIdx = 0; rIdx < 4; rIdx++) {
+        // small tabs, four to a row, in a sensible order (two rows, shorter than before)
+        final int[] ORDER = {0, 7, 1, 6, 2, 3, 4, 5};
+        for (int rIdx = 0; rIdx < 2; rIdx++) {
             LinearLayout r = row();
-            for (int c = 0; c < 2; c++) {
-                final int idx = rIdx * 2 + c;
-                if (idx >= CONV_NAMES.length) continue;
+            for (int c = 0; c < 4; c++) {
+                final int idx = ORDER[rIdx * 4 + c];
                 boolean on = idx == convOption;
                 final int fill = on ? cInk : cKey;
-                TextView o = makeKey(CONV_NAMES[idx], 1f, fill, on ? cKey : cInk, 14);
+                TextView o = makeKey(CONV_NAMES[idx], 1f, fill, on ? cKey : cInk, 12);
+                o.setSingleLine(false);
+                o.setMaxLines(2);
+                o.setPadding(dp(2), 0, dp(2), 0);
+                o.setLayoutParams(new LinearLayout.LayoutParams(0, dp(42), 1f));
                 if (on) o.setTypeface(Typeface.DEFAULT_BOLD);
                 onPress(o, fill, new Runnable() { @Override public void run() {
                     convOption = idx; convResult = null; buildKeysSoon(); } });
@@ -1883,6 +1888,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 else if (opt == 1) out = Converter.romanToScript(src, false);
                 else if (opt == 4 || opt == 5) out = Converter.polish(src, key, opt == 5);
                 else if (opt == 6) out = Converter.romanToScript(src, true);
+                else if (opt == 7) out = Converter.translateToHindi(src, key);
                 else {
                     String r = Converter.units(src, Converter.usdRates());
                     out = r.isEmpty() ? "\u26A0 No amounts found. Try \"5 kg\" or \"\u20B9500\"" : r;

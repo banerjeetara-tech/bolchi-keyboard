@@ -149,6 +149,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   English → EN; if she is on the Bangla/Hindi letter keys (3/4) they stay), and the English letters of the word being typed follow the switch
   (type "ami" then tap Bangla/Hindi/English). The layout key uses the same function. Converter got "To Hindi script" (option 6, Hinglish → Devanagari
   via inputtools). A second tap on the selected Bangla/Hindi tab still toggles voice output script.
+- Version 58: the converter panel is a compact grid of 8 small tabs, four per row (`ORDER` in `buildConverter`), after Tara said the lone Hindi
+  option looked odd: Translate to English, Translate to Hindi (new, option 7: Google Translate `googleTranslateTo`, AI fallback), To Bangla script,
+  To Hindi script, To English letters, Units and currency, Fix my grammar, Rewrite it better.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

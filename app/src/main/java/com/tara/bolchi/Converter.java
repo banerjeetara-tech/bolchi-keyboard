@@ -53,13 +53,18 @@ final class Converter {
 
     /** Free Google Translate. lang = "bn", "hi" or "auto". */
     static String googleTranslate(String text, String lang) throws Exception {
+        return googleTranslateTo(text, lang, "en");
+    }
+
+    /** Google Translate from `lang` (or "auto") into the language `to` ("en", "hi", "bn"). */
+    static String googleTranslateTo(String text, String lang, String to) throws Exception {
         String q = java.net.URLEncoder.encode(text, "UTF-8");
         String[] hosts = {"https://translate.google.com", "https://translate.googleapis.com"};
         Exception last = null;
         for (String h : hosts) {
             try {
                 stage = "asking Google Translate";
-                HttpURLConnection c = (HttpURLConnection) new URL(h + "/translate_a/single?client=gtx&dt=t&tl=en&sl="
+                HttpURLConnection c = (HttpURLConnection) new URL(h + "/translate_a/single?client=gtx&dt=t&tl=" + to + "&sl="
                         + lang + "&q=" + q).openConnection();
                 c.setConnectTimeout(5000);
                 c.setReadTimeout(8000);
@@ -88,6 +93,19 @@ final class Converter {
         } catch (Exception e) {
             if (key != null && !key.trim().isEmpty()) return translate(text, key);
             throw e;
+        }
+    }
+
+    /** Translate into Hindi (Devanagari). Google Translate first, the AI only if that fails and a key is saved. */
+    static String translateToHindi(String text, String key) throws Exception {
+        try {
+            return googleTranslateTo(text, "auto", "hi");
+        } catch (Exception e) {
+            if (key == null || key.trim().isEmpty()) throw e;
+            return gemini(key,
+                    "Translate the user's message into natural, simple Hindi written in Devanagari script. The message may be English, "
+                            + "Bengali, or Bengali or Hindi in English letters. Keep names, numbers, emojis and links as they are. "
+                            + "Reply with only the translation, nothing else.", text);
         }
     }
 
