@@ -444,7 +444,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
         gifScroll = new HorizontalScrollView(this);
         gifScroll.setHorizontalScrollBarEnabled(false);
-        gifScroll.setPadding(dp(3), dp(4), dp(3), 0);
+        gifScroll.setPadding(dp(3), 0, dp(3), 0);
         gifScroll.setVisibility(View.GONE);
         gifBox = new LinearLayout(this);
         gifBox.setOrientation(LinearLayout.HORIZONTAL);
@@ -608,6 +608,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private void buildKeys() {
+        hideGifs();
         keysBox.removeAllViews();
         keyViews.clear();
         directTouch = page != PAGE_EMOJI && page != PAGE_CONVERT;
@@ -715,7 +716,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 ? Words.contactNamesFor(w, 10) : new ArrayList<String>();
         if (names.isEmpty()) {
             contactScroll.setVisibility(View.GONE);
-            if (sugRow != null) sugRow.setVisibility(View.VISIBLE);
+            if (sugRow != null && (gifScroll == null || gifScroll.getVisibility() != View.VISIBLE)) sugRow.setVisibility(View.VISIBLE);
             return;
         }
         for (final String n : names) {
@@ -1152,7 +1153,20 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         gifJob++;
         gifFor = "";
         if (gifAsk != null) handler.removeCallbacks(gifAsk);
-        if (gifScroll != null) { gifBox.removeAllViews(); gifScroll.setVisibility(View.GONE); }
+        if (gifScroll != null) {
+            gifBox.removeAllViews();
+            gifScroll.setVisibility(View.GONE);
+            // the word row comes back (unless the phone book names are using its place)
+            if (sugRow != null && (contactScroll == null || contactScroll.getVisibility() != View.VISIBLE)) sugRow.setVisibility(View.VISIBLE);
+        }
+    }
+
+    /** An emoji chip in the GIF row: the emoji goes after the word she typed. */
+    private void pickEmoji(String em) {
+        InputConnection ic = getCurrentInputConnection();
+        String w = word.toString();
+        if (ic != null && !w.isEmpty() && wordIsThere(ic, w)) { ic.commitText(" " + em + " ", 1); addRecent(em); }
+        resetWord();
     }
 
     /** A word that has emoji also gets GIFs (after a short pause, so typing is never held up). */
@@ -1176,6 +1190,23 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 handler.post(new Runnable() { @Override public void run() {
                     if (job != gifJob) return;
                     gifBox.removeAllViews();
+                    // emojis first, then the GIFs: one row of the same height as the word row it replaces
+                    String[] ems = EmojiHints.get(q);
+                    for (int k = 0; ems != null && k < ems.length && k < 3; k++) {
+                        final String em = ems[k];
+                        TextView et = new TextView(BolchiIME.this);
+                        et.setText(em);
+                        et.setTextSize(22);
+                        et.setGravity(Gravity.CENTER);
+                        et.setPadding(dp(12), 0, dp(12), 0);
+                        et.setBackground(box(cKey, 8));
+                        et.setOnClickListener(new View.OnClickListener() {
+                            @Override public void onClick(View v) { tick(v); pickEmoji(em); }
+                        });
+                        LinearLayout.LayoutParams elp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
+                        elp.setMargins(0, 0, dp(4), 0);
+                        gifBox.addView(et, elp);
+                    }
                     for (int i = 0; i < items.size(); i++) {
                         final Gifs.Item it = items.get(i);
                         final ImageView iv = new ImageView(BolchiIME.this);
@@ -1185,7 +1216,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                         iv.setOnClickListener(new View.OnClickListener() {
                             @Override public void onClick(View v) { tick(v); sendGif(it); }
                         });
-                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(72), dp(64));
+                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(56), dp(40));
                         lp.setMargins(0, 0, dp(4), 0);
                         gifBox.addView(iv, lp);
                         new Thread(new Runnable() { @Override public void run() {
@@ -1201,6 +1232,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                     }
                     gifScroll.scrollTo(0, 0);
                     gifScroll.setVisibility(View.VISIBLE);
+                    if (sugRow != null) sugRow.setVisibility(View.GONE);   // same height as the word row: the keys do not move
                 } });
             } }).start();
         } };

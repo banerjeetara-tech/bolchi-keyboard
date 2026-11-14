@@ -137,6 +137,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 47: her GIF test on version 46 read "6 found, search 563 ms, first picture 1275 ms" (network, mostly the first connection to Giphy's picture
   server). `Gifs.warmUp` now also fetches 2 thumbnails to open that connection, every 4 min at most; GIF wait 150 ms. Do NOT add speculative
   searches: Giphy's free beta key allows about 100 calls per hour.
+- Version 48: the GIF row no longer makes the keys jump (Tara: "keyboard is jumping right away and showing that gif"). When GIFs arrive they
+  REPLACE the word row (`sugRow` hidden, `gifScroll` 40 dp high, same as the row) with emoji chips first then 40 dp thumbnails, exactly like the
+  phone book names row. Until the GIFs arrive the word row with its emoji slots stays. `hideGifs()` brings the word row back.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
