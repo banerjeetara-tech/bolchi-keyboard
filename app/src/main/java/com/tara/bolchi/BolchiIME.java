@@ -1587,6 +1587,20 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (ic == null) return;
                 boolean ok = false;
                 EditorInfo ei = getCurrentInputEditorInfo();
+                // she typed just one word to find this GIF: the word comes out, so it is not sent along as text under the GIF
+                try {
+                    CharSequence tb = ic.getTextBeforeCursor(40, 0), ta = ic.getTextAfterCursor(3, 0);
+                    String only = tb == null ? "" : tb.toString();
+                    if ((ta == null || ta.length() == 0) && only.length() <= 30 && !only.trim().isEmpty()
+                            && only.trim().indexOf(' ') < 0 && only.trim().indexOf('\n') < 0) {
+                        ic.deleteSurroundingText(only.length(), 0);
+                        token.setLength(0);
+                        lastWord = "";
+                    }
+                } catch (Throwable ignored) { /* the word stays */ }
+                justEnded = "";
+                fixTyped = null;
+                fixShownTyped = fixShownDone = null;
                 if (file != null && Build.VERSION.SDK_INT >= 25 && ei != null && acceptsGif(ei)) {
                     try {
                         Uri uri = Uri.parse("content://com.tara.bolchi.gifs/" + file.getName());

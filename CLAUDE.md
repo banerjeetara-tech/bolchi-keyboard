@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 79 = build-89** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 80 = build-91** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -245,6 +245,15 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   is only OFFERED (a typo she typed before, `fixPrompt`), `justEnded` held the wrong word, which has no emoji, so no emoji or GIFs came. It now holds the corrected word.
   Still open: ask which version the Bolchi app shows, which word she typed, and for a screenshot of the top row. GIFs need her Giphy key and the English tab; a word
   she once kept by tapping her own spelling is never corrected again.
+- Version 80 (Tara, with a GIF screenshot: "if I'm sending gif the word is going below with the text" and "words are not auto correcting in long sentence, last or
+  middle words; should work entire sentence and everywhere"):
+  - GIF: when the box holds only the ONE word she typed to find the GIF, `sendGif` removes that word first. In a longer message the text stays.
+  - Auto-correct: a wrong word she had typed 2+ times, or that sat in her auto-learned `own` list (full of old typos from before version 71), was only OFFERED, so in a
+    long sentence many words were left wrong. `Words.autoReplaceOk` now swaps unless she has written the word 5+ times (known slips in `FIXED` always swap). Words she kept
+    by hand (`KEPT`) are still never touched. `isDesi` no longer counts ordinary English dictionary words (rank < 15000: "mat", "din", "kal") as Banglish, which had
+    switched the next two corrections to offer-only.
+  - The LAST word cannot be corrected when she taps the app's own Send button without a space or full stop: the keyboard is not told. Space, punctuation and the keyboard's
+    own Enter/Send key do correct it. Told her.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

@@ -44,9 +44,10 @@ public final class Words {
     /** True when the keyboard may change this word by itself; false for a word she has typed before (then it only prompts). */
     public static boolean autoReplaceOk(String typed) {
         String l = typed.toLowerCase(Locale.ROOT);
-        if (PROPER.containsKey(l)) return true;
-        synchronized (own) { if (own.contains(l)) return false; }
-        return used(l) < 2;
+        // A known slip is always put right. Any other wrong word is put right too, unless she has written it so often (5 times or more)
+        // that it is probably a word of her own; then the right word is only offered. Words she KEPT by hand never get here at all.
+        if (PROPER.containsKey(l) || FIXED.containsKey(l)) return true;
+        return used(l) < 5;
     }
     public static volatile boolean ready;
     /** Name parts from the phone book (lower case -> as written). Kept in memory only. */
@@ -508,7 +509,7 @@ public final class Words {
         if (w == null || w.isEmpty()) return false;
         String l = w.toLowerCase(Locale.ROOT);
         Integer r = rank.get(l);
-        if (r != null && r < 3000) return false;                      // "to", "main", "are" are English first
+        if (r != null && r < 15000) return false;                     // "to", "main", "are", "mat", "din" are English first
         return DESI.contains(l) || (r == null && looksBanglish(l));
     }
 
