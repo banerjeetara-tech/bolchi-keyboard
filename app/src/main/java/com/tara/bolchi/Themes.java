@@ -7,12 +7,14 @@ final class Themes {
     private Themes() {}
 
     static final String[] NAMES = {
-            "Cream", "Mint", "Lavender", "Sky", "Rose", "Peach",
-            "Lemon", "Ocean", "Sage", "Coral", "Sand", "Lilac",
-            "Aqua", "Blush", "Olive", "Silver", "Black & White", "Plum Lavender",
-            "Rose & White", "Butter Yellow", "Fresh Green", "Sunset", "Baby Blue & Navy", "Mocha"};
+            "Black & Gold", "Black & Red", "Black & Mint", "Black & Pink", "Black & Sky", "Black, White & Red",
+            "Navy & Coral", "Plum & Peach", "Forest, Cream & Gold", "Teal, White & Yellow", "Cream", "Mint",
+            "Lavender", "Sky", "Rose", "Peach", "Lemon", "Ocean",
+            "Sage", "Coral", "Sand", "Lilac", "Aqua", "Blush",
+            "Olive", "Silver", "Black & White", "Plum Lavender", "Rose & White", "Butter Yellow",
+            "Fresh Green", "Sunset", "Baby Blue & Navy", "Mocha"};
 
-    /** The earlier list (with the dark themes), only to keep the theme she already picked when the list shrank. */
+    /** The list of the earlier build (43 themes), only to keep the theme she already picked when the list changes. */
     static final String[] OLD = {
             "Black & Gold", "Black & Red", "Black & Mint", "Black & Pink", "Black & Sky", "Black, White & Red",
             "Navy & Coral", "Plum & Peach", "Forest, Cream & Gold", "Teal, White & Yellow", "Cream", "Mint",
@@ -24,6 +26,16 @@ final class Themes {
             "Mocha"};
 
     private static final String[][] HEX = {
+            {"#0E0E0E", "#1E1E1E", "#2C2C2C", "#F5F5F5", "#A0A0A0", "#D4A72C"},
+            {"#0E0E0E", "#1E1E1E", "#2C2C2C", "#F5F5F5", "#A0A0A0", "#E23B3B"},
+            {"#0E0E0E", "#1E1E1E", "#2C2C2C", "#F5F5F5", "#A0A0A0", "#2EC4A0"},
+            {"#0E0E0E", "#1E1E1E", "#2C2C2C", "#F5F5F5", "#A0A0A0", "#FF5C93"},
+            {"#0E0E0E", "#1E1E1E", "#2C2C2C", "#F5F5F5", "#A0A0A0", "#3BA3FF"},
+            {"#000000", "#FFFFFF", "#D6D6D6", "#000000", "#555555", "#E23B3B"},
+            {"#13233F", "#1E3357", "#2A4470", "#F4F6FA", "#9FB0CC", "#FF7A59"},
+            {"#2E1A3A", "#3F2750", "#523465", "#FBF3FF", "#BFA6CC", "#FFB38A"},
+            {"#1F3A2C", "#F6EFE2", "#C9B99A", "#1F3A2C", "#6B6B5A", "#E0A84B"},
+            {"#0E5A5F", "#FFFFFF", "#BFE3E4", "#0E3B3E", "#4E7A7D", "#F2C230"},
             {"#EFE3D3", "#FFFAF2", "#E2D2BE", "#2B211A", "#7A6A5C", "#B9502B"},
             {"#DDEFE6", "#FFFFFF", "#C3E2D3", "#16352A", "#4E7363", "#0F7A5A"},
             {"#E8E4F6", "#FFFFFF", "#D3CCEE", "#2A2350", "#6A6290", "#5B4BC4"},
