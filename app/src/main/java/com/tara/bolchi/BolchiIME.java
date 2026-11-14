@@ -72,7 +72,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private static final String[] MODE_LANG = {"bn-IN", "hi-IN", "en-IN"};
 
     private static final int PAGE_ABC = 0, PAGE_SYM1 = 1, PAGE_SYM2 = 2, PAGE_EMOJI = 3, PAGE_CONVERT = 4, PAGE_THEMES = 5;
-    private static final String[] CONV_NAMES = {"Translate to English", "To Bangla script", "To English letters", "Units and currency", "Fix my grammar", "Rewrite it better", "To Hindi script", "Translate to Hindi"};
+    private static final String[] CONV_NAMES = {"Translate to English", "To Bangla script", "To English letters", "Units and currency", "Fix my grammar", "Rewrite it better", "To Hindi script", "Translate to Hindi", "Bold", "Italic", "Bold italic", "Font style"};
 
     private static final String NUMBERS = "1 2 3 4 5 6 7 8 9 0";
     private static final String[] LETTERS = {"q w e r t y u i o p", "a s d f g h j k l", "z x c v b n m"};
@@ -116,6 +116,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private final List<TextView> vowelKeys = new ArrayList<>();
     private boolean vowelRowFull;
     private int convOption = 0;
+    private int fontStyle = 3;   // the style chosen under "Font style" (starts on Script)
     private int convJob = 0;
     private String convResult = null;
     private TextView convBtn;
@@ -1790,8 +1791,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final String src = currentText(isSel).trim();
 
         // small tabs, four to a row, in a sensible order (two rows, shorter than before)
-        final int[] ORDER = {0, 7, 1, 6, 2, 3, 4, 5};
-        for (int rIdx = 0; rIdx < 2; rIdx++) {
+        final int[] ORDER = {0, 7, 1, 6, 2, 3, 4, 5, 8, 9, 10, 11};
+        for (int rIdx = 0; rIdx < 3; rIdx++) {
             LinearLayout r = row();
             for (int c = 0; c < 4; c++) {
                 final int idx = ORDER[rIdx * 4 + c];
@@ -1810,17 +1811,44 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             keysBox.addView(r);
         }
 
+        if (convOption == 11) {
+            // every font as a chip in its own look: tap one to change the text into it
+            HorizontalScrollView hs = new HorizontalScrollView(this);
+            hs.setHorizontalScrollBarEnabled(false);
+            LinearLayout fb = new LinearLayout(this);
+            fb.setOrientation(LinearLayout.HORIZONTAL);
+            for (int i = 0; i < FontStyles.NAMES.length; i++) {
+                final int st = i;
+                TextView chip = new TextView(this);
+                chip.setText(FontStyles.apply(i, "Abc 12"));
+                chip.setTextSize(17);
+                chip.setGravity(Gravity.CENTER);
+                chip.setPadding(dp(14), 0, dp(14), 0);
+                boolean sel = i == fontStyle;
+                chip.setTextColor(sel ? cKey : cInk);
+                chip.setBackground(box(sel ? cInk : cKey, 10));
+                chip.setOnClickListener(new View.OnClickListener() {
+                    @Override public void onClick(View v) { tick(v); fontStyle = st; convResult = null; buildKeysSoon(); }
+                });
+                LinearLayout.LayoutParams clp2 = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
+                clp2.setMargins(dp(2), dp(2), dp(2), dp(2));
+                fb.addView(chip, clp2);
+            }
+            hs.addView(fb, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            keysBox.addView(hs, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46)));
+        }
+
         String label = isSel[0] ? "Selected text" : "Your text";
         TextView srcBox = panelBox(label, src.isEmpty() ? "Type or speak a message first" : src, false);
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 20));
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 8));
         keysBox.addView(srcBox, slp);
 
         final TextView resBox = panelBox("Result", convResult != null ? convResult
                 : src.isEmpty() ? "" : "Working\u2026", true);
         convResBox = resBox;
         keysBox.addView(resBox, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 20)));
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 8)));
 
         LinearLayout act = row();
         TextView back = makeKey("Back to keys", 1f, cFn, cInk, 14);
@@ -1861,6 +1889,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final int opt = convOption;
         final String key = prefs().getString("aikey", "");
         if (opt == 2) { showResult(job, Converter.toEnglishLetters(src)); return; }
+        if (opt >= 8) {   // fonts work on the phone at once, no internet
+            int st = opt == 8 ? FontStyles.BOLD : opt == 9 ? FontStyles.ITALIC : opt == 10 ? FontStyles.BOLD_ITALIC : fontStyle;
+            showResult(job, FontStyles.apply(st, src));
+            return;
+        }
         if (opt == 3 && !Converter.hasCurrency(src)) {
             String r = Converter.units(src, null);
             showResult(job, r.isEmpty() ? "\u26A0 No amounts found. Try \"5 kg\" or \"\u20B9500\"" : r);
