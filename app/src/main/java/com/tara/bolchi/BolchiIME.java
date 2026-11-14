@@ -985,8 +985,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             sug[i].setTypeface(i == 1 && bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
         }
         // a date, the time or a sum is showing in the word row: GIFs must not cover it
-        // ...and never the two words of an auto-correct (her word / the corrected word): she must be able to pick one
-        maybeGifs(slotDate[2] || slotCalc[1] || uriBox || slotFix[0] || slotFix[1] || sugKeepsTyped || slotUndo[0] ? "" : ew);
+        // (after an auto-correct the GIF row carries the two choices itself: her word and the corrected word come first in it)
+        maybeGifs(slotDate[2] || slotCalc[1] || uriBox || sugKeepsTyped || slotUndo[0] ? "" : ew);
     }
 
     private static final String[] DATE_WORDS = {"today", "tomorrow", "yesterday", "date", "now", "time"};
@@ -1493,6 +1493,26 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                     if (job != gifJob) return;
                     gifBox.removeAllViews();
                     // emojis first, then the GIFs: one row of the same height as the word row it replaces
+                    if (slotFix[0] && slotFix[1] && fixShownTyped != null && fixShownDone != null) {
+                        // an auto-correct was just made: her word and the corrected word stay first in the row, so she can still pick
+                        for (int c = 0; c < 2; c++) {
+                            final int which = c;
+                            TextView ft = new TextView(BolchiIME.this);
+                            ft.setText(c == 0 ? "\u201C" + fixShownTyped + "\u201D" : fixShownDone);
+                            ft.setTextColor(cInk);
+                            ft.setTextSize(17);
+                            if (c == 1) ft.setTypeface(Typeface.DEFAULT_BOLD);
+                            ft.setGravity(Gravity.CENTER);
+                            ft.setPadding(dp(12), 0, dp(12), 0);
+                            ft.setBackground(box(cKey, 8));
+                            ft.setOnClickListener(new View.OnClickListener() {
+                                @Override public void onClick(View v) { tick(v); try { pickSug(which); } catch (Exception ex) { saveProblem(ex); } }
+                            });
+                            LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
+                            flp.setMargins(0, 0, dp(4), 0);
+                            gifBox.addView(ft, flp);
+                        }
+                    }
                     String[] ems = EmojiHints.get(q);
                     for (int k = 0; ems != null && k < ems.length && k < 3; k++) {
                         final String em = ems[k];

@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 77 = build-86** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 78 = build-88** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -238,6 +238,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   skipped while a correction, a kept-typed word or Undo is in the word row; the emoji still shows in the right slot. (2) Calculator works for a sum that was PASTED or left
   earlier: `Calc.tail` reads the sum right before the cursor ("20+30", "20 + 30 =") when nothing is being typed, and `onUpdateSelection` repaints after a paste / cursor move.
   Dates (14/11/2026) and dashed phone numbers are not treated as sums.
+- Version 78 (Tara: "if I don't select ... when will GIFs come"): after an auto-correct the GIFs come again, and the GIF row itself starts with the two choices
+  (her word in quotes, the corrected word bold; chips that call `pickSug(0/1)`), then the emoji, then the GIFs. So nothing is covered and nothing waits.
+  While she is still typing a word that has a correction on offer (`sugKeepsTyped`) there are still no GIFs.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
