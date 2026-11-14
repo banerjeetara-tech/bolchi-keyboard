@@ -220,6 +220,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   - Banglish / Hinglish typing help on the EN keys while she is writing Banglish (`desiRecent` > 0): `Words.desiCompletions` in the bold middle slot, `Words.desiFix`
     offers the nearest Banglish word for a slip ("korhci" → korchi), never swapped in automatically.
   - Not built: shortcuts, slide on space bar, keyboard size.
+- Version 74: "today" / "time" showed emoji and GIFs instead of the date (the GIF row replaced the word row, because those words have emoji). `paintSugs` now
+  skips GIFs while a date, time or sum is in the word row. Tara did not understand the text steps for the 📋 💬 🔍 tabs: explain with pictures, not lists.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

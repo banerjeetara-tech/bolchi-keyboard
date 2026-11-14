@@ -969,7 +969,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             sug[i].setText(show);
             sug[i].setTypeface(i == 1 && bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
         }
-        maybeGifs(ew);
+        // a date, the time or a sum is showing in the word row: GIFs must not cover it
+        maybeGifs(slotDate[2] || slotCalc[1] ? "" : ew);
     }
 
     private static final String[] DATE_WORDS = {"today", "tomorrow", "yesterday", "date", "now", "time"};
