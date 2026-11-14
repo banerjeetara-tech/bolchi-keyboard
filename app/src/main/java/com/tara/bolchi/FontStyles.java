@@ -80,6 +80,15 @@ public final class FontStyles {
         return b.toString();
     }
 
+    /** The font this text is written in, or -1 when it is plain (or only partly styled). */
+    public static int detect(String text) {
+        if (text == null || text.isEmpty()) return -1;
+        String pl = plain(text);
+        if (pl.equals(text)) return -1;
+        for (int st = 0; st < NAMES.length; st++) if (st != 20 && applyRaw(st, pl).equals(text)) return st;
+        return -1;
+    }
+
     public static String apply(int style, String text) {
         return applyRaw(style, plain(text));
     }

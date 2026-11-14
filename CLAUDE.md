@@ -181,6 +181,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   commit through `shown()`. English corrections / emoji / GIFs need the ENGLISH tab (layout 0); tell her so. If it still fails with the English tab dark, get her Bolchi version first.
 - Version 68: ROOT CAUSE of "correction / emoji / GIF not working in font mode": `onUpdateSelection` treated the 2-character styled letter as a cursor jump (> 1) and wiped
   the tracked word after every letter. The jump threshold is now 2 when `typeStyle >= 0`. (Earlier guesses in versions 65-67 were wrong.)
+- Version 69: styled letters are NOT real letters, so Outlook folder names / search did not match them (Tara). The font now applies only in the app where she chose it
+  (`typeStyleApp`) and never in search / address / email / password / filter boxes (`plainBox`: plainField, noFix, FILTER, IME action SEARCH or GO); all font logic goes through
+  `fontOn()`. Grammar fix / rewrite / translate send PLAIN letters to the AI (`FontStyles.plain`) and re-apply the font afterwards (`FontStyles.detect`) — she said the font was
+  gone after she replaced a sentence.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
