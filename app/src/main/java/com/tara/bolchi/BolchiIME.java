@@ -32,6 +32,8 @@ import android.view.inputmethod.InlineSuggestionsResponse;
 import android.widget.inline.InlinePresentationSpec;
 import android.widget.inline.InlineContentView;
 import android.os.Build;
+import android.database.Cursor;
+import android.provider.ContactsContract;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
@@ -928,6 +930,31 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private LinearLayout smsRow;   // the code read from SMS; separate so Android's updates never wipe it
     private SharedPreferences.OnSharedPreferenceChangeListener smsWatch;
     private String curApp = "";   // the app whose box is open now
+    private long contactsLoadedAt;
+    private boolean contactsLoading;
+
+    /** Reads the names from the phone book (if she allowed it) into memory, at most every 10 minutes. */
+    private void loadContactsSoon() {
+        if (contactsLoading || System.currentTimeMillis() - contactsLoadedAt < 10 * 60 * 1000L) return;
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return;
+        contactsLoading = true;
+        new Thread(new Runnable() { @Override public void run() {
+            Cursor c = null;
+            try {
+                List<String> names = new ArrayList<>();
+                c = getContentResolver().query(ContactsContract.Contacts.CONTENT_URI,
+                        new String[]{ContactsContract.Contacts.DISPLAY_NAME_PRIMARY}, null, null, null);
+                while (c != null && c.moveToNext()) { String n = c.getString(0); if (n != null) names.add(n); }
+                Words.setContacts(names);
+                contactsLoadedAt = System.currentTimeMillis();
+            } catch (Throwable ignored) {
+                // permission taken away or no phone book: carry on without it
+            } finally {
+                if (c != null) try { c.close(); } catch (Throwable ignored) { }
+                contactsLoading = false;
+            }
+        } }).start();
+    }
 
     /** Shows the newest SMS code (from SmsCodeReceiver) above the keys, for 3 minutes, once. */
     private void showSmsCode(boolean boxIsOpen) {
@@ -1167,6 +1194,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         for (String m : myWords) {
             if (added >= 2) break;
             if (m.length() > lp.length() && m.toLowerCase().startsWith(lp) && !show.contains(m)) { show.add(m); added++; }
+        }
+        for (String o : Words.contactMatches(lp, 2)) {
+            if (added >= 3) break;
+            if (!show.contains(o)) { show.add(o); added++; }
         }
         for (String o : Words.ownMatches(lp, 2)) {
             if (added >= 3) break;
@@ -1633,6 +1664,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         curApp = info == null || info.packageName == null ? "" : info.packageName;
         clearOtp();
         clearSms();
+        loadContactsSoon();
         handler.post(new Runnable() { @Override public void run() { showSmsCode(true); } });
         List<String> mine = new ArrayList<>();
         for (String m : prefs().getString("myWords", "").split("\n")) {

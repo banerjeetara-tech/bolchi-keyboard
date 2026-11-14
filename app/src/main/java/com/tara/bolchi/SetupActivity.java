@@ -38,6 +38,7 @@ public class SetupActivity extends Activity {
     private TextView micBtn;
     private TextView smsBtn;
     private TextView smsInfo;
+    private TextView contactsBtn;
     private TextView enableBtn;
     private LinearLayout problemBox;
     private TextView problemText;
@@ -111,6 +112,16 @@ public class SetupActivity extends Activity {
         col.addView(smsBtn);
         smsInfo = text("", 13, MUTED);
         col.addView(smsInfo);
+
+        col.addView(text("Names from your phone book", 17, INK));
+        col.addView(text("Allow this and the keyboard offers the names in your contacts as you type their first letters. The names stay on your phone and are not sent anywhere.", 14, MUTED));
+        contactsBtn = button("Allow phone book names");
+        contactsBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                requestPermissions(new String[]{Manifest.permission.READ_CONTACTS}, 3);
+            }
+        });
+        col.addView(contactsBtn);
 
         col.addView(text("2. Turn on Bolchi in your keyboard list", 17, INK));
         enableBtn = button("Open keyboard settings");
@@ -266,6 +277,9 @@ public class SetupActivity extends Activity {
         boolean sms = checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED;
         smsBtn.setText(sms ? "\u2713 SMS codes allowed" : "Allow reading codes from SMS");
         smsBtn.setBackground(box(sms ? OK : ACCENT, 0, 12));
+        boolean cts = checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED;
+        contactsBtn.setText(cts ? "\u2713 Phone book names allowed" : "Allow phone book names");
+        contactsBtn.setBackground(box(cts ? OK : ACCENT, 0, 12));
         SharedPreferences sp = getSharedPreferences("bolchi", Context.MODE_PRIVATE);
         long seen = sp.getLong("smsAnyAt", 0);
         smsInfo.setText(!sms ? "" : seen == 0 ? "No text message seen by Bolchi yet."

@@ -23,6 +23,41 @@ public final class Words {
     private static final HashMap<String, Integer> rank = new HashMap<>();
     private static final Set<String> own = new HashSet<>();
     public static volatile boolean ready;
+    /** Name parts from the phone book (lower case -> as written). Kept in memory only. */
+    private static final java.util.TreeMap<String, String> CONTACT = new java.util.TreeMap<>();
+
+    public static void setContacts(java.util.Collection<String> names) {
+        java.util.TreeMap<String, String> m = new java.util.TreeMap<>();
+        for (String n : names) {
+            if (n == null) continue;
+            for (String part : n.split("[^A-Za-z]+")) {
+                if (part.length() < 3 || part.length() > 20) continue;
+                String k = part.toLowerCase(Locale.ROOT);
+                String old = m.get(k);
+                if (old == null || (Character.isUpperCase(part.charAt(0)) && !Character.isUpperCase(old.charAt(0)))) m.put(k, part);
+            }
+        }
+        synchronized (CONTACT) { CONTACT.clear(); CONTACT.putAll(m); }
+    }
+
+    /** Phone book names that start with these letters, as written in the phone book. */
+    public static List<String> contactMatches(String prefix, int max) {
+        List<String> out = new ArrayList<>();
+        if (prefix == null || prefix.length() < 2) return out;
+        String p = prefix.toLowerCase(Locale.ROOT);
+        synchronized (CONTACT) {
+            for (java.util.Map.Entry<String, String> e : CONTACT.tailMap(p).entrySet()) {
+                if (!e.getKey().startsWith(p)) break;
+                if (e.getKey().length() > p.length()) out.add(e.getValue());
+                if (out.size() >= max) break;
+            }
+        }
+        return out;
+    }
+
+    private static boolean isContact(String l) {
+        synchronized (CONTACT) { return CONTACT.containsKey(l); }
+    }
 
     /** Common Banglish / Hinglish words that must never be "corrected" into English. */
     private static final Set<String> DESI = new HashSet<>(Arrays.asList((
@@ -108,12 +143,12 @@ public final class Words {
 
     public static boolean known(String w) {
         String l = w.toLowerCase(Locale.ROOT);
-        if (DESI.contains(l) || rank.containsKey(l)) return true;
+        if (DESI.contains(l) || rank.containsKey(l) || isContact(l)) return true;
         synchronized (own) { return own.contains(l); }
     }
 
     private static boolean isOwnOrDesi(String l) {
-        if (DESI.contains(l)) return true;
+        if (DESI.contains(l) || isContact(l)) return true;
         synchronized (own) { return own.contains(l); }
     }
 
@@ -206,6 +241,12 @@ public final class Words {
                 if (out.size() >= max - 1) break;
                 if (s.length() > p.length() && s.startsWith(p)) out.add(matchCase(typed, s));
             }
+        }
+        // then names from her phone book (at most two), before the ordinary dictionary words
+        for (String c : contactMatches(p, 2)) {
+            if (out.size() >= max - 1) break;
+            String shown = matchCase(typed, c);
+            if (!out.contains(shown)) out.add(shown);
         }
         String[] l = list;
         for (int i = 0; i < l.length && out.size() < max; i++) {
