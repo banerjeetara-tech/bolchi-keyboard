@@ -109,6 +109,27 @@ public final class EmojiHints {
         return null;
     }
 
+    /** Emoji search: every emoji whose word (or short form / Banglish word) starts with these letters, the closest words first. */
+    public static java.util.List<String> search(String query, int max) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (!ready || query == null || query.trim().length() < 2) return out;
+        String q = query.trim().toLowerCase(Locale.ROOT);
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        synchronized (MAP) { for (String k : MAP.keySet()) if (k.startsWith(q)) keys.add(k); }
+        java.util.Collections.sort(keys, new java.util.Comparator<String>() {
+            @Override public int compare(String a, String b) { return a.length() != b.length() ? a.length() - b.length() : a.compareTo(b); }
+        });
+        String exact = key(q);
+        if (exact != null) { keys.remove(exact); keys.add(0, exact); }
+        for (java.util.Map.Entry<String, String> e : ALIAS.entrySet()) if (e.getKey().startsWith(q) && !keys.contains(e.getValue())) keys.add(e.getValue());
+        for (String k : keys) {
+            String[] em = MAP.get(k);
+            if (em == null) continue;
+            for (String x : em) { if (!out.contains(x)) out.add(x); if (out.size() >= max) return out; }
+        }
+        return out;
+    }
+
     /** Emojis for this word (see key), or null. */
     public static String[] get(String word) {
         String k = key(word);

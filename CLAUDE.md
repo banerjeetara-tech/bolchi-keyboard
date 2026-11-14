@@ -210,6 +210,16 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   - 16 more light themes (76 total): Peach Sorbet ... Morning Mist.
   - She did not understand "slide on the space bar to move the cursor" (not built). Asked: difference "Translate to Hindi" (changes the language: English/Bengali → Hindi) vs
     "To Hindi script" (same Hindi words, only the letters change: "kya hua" → "क्या हुआ").
+- Version 73 (Tara picked these from a list; she saw a picture preview of the clipboard tab and said "Okay add"; not tested on a phone):
+  - Emoji panel bottom row has three new tabs after the emoji groups: 📋 clipboard (`buildClips`: last 10 copied texts from `noteClip`, prefs `clips` / `clipPins`,
+    tap pastes, pin keeps, ✕ removes; texts marked sensitive are skipped), 💬 replies (`buildReplies`: "✨ Reply to copied message" = 3 AI answers via `Converter.replies`,
+    "＋ Save my text here", her ready messages in pref `quickReplies`), 🔍 emoji search (`emoSearch`: the letter keys come back, typed letters go to `emoQuery`, results
+    replace the word row via `paintEmojiSearch` / `EmojiHints.search`; space, ✕ or backspace on empty ends it). No new button on the keys (she does not want extra buttons).
+  - Undo: text removed with backspace is kept in `deletedBuf`; after 4+ characters the LEFT word slot shows "↶ Undo" (`slotUndo`) until she types again.
+  - Hold backspace and slide left: `deleteWord` removes a whole word for every 28 dp (handled in `KeyArea`, `delKeyView`).
+  - Banglish / Hinglish typing help on the EN keys while she is writing Banglish (`desiRecent` > 0): `Words.desiCompletions` in the bold middle slot, `Words.desiFix`
+    offers the nearest Banglish word for a slip ("korhci" → korchi), never swapped in automatically.
+  - Not built: shortcuts, slide on space bar, keyboard size.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

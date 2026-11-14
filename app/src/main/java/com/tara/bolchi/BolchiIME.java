@@ -116,6 +116,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private final List<TextView> vowelKeys = new ArrayList<>();
     private boolean vowelRowFull;
     private int convOption = 0;
+    private final StringBuilder deletedBuf = new StringBuilder();   // what backspace just removed: "Undo" in the word row puts it back
+    private final boolean[] slotUndo = new boolean[3];
+    private View delKeyView;                 // the backspace key on the letter pages: hold it and slide left to delete whole words
+    private int delId = -1, delSteps;
+    private float delX;
+    private boolean emoSearch;               // emoji search: the letters she types go to the search, not into the text
+    private final StringBuilder emoQuery = new StringBuilder();
+    private List<String> aiReplies;          // ready answers to the message she copied
+    private ClipboardManager.OnPrimaryClipChangedListener clipWatch;
+    private static final int TAB_CLIPS = Emojis.SETS.length, TAB_REPLIES = Emojis.SETS.length + 1;
     private int toneStyle = 0;   // the tone chosen under "Change tone" (Converter.TONES)
     private String justEnded = "";  // the word that was just finished: its emoji and GIFs stay until she types on
     private long justEndedAt;
@@ -194,13 +204,24 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_POINTER_DOWN) {
                     View k = keyAt(ev.getX(idx), ev.getY(idx));
                     if (swId != -1) { swId = -1; swiping = false; invalidate(); }   // a second finger: plain typing
-                    else if (a == MotionEvent.ACTION_DOWN && k != null && wordsOn() && letterKeys.contains(k)) {
+                    else if (a == MotionEvent.ACTION_DOWN && k != null && wordsOn() && !emoSearch && letterKeys.contains(k)) {
                         swId = id; swN = 0; swiping = false; swKeyW = k.getWidth();
                         swFirst = ((TextView) k).getText().toString();
                         swAdd(ev.getX(idx), ev.getY(idx));
                     }
                     if (k != null) { heldKeys.put(id, k); sendTo(k, MotionEvent.ACTION_DOWN, ev); }
+                    if (k != null && k == delKeyView) { delId = id; delX = ev.getX(idx); delSteps = 0; }
                 } else if (a == MotionEvent.ACTION_MOVE) {
+                    int di = delId == -1 ? -1 : ev.findPointerIndex(delId);
+                    if (di >= 0) {
+                        // finger held on backspace and slid left: one whole word goes for every bit of the way
+                        int steps = (int) ((delX - ev.getX(di)) / dp(28));
+                        while (delSteps < steps) {
+                            if (delSteps == 0) handler.removeCallbacks(repeatDelete);
+                            deleteWord();
+                            delSteps++;
+                        }
+                    }
                     int pi = swId == -1 ? -1 : ev.findPointerIndex(swId);
                     if (pi >= 0) {
                         for (int h = 0; h < ev.getHistorySize(); h++) swAdd(ev.getHistoricalX(pi, h), ev.getHistoricalY(pi, h));
@@ -212,6 +233,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                     View k = heldKeys.get(id);
                     heldKeys.remove(id);
                     if (k != null) sendTo(k, MotionEvent.ACTION_UP, ev);
+                    if (id == delId) delId = -1;
                     if (id == swId) {
                         boolean was = swiping;
                         swId = -1; swiping = false; invalidate();
@@ -219,6 +241,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                     }
                 } else if (a == MotionEvent.ACTION_CANCEL) {
                     swId = -1; swiping = false; invalidate();
+                    delId = -1;
                     for (int i = 0; i < heldKeys.size(); i++) sendTo(heldKeys.valueAt(i), MotionEvent.ACTION_CANCEL, ev);
                     heldKeys.clear();
                 }
@@ -622,6 +645,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     @Override
     public void onCreate() {
         super.onCreate();
+        try {
+            final ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            clipWatch = new ClipboardManager.OnPrimaryClipChangedListener() {
+                @Override public void onPrimaryClipChanged() { try { noteClip(cm); } catch (Throwable t) { /* clipboard not readable just now */ } }
+            };
+            if (cm != null) cm.addPrimaryClipChangedListener(clipWatch);
+        } catch (Throwable t) { /* no clipboard list on this phone */ }
         final Thread.UncaughtExceptionHandler prev = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override public void uncaughtException(Thread th, Throwable ex) {
@@ -667,6 +697,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             convBtn.setBackground(box(on ? cInk : cFn, 20));
             convBtn.setTextColor(on ? cKey : cInk);
         }
+        if (page != PAGE_ABC && emoSearch) emoSearch = false;
         if (page == PAGE_EMOJI) { buildEmoji(); return; }
         if (page == PAGE_CONVERT) { buildConverter(); return; }
         if (page == PAGE_THEMES) { buildThemes(); return; }
@@ -824,6 +855,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     private void paintSugs() {
         if (sugRow == null) { if (contactScroll != null) contactScroll.setVisibility(View.GONE); return; }
+        if (emoSearch) { paintEmojiSearch(); return; }
         String w = word.toString();
         paintContacts(w);
         String[] v = {"", "", ""};
@@ -835,6 +867,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         slotFix[0] = slotFix[1] = slotFix[2] = false;
         slotNum[0] = slotNum[1] = slotNum[2] = false;
         slotCalc[0] = slotCalc[1] = slotCalc[2] = false;
+        slotUndo[0] = slotUndo[1] = slotUndo[2] = false;
         slotDate[0] = slotDate[1] = slotDate[2] = false;
         slotNumFill[0] = slotNumFill[1] = slotNumFill[2] = false;
         boolean[] ownSlot = new boolean[3];
@@ -855,6 +888,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             String fx = Words.fix(w, wordAutoCap);
             List<String> dict = Words.dictCompletions(w, 3);
             List<String> mem = Words.memoryMatches(w, 2);
+            // she is writing Banglish / Hinglish just now: a slip is measured against those words, not English ones
+            String df = desiRecent > 0 && !Words.known(w) ? Words.desiFix(w) : null;
+            if (df != null) fx = df;
             if (fx != null) {
                 v[0] = w; sugKeepsTyped = true;                     // her word, exactly as typed
                 v[1] = fx;                                          // the corrected word
@@ -866,6 +902,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 else if (dict.size() > 1) v[0] = dict.get(1);
                 if (mem.size() > 1) v[2] = mem.get(1);
                 else if (dict.size() > 2) v[2] = dict.get(2);
+                if (desiRecent > 0 || dict.isEmpty()) {
+                    // Banglish / Hinglish words that start with these letters take the bold middle place
+                    List<String> dc = Words.desiCompletions(w, 2);
+                    if (!dc.isEmpty()) {
+                        String eng = v[1];
+                        v[1] = Words.matchCase(w, dc.get(0));
+                        if (dc.size() > 1 && mem.size() < 2) v[2] = Words.matchCase(w, dc.get(1));
+                        else if (v[2].isEmpty()) v[2] = eng;
+                    }
+                }
             }
             bold = !v[1].isEmpty();
         }
@@ -891,6 +937,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             int[] order = {2, 0, 1};
             for (int k = 0; k < nums.size() && k < 3; k++) { v[order[k]] = nums.get(k); slotNum[order[k]] = true; ownSlot[order[k]] = true; }
         }
+        // backspace just removed a stretch of text: the left place offers to put it back
+        if (deletedBuf.length() >= 4 && !plainField) { v[0] = "\u21B6 Undo"; slotUndo[0] = true; ownSlot[0] = true; slotFix[0] = false; sugKeepsTyped = false; }
         // "today", "tomorrow", "now", "date", "time": offer the real date or time
         if (!plainField && !sugKeepsTyped && w.length() >= 3) {
             String dt = dateFor(w.toLowerCase());
@@ -917,7 +965,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         for (int i = 0; i < 3; i++) {
             sugVal[i] = v[i];
-            String show = i == 0 && (sugKeepsTyped || slotFix[0]) ? "\u201C" + v[i] + "\u201D" : v[i];
+            String show = i == 0 && (sugKeepsTyped || slotFix[0]) && !slotUndo[0] ? "\u201C" + v[i] + "\u201D" : v[i];
             sug[i].setText(show);
             sug[i].setTypeface(i == 1 && bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
         }
@@ -976,6 +1024,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
+        if (slotUndo[i]) {
+            if (ic != null && deletedBuf.length() > 0) ic.commitText(deletedBuf.toString(), 1);
+            deletedBuf.setLength(0);
+            fixShownTyped = fixShownDone = null;
+            word.setLength(0);
+            paintSugs();
+            return;
+        }
         if (slotFix[i] && ic != null && fixShownDone != null) {
             String done = fixShownDone, typed = fixShownTyped;
             if (fixPrompt) {
@@ -1098,7 +1154,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             boolean calm = desiRecent == 0;
             if (Words.isDesi(w)) desiRecent = 2;
             else if (desiRecent > 0 && Words.inDictionary(w)) desiRecent--;
-            if (fx == null) {
+            String dfx = !calm && !Words.known(w) ? Words.desiFix(w) : null;
+            if (dfx != null) {
+                // close to a Banglish / Hinglish word: left as typed, the likely word is offered in bold
+                fixShownTyped = w;
+                fixShownDone = dfx;
+                fixPrompt = true;
+            } else if (fx == null) {
                 // a new word of hers: remember it so it is offered next time
                 if (w.length() >= 3 && !Words.known(w)) learn(w);
             } else if (autoFix && calm && Words.sureFix(w) && wordIsThere(ic, w) && Words.autoReplaceOk(w)) {
@@ -1801,6 +1863,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     private TextView deleteKey(float weight) {
         TextView del = makeKey("⌫", weight, cFn, cInk, 20);
+        if (page != PAGE_EMOJI) delKeyView = del;
         del.setOnTouchListener(new View.OnTouchListener() {
             @Override public boolean onTouch(View v, MotionEvent e) {
                 int a = e.getActionMasked();
@@ -1837,6 +1900,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         int widthDp = (int) (getResources().getDisplayMetrics().widthPixels / getResources().getDisplayMetrics().density);
         int cols = Math.max(8, Math.min(14, widthDp / 46));
 
+        if (emojiTab >= Emojis.SETS.length) {
+            ScrollView sc = new ScrollView(this);
+            LinearLayout box = new LinearLayout(this);
+            box.setOrientation(LinearLayout.VERTICAL);
+            sc.addView(box);
+            if (emojiTab == TAB_CLIPS) buildClips(box); else buildReplies(box);
+            keysBox.addView(sc, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(4 * (KEY_H + 4))));
+            buildEmojiTabs();
+            return;
+        }
         String list = emojiTab == 0 ? prefs().getString("recent", "") : Emojis.SETS[emojiTab];
         String[] items = list.trim().isEmpty() ? new String[0] : list.trim().split(" ");
 
@@ -1877,18 +1950,36 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         keysBox.addView(scroll, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(4 * (KEY_H + 4))));
 
+        buildEmojiTabs();
+    }
+
+    /** Bottom row of the emoji panel: ABC, the emoji groups, clipboard, ready replies, emoji search, backspace. */
+    private void buildEmojiTabs() {
         LinearLayout tabs = row();
-        TextView abc = makeKey("ABC", 1.5f, cFn, cInk, 15);
+        TextView abc = makeKey("ABC", 1.4f, cFn, cInk, 15);
         onPress(abc, cFn, new Runnable() { @Override public void run() { page = PAGE_ABC; buildKeysSoon(); } });
         tabs.addView(abc);
-        for (int i = 0; i < Emojis.TAB_ICONS.length; i++) {
+        final String[] extra = {"\uD83D\uDCCB", "\uD83D\uDCAC", "\uD83D\uDD0D"};      // clipboard, replies, search
+        int n = Emojis.TAB_ICONS.length;
+        for (int i = 0; i < n + extra.length; i++) {
             final int tab = i;
-            TextView t = makeKey(Emojis.TAB_ICONS[i], 1f, i == emojiTab ? cFn : cKey, cInk, 19);
+            final boolean search = i == n + 2;
+            TextView t = makeKey(i < n ? Emojis.TAB_ICONS[i] : extra[i - n], 1f, i == emojiTab ? cFn : cKey, cInk, 18);
             final int f = i == emojiTab ? cFn : cKey;
-            onPress(t, f, new Runnable() { @Override public void run() { emojiTab = tab; buildKeysSoon(); } });
+            onPress(t, f, new Runnable() { @Override public void run() {
+                if (search) {
+                    // the letter keys come back; what she types now searches the emojis
+                    emoSearch = true;
+                    emoQuery.setLength(0);
+                    page = PAGE_ABC;
+                    if (layout != 0) setLayoutTo(0);
+                    buildKeysSoon();
+                    return;
+                }
+                emojiTab = tab; buildKeysSoon(); } });
             tabs.addView(t);
         }
-        tabs.addView(deleteKey(1.5f));
+        tabs.addView(deleteKey(1.4f));
         keysBox.addView(tabs);
     }
 
@@ -2152,6 +2243,19 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void commit(String s) {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
+        if (emoSearch && page == PAGE_ABC) {
+            if (s.length() == 1 && Character.isLetterOrDigit(s.charAt(0)) && s.charAt(0) < 128) {
+                if (emoQuery.length() < 20) emoQuery.append(Character.toLowerCase(s.charAt(0)));
+                paintEmojiSearch();
+                return;
+            }
+            if (!" ".equals(s) && s.length() <= 2 && s.charAt(0) < 128) { endEmojiSearch(); return; }
+            if (" ".equals(s)) { endEmojiSearch(); return; }
+            // anything longer is an emoji she picked: it goes into the text and the search stays open
+            ic.commitText(s, 1);
+            return;
+        }
+        deletedBuf.setLength(0);
         if (phonetic() && s.length() == 1 && Character.isLetter(s.charAt(0)) && s.charAt(0) < 128) {
             typePhon(s); return;
         }
@@ -2198,6 +2302,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void typeMark(String m) {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
+        if (emoSearch) { endEmojiSearch(); return; }
+        deletedBuf.setLength(0);
         flushPhon(true);
         ic.finishComposingText();
         composing = false;
@@ -2217,9 +2323,270 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         autoShift();
     }
 
+    /** Backspace held and slid left: the whole word before the cursor goes (with the space after it). */
+    private void deleteWord() {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null || phon.length() > 0 || (emoSearch && page == PAGE_ABC)) return;
+        if (composing) { ic.finishComposingText(); composing = false; }
+        CharSequence b = ic.getTextBeforeCursor(80, 0);
+        int n = b == null ? 0 : b.length();
+        if (n == 0) return;
+        int i = n;
+        while (i > 0 && Character.isWhitespace(b.charAt(i - 1))) i--;
+        while (i > 0 && !Character.isWhitespace(b.charAt(i - 1))) i--;
+        if (i == n) return;
+        if (wordsOn() && deletedBuf.length() < 2000) deletedBuf.insert(0, b.subSequence(i, n));
+        ic.deleteSurroundingText(n - i, 0);
+        word.setLength(0);
+        token.setLength(0);
+        numTyped.setLength(0);
+        lastWord = "";
+        justEnded = "";
+        fixTyped = null;
+        fixShownTyped = fixShownDone = null;
+        swipeDone = null;
+        if (delKeyView != null) tick(delKeyView);
+        paintSugs();
+        autoShift();
+    }
+
+    // ---------- emoji search ----------
+    private void endEmojiSearch() {
+        emoSearch = false;
+        emoQuery.setLength(0);
+        hideGifs();
+        paintSugs();
+    }
+
+    /** The search row (in place of the word row): what she typed, the emojis found, and a cross to leave. */
+    private void paintEmojiSearch() {
+        if (gifScroll == null || gifBox == null) return;
+        gifJob++;
+        gifFor = "";
+        gifBox.removeAllViews();
+        TextView q = new TextView(this);
+        q.setText("\uD83D\uDD0D " + (emoQuery.length() == 0 ? "type a word" : emoQuery.toString()) + "\u258F");
+        q.setTextColor(emoQuery.length() == 0 ? cMuted : cInk);
+        q.setTextSize(16);
+        q.setGravity(Gravity.CENTER);
+        q.setPadding(dp(10), 0, dp(10), 0);
+        q.setBackground(box(cKey, 8));
+        LinearLayout.LayoutParams qlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
+        qlp.setMargins(0, 0, dp(4), 0);
+        gifBox.addView(q, qlp);
+        for (final String em : EmojiHints.search(emoQuery.toString(), 30)) {
+            TextView et = new TextView(this);
+            et.setText(em);
+            et.setTextSize(22);
+            et.setGravity(Gravity.CENTER);
+            et.setPadding(dp(10), 0, dp(10), 0);
+            et.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    tick(v);
+                    InputConnection ic = getCurrentInputConnection();
+                    if (ic != null) { ic.commitText(em, 1); addRecent(em); }
+                }
+            });
+            gifBox.addView(et, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)));
+        }
+        TextView x = new TextView(this);
+        x.setText("\u2715");
+        x.setTextColor(cMuted);
+        x.setTextSize(18);
+        x.setGravity(Gravity.CENTER);
+        x.setPadding(dp(14), 0, dp(14), 0);
+        x.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { tick(v); endEmojiSearch(); } });
+        gifBox.addView(x, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)));
+        gifScroll.scrollTo(0, 0);
+        gifScroll.setVisibility(View.VISIBLE);
+        if (sugRow != null) sugRow.setVisibility(View.GONE);
+        if (contactScroll != null) contactScroll.setVisibility(View.GONE);
+    }
+
+    // ---------- clipboard list and ready replies (tabs of the emoji panel) ----------
+    private List<String> loadList(String pref, String def) {
+        List<String> out = new ArrayList<>();
+        String all = prefs().getString(pref, def);
+        if (all == null) return out;
+        for (String x : all.split("\u0001")) if (!x.trim().isEmpty()) out.add(x);
+        return out;
+    }
+
+    private void saveList(String pref, List<String> l) {
+        StringBuilder b = new StringBuilder();
+        for (String x : l) { if (b.length() > 0) b.append('\u0001'); b.append(x); }
+        prefs().edit().putString(pref, b.toString()).apply();
+    }
+
+    private static final String REPLY_DEFAULTS = "I am in a meeting, will call you back.\u0001On my way.\u0001Please call me when you are free."
+            + "\u0001Thank you.\u0001Noted, will do.\u0001Ami ektu pore phone korchi.";
+
+    /** Something was copied: keep it in the list (last 10; never anything marked as a password). */
+    private void noteClip(ClipboardManager cm) {
+        ClipData d = cm == null ? null : cm.getPrimaryClip();
+        if (d == null || d.getItemCount() == 0) return;
+        ClipDescription ds = d.getDescription();
+        if (ds != null && Build.VERSION.SDK_INT >= 24 && ds.getExtras() != null
+                && (ds.getExtras().getBoolean("android.content.extra.IS_SENSITIVE", false))) return;
+        CharSequence t = d.getItemAt(0).getText();
+        if (t == null) return;
+        String sTxt = t.toString().trim();
+        if (sTxt.isEmpty() || sTxt.length() > 1000 || sTxt.indexOf('\u0001') >= 0) return;
+        if (loadList("clipPins", "").contains(sTxt)) return;
+        List<String> l = loadList("clips", "");
+        l.remove(sTxt);
+        l.add(0, sTxt);
+        while (l.size() > 10) l.remove(l.size() - 1);
+        saveList("clips", l);
+    }
+
+    /** One line of a list tab: an optional small button on the left, the text (tap to write it), a cross to remove it. */
+    private void listLine(LinearLayout into, final String text, String left, final Runnable onLeft, final Runnable onX, boolean strong) {
+        LinearLayout r = row();
+        r.setBackground(box(cKey, 10));
+        r.setGravity(Gravity.CENTER_VERTICAL);
+        if (left != null) {
+            TextView l = new TextView(this);
+            l.setText(left);
+            l.setTextSize(16);
+            l.setGravity(Gravity.CENTER);
+            if (onLeft != null) l.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { tick(v); onLeft.run(); } });
+            r.addView(l, new LinearLayout.LayoutParams(dp(40), dp(44)));
+        }
+        TextView t = new TextView(this);
+        t.setText(text.replace('\n', ' '));
+        t.setTextColor(cInk);
+        t.setTextSize(15);
+        t.setSingleLine(true);
+        t.setEllipsize(TextUtils.TruncateAt.END);
+        t.setGravity(Gravity.CENTER_VERTICAL);
+        t.setPadding(left == null ? dp(12) : 0, 0, dp(6), 0);
+        if (strong) t.setTypeface(Typeface.DEFAULT_BOLD);
+        t.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                tick(v);
+                try { commit(text); page = PAGE_ABC; buildKeysSoon(); } catch (Exception ex) { saveProblem(ex); }
+            }
+        });
+        r.addView(t, new LinearLayout.LayoutParams(0, dp(44), 1f));
+        if (onX != null) {
+            TextView x = new TextView(this);
+            x.setText("\u2715");
+            x.setTextColor(cMuted);
+            x.setTextSize(15);
+            x.setGravity(Gravity.CENTER);
+            x.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { tick(v); onX.run(); } });
+            r.addView(x, new LinearLayout.LayoutParams(dp(40), dp(44)));
+        }
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(dp(3), dp(2), dp(3), dp(2));
+        into.addView(r, lp);
+    }
+
+    private void listHint(LinearLayout into, String text) {
+        TextView h = new TextView(this);
+        h.setText(text);
+        h.setTextColor(cMuted);
+        h.setTextSize(13);
+        h.setPadding(dp(8), dp(6), dp(8), dp(4));
+        into.addView(h);
+    }
+
+    private TextView listButton(String text, boolean accent, final Runnable run) {
+        TextView b = makeKey(text, 1f, accent ? cAcc : cFn, accent ? cOnAcc : cInk, 14);
+        b.setLayoutParams(new LinearLayout.LayoutParams(0, dp(42), 1f));
+        onPress(b, accent ? cAcc : cFn, run);
+        return b;
+    }
+
+    /** The clipboard tab: what she copied lately, pinned ones first. */
+    private void buildClips(LinearLayout into) {
+        final List<String> pins = loadList("clipPins", "");
+        final List<String> clips = loadList("clips", "");
+        listHint(into, pins.isEmpty() && clips.isEmpty() ? "Text you copy will show here"
+                : "Copied text \u2014 tap to paste \u00B7 \uD83D\uDCCC keeps it for good");
+        for (final String c : pins) {
+            listLine(into, c, "\uD83D\uDCCC", new Runnable() { @Override public void run() {
+                pins.remove(c); saveList("clipPins", pins);
+                clips.remove(c); clips.add(0, c); saveList("clips", clips); buildKeysSoon(); } },
+                new Runnable() { @Override public void run() { pins.remove(c); saveList("clipPins", pins); buildKeysSoon(); } }, true);
+        }
+        for (final String c : clips) {
+            listLine(into, c, "\uD83D\uDCCD", new Runnable() { @Override public void run() {
+                clips.remove(c); saveList("clips", clips);
+                if (!pins.contains(c)) pins.add(c); saveList("clipPins", pins); buildKeysSoon(); } },
+                new Runnable() { @Override public void run() { clips.remove(c); saveList("clips", clips); buildKeysSoon(); } }, false);
+        }
+        if (!clips.isEmpty()) {
+            LinearLayout r = row();
+            r.addView(listButton("Clear the list (pinned ones stay)", false, new Runnable() { @Override public void run() {
+                saveList("clips", new ArrayList<String>()); buildKeysSoon(); } }));
+            into.addView(r);
+        }
+    }
+
+    /** The replies tab: answers the AI wrote for the copied message, then her own ready messages. */
+    private void buildReplies(LinearLayout into) {
+        LinearLayout top = row();
+        top.addView(listButton("\u2728 Reply to copied message", true, new Runnable() { @Override public void run() { askReplies(); } }));
+        top.addView(listButton("\uFF0B Save my text here", false, new Runnable() { @Override public void run() {
+            String mine = currentText(new boolean[1]).trim();
+            if (mine.isEmpty() || mine.length() > 400) { flashSpace(mine.isEmpty() ? "Type the message first" : "Too long to save"); return; }
+            List<String> l = loadList("quickReplies", REPLY_DEFAULTS);
+            l.remove(mine); l.add(0, mine); saveList("quickReplies", l); buildKeysSoon(); } }));
+        into.addView(top);
+        if (aiReplies != null) {
+            for (String a : aiReplies) listLine(into, a, "\u2728", null, null, true);
+        }
+        final List<String> mine = loadList("quickReplies", REPLY_DEFAULTS);
+        listHint(into, mine.isEmpty() ? "Type a message, open this tab and tap \uFF0B to keep it here" : "My ready messages \u2014 tap to write");
+        for (final String m : mine) {
+            listLine(into, m, null, null, new Runnable() { @Override public void run() { mine.remove(m); saveList("quickReplies", mine); buildKeysSoon(); } }, false);
+        }
+    }
+
+    /** Asks the AI for three answers to the message that was copied last. */
+    private void askReplies() {
+        final String key = prefs().getString("aikey", "");
+        String got = "";
+        try {
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData d = cm == null ? null : cm.getPrimaryClip();
+            if (d != null && d.getItemCount() > 0) { CharSequence t = d.getItemAt(0).coerceToText(this); if (t != null) got = t.toString().trim(); }
+        } catch (Exception ignored) { /* nothing copied */ }
+        if (got.isEmpty()) { List<String> c = loadList("clips", ""); if (!c.isEmpty()) got = c.get(0); }
+        aiReplies = new ArrayList<>();
+        if (key.isEmpty()) { aiReplies.add("\u26A0 Save an AI key in the Bolchi app first"); buildKeysSoon(); return; }
+        if (got.isEmpty()) { aiReplies.add("\u26A0 Copy the message you received first, then tap again"); buildKeysSoon(); return; }
+        aiReplies.add("Writing replies\u2026");
+        buildKeysSoon();
+        final String msg = got.length() > 1500 ? got.substring(0, 1500) : got;
+        new Thread(new Runnable() { @Override public void run() {
+            final List<String> out = new ArrayList<>();
+            try {
+                for (String line : Converter.replies(msg, key).split("\n")) {
+                    String l = line.trim().replaceFirst("^[-*\\d.)\\s]+", "");
+                    if (!l.isEmpty() && out.size() < 3) out.add(l);
+                }
+                if (out.isEmpty()) out.add("\u26A0 No reply came back. Tap again");
+            } catch (Throwable t) {
+                out.add("\u26A0 Could not reach the AI. Check the internet and tap again");
+            }
+            handler.post(new Runnable() { @Override public void run() {
+                aiReplies = out;
+                if (page == PAGE_EMOJI && emojiTab == TAB_REPLIES) buildKeys();
+            } });
+        } }).start();
+    }
+
     private void deleteOne() {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
+        if (emoSearch && page == PAGE_ABC) {
+            if (emoQuery.length() == 0) endEmojiSearch();
+            else { emoQuery.setLength(emoQuery.length() - 1); paintEmojiSearch(); }
+            return;
+        }
         if (phon.length() > 0) {
             phon.setLength(phon.length() - 1);
             ic.setComposingText(phon.toString(), 1);
@@ -2239,11 +2606,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (there) { ic.deleteSurroundingText(len, 0); word.setLength(0); paintSugs(); autoShift(); return; }
         }
         CharSequence sel = ic.getSelectedText(0);
-        if (sel != null && sel.length() > 0) { ic.commitText("", 1); resetWord(); return; }
+        if (sel != null && sel.length() > 0) { if (wordsOn() && sel.length() < 2000) { deletedBuf.setLength(0); deletedBuf.append(sel); } ic.commitText("", 1); resetWord(); paintSugs(); return; }
         CharSequence b = ic.getTextBeforeCursor(26, 0);
         int n = b == null ? 0 : b.length();
         boolean pair = n >= 2 && Character.isSurrogatePair(b.charAt(n - 2), b.charAt(n - 1));
         boolean marked = n >= 2 && (b.charAt(n - 1) == 0x0336 || b.charAt(n - 1) == 0x0332);   // letter + strikethrough/underline mark
+        if (n > 0 && wordsOn() && deletedBuf.length() < 2000) deletedBuf.insert(0, b.subSequence(n - (pair || marked ? Math.min(2, n) : 1), n));
         if (pair || marked) ic.deleteSurroundingText(2, 0);
         else sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
         if (wordsOn()) {
@@ -2356,6 +2724,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         curApp = info == null || info.packageName == null ? "" : info.packageName;
         lastWord = "";
         justEnded = "";
+        deletedBuf.setLength(0);
+        emoSearch = false;
+        emoQuery.setLength(0);
         fixShownTyped = fixShownDone = null;
         clearOtp();
         clearSms();

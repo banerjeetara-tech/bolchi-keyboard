@@ -518,6 +518,57 @@ public final class Words {
         return FIXED.containsKey(l) || PROPER.containsKey(l) || !rank.containsKey(l);
     }
 
+    private static volatile String[] desiList;
+    private static String[] desiSorted() {
+        String[] d = desiList;
+        if (d == null) {
+            List<String> l = new ArrayList<>();
+            for (String x : DESI) if (x.length() >= 3) l.add(x);
+            java.util.Collections.sort(l);
+            desiList = d = l.toArray(new String[0]);
+        }
+        return d;
+    }
+
+    /** Banglish / Hinglish words that start with these letters: her own often-used ones first, then the built-in list (shortest first). */
+    public static List<String> desiCompletions(String typed, int max) {
+        List<String> out = new ArrayList<>();
+        if (typed == null || typed.length() < 2) return out;
+        String p = typed.toLowerCase(Locale.ROOT);
+        for (String u : usedMatches(p, 4)) {
+            if (out.size() >= max) break;
+            if (!rank.containsKey(u) && !out.contains(u)) out.add(u);
+        }
+        List<String> more = new ArrayList<>();
+        for (String x : desiSorted()) if (x.length() > p.length() && x.startsWith(p) && !rank.containsKey(x)) more.add(x);
+        java.util.Collections.sort(more, new java.util.Comparator<String>() {
+            @Override public int compare(String a, String b) { return a.length() != b.length() ? a.length() - b.length() : a.compareTo(b); }
+        });
+        for (String x : more) { if (out.size() >= max) break; if (!out.contains(x)) out.add(x); }
+        return out;
+    }
+
+    /** A Banglish / Hinglish word one finger slip away from what she typed ("korhci" gives "korchi"), or null. Only ever offered, never swapped in. */
+    public static String desiFix(String typed) {
+        if (typed == null || typed.length() < 4 || typed.length() > 20) return null;
+        String w = typed.toLowerCase(Locale.ROOT);
+        if (DESI.contains(w) || isKept(w) || isContact(w) || rank.containsKey(w) || used(w) >= 3) return null;
+        int n = w.length();
+        float max = n == 4 ? 0.85f : 1.0f, bestCost = 99f;
+        float[][] d = new float[n + 1][n + 4];
+        String best = null;
+        List<String> pool = new ArrayList<>(Arrays.asList(desiSorted()));
+        synchronized (USE) { for (java.util.Map.Entry<String, Integer> e : USE.entrySet()) if (e.getValue() >= 3 && !rank.containsKey(e.getKey())) pool.add(e.getKey()); }
+        synchronized (KEPT) { pool.addAll(KEPT); }
+        for (String c : pool) {
+            int m = c.length();
+            if (m < 3 || m - n > 2 || n - m > 2 || c.charAt(0) != w.charAt(0) || c.equals(w)) continue;
+            float cost = slip(w, c, max, d);
+            if (cost <= max && cost < bestCost) { bestCost = cost; best = c; }
+        }
+        return best;
+    }
+
     private static final String[] ROWS = {"qwertyuiop", "asdfghjkl", "zxcvbnm"};
     private static final boolean[][] NEAR = new boolean[26][26];
     static {

@@ -161,6 +161,15 @@ final class Converter {
         return gemini(key, task + keep + "Reply with only the resulting message, nothing else.", text);
     }
 
+    /** Three ready answers to a message she received (one per line). */
+    static String replies(String received, String key) throws Exception {
+        return gemini(key, "The user received the message below and wants to answer it. Write three different short replies the user could send: "
+                + "one that agrees or says yes, one neutral that asks for a little time or more detail, and one that politely declines. "
+                + "Write in the same language and style as the message (English stays English, Banglish or Hinglish stays in English letters, "
+                + "Bengali or Hindi script stays in that script). Each reply on its own line, one or two sentences, no numbering, no labels, nothing else.",
+                received);
+    }
+
     static final String[] TONES = {"Write it for me", "Formal", "Friendly", "Short", "Polite", "Email", "Funny"};
 
     /** Says the same thing in another tone, or turns a few rough words into a complete message. */
