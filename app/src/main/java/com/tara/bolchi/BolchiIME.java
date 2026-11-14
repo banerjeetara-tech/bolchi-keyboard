@@ -958,11 +958,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             return;
         }
         if (slotNumFill[i] && !val.isEmpty() && ic != null) {
-            int n = numTyped.length();
+            String typedDigits = shown(numTyped.toString());              // the digits as they sit in the text (styled in font mode)
+            int n = typedDigits.length();
             CharSequence b = ic.getTextBeforeCursor(n, 0);
             boolean numberBox = fieldClass == EditorInfo.TYPE_CLASS_NUMBER || fieldClass == EditorInfo.TYPE_CLASS_PHONE;
-            String out = numberBox ? val.replaceAll("[^0-9+]", "") : val;
-            if (b != null && b.toString().equals(numTyped.toString())) {
+            String out = numberBox ? val.replaceAll("[^0-9+]", "") : shown(val);
+            if (b != null && b.toString().equals(typedDigits)) {
                 ic.beginBatchEdit();
                 ic.deleteSurroundingText(n, 0);
                 ic.commitText(out, 1);
@@ -980,7 +981,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (slotNext[i] && !val.isEmpty() && ic != null) {
             String out = (shift || capsLock) ? Character.toUpperCase(val.charAt(0)) + val.substring(1) : val;
             if (val.equals("i")) out = "I";
-            ic.commitText(out + " ", 1);
+            ic.commitText(shown(out + " "), 1);
             Words.record(lastWord, val);
             lastWord = val;
             if (++usageEdits >= 25) saveUsage();
@@ -1012,7 +1013,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (!wordIsThere(ic, w)) { resetWord(); return; }
         ic.beginBatchEdit();
         ic.deleteSurroundingText(shown(w).length(), 0);
-        ic.commitText(shown(val + " "), 1);
+        ic.commitText(val.indexOf('@') >= 0 ? val + " " : shown(val + " "), 1);   // an email must stay exactly as saved
         ic.endBatchEdit();
         if (!keep) { Words.record(lastWord, val); lastWord = val.toLowerCase(); if (++usageEdits >= 25) saveUsage(); }
         if (keep) keep(w);
@@ -2042,9 +2043,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 && (Character.isDigit(s.charAt(0)) || (Character.isLetter(s.charAt(0)) && !wordsOn())
                     || (typeStyle >= 21 && s.charAt(0) == ' '))) {
             // font mode, digits and boxes without suggestions: the character goes in as its styled look-alike
+            boolean dig = Character.isDigit(s.charAt(0));
+            if (dig) numTyped.append(s); else numTyped.setLength(0);
             if (s.charAt(0) == ' ') { endWord(ic); tokenEnd(); }          // the word just ended: correct it first
             else { resetWord(); lastWord = ""; token.setLength(0); }
             ic.commitText(FontStyles.apply(typeStyle, s), 1);
+            if (dig) paintSugs();
             return;
         }
         if (wordsOn() && s.length() == 1 && (Character.isLetter(s.charAt(0)) || (s.charAt(0) == '\'' && word.length() > 0))) {

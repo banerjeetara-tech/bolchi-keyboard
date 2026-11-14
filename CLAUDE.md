@@ -174,6 +174,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 65: font mode no longer switches off suggestions and auto-correct (Tara: "auto correct is not working in case of selecting font"). Letters are tracked plain in
   `word` but WRITTEN styled (`shown()`); every place that deletes or matches the word in the text (`wordIsThere`, `endWord`, `pickSug`, `undoFix`, fix taps,
   `pickContact`, swipe) uses `shown(w)`; backspace in font mode just drops the last tracked letter.
+- Version 66: the rest of the keyboard works in font mode too (Tara: "all the settings like GIF, emojis should also come"): emoji + GIF suggestions (word tracked plain),
+  phone number after digits (`numTyped` fed by styled digits), next-word prediction, saved words (emails stay unstyled). Voice dictation is NOT styled (the AI tidy would break it).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
