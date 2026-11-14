@@ -28,6 +28,7 @@ public final class Words {
     public static void addKept(String w) {
         if (w == null || w.isEmpty()) return;
         synchronized (KEPT) { KEPT.add(w.toLowerCase(Locale.ROOT)); }
+        forget();
     }
 
     public static String keptAsText() {
@@ -179,6 +180,7 @@ public final class Words {
     public static void setContacts(java.util.Collection<String> names) {
         java.util.LinkedHashSet<String> uniq = new java.util.LinkedHashSet<>();
         for (String n : names) if (n != null && n.length() <= 40 && n.matches(".*[A-Za-z]{2}.*")) uniq.add(n.trim());
+        forget();
         List<Person> people = new ArrayList<>();
         for (String n : uniq) people.add(new Person(n));
         PEOPLE = people;
@@ -235,7 +237,30 @@ public final class Words {
             + "bhabchi bhabo bhabe bujhte bujhi bujhchi pari hoyechhe hocche gelo aashi ashbo thakchi diye niye theke kore kora kono konodin "
             + "shob sobai ekdom ekebare mato jonyo beshi kom aro aaro ebar eibar kivabe kibhabe era ora ekta duto tin char paanch pach choy "
             + "saat aat noy dosh taka kaj kaaj ghar bhalobasha valo bhaloi thikache thikai han naa nai khai khaichi khelchi dekhchi bolchhi "
-            + "korchhi jacchhi aschhe jachhe dilo nilo elo gechhe hoyechhe korechhe bolechhe dekhechhe khechhe aar tahole tahle noile nahole"
+            + "korchhi jacchhi aschhe jachhe dilo nilo elo gechhe hoyechhe korechhe bolechhe dekhechhe khechhe aar tahole tahle noile nahole "
+            + "kalke ajke porshu shorir sharir sobar shobar gulo guli desh deshe jete jeo jao jai jay jaben jabona sokale bikele rate dupure "
+            + "abar abaro mone monehoy theko thako thaki thaken thakis thake thakte korte bolte dekhte khete shunte ashte aste jante parte "
+            + "nite dite hote uthte boshte likhte porte kinte bujhte ghumate cholo chole cholte cholche cholbe chol chal chalo chalte chale chalega "
+            + "milte milke milkar milna mila mile mili kaisa kaisi kaise jaldi liya liye diya diye kiye gaye hue hua hui huye raho rehna "
+            + "ratri shubho dhonnobad dhanyavad namaskar nomoshkar pronam asche ashche eseche esechi giyechi korechi porechi aneche anbo anbe "
+            + "ke je se shey ora tara ei sei oi ota eta egulo ogulo ekhane okhane sekhane kothao kothay kotha kothai keu kauke kono konta "
+            + "lok manush chele meye bor bou shami stri baccha bacha chhele dadu thakur didima boudi jamai mesho pishe kaku kakima jethu "
+            + "office school college e te ta ti tar der ke re ra o to ba naki bujhi mane mone ichha ichhe iccha dorkar lagbe labh khoti "
+            + "sundor shundor sundar bhari halka boro choto chhoto notun purono gorom thanda misti jhal tok nonta sada kalo lal nil holud sobuj "
+            + "khabar ranna bazar dokan rasta gari bus tren pothe pore pora lekha likha bola kotha gaan naach khela chobi boi khata kolom "
+            + "ektu ekta ekti duto dujon tinte onekta kotota etota otota jotota beshi kom thik bhul shotti mittha sotti mithya "
+            + "achha acha arre are oma baba maago uff ish dhur dhat besh bah darun fatafati jompesh khasa mojar moja anondo dukkho kosto rag "
+            + "mujhe mujhko tujhe tumhe tumko aapko humko unko usko isko inko kisko mujhse tumse aapse usse isse unse hamse "
+            + "yeh ye woh wo voh vo yahan wahan yaha waha idhar udhar kidhar jab tab kab ab abhi kabhi sabhi tabhi phir fir firse "
+            + "hoga hogi honge hota hoti hote hona hui hue raha rahi rahe rahta rehta karta karti karte karke karega karegi karenge "
+            + "aata aati aate aaya aaye aayega aayegi jata jati jate jaata jaati jaye jaaye jayenge chalo chale chalte chalenge "
+            + "milte milenge milega milegi milo dena lena dedo ledo dijiye lijiye kijiye boliye bataiye batao bata batana samjha samjhe samjho "
+            + "pata nahi nai mat bas sirf bilkul zaroor zarur shayad lagta lagti laga lagi pasand pyaar pyar dil mann zindagi "
+            + "accha achha bura sahi galat naya purana bada chota chhota lamba mota patla garam thanda meetha teekha "
+            + "khana pani chai doodh roti sabzi chawal daal namak cheeni ghar kamra darwaza khidki gaadi sadak dukan paisa paise rupaye "
+            + "aaj kal parso subah dopahar shaam raat din hafta mahina saal samay waqt der jaldi turant dheere "
+            + "haan han ji nahin na arey oye yaar bhai behen beta beti bhabhi chachi nani dadi dada nana mama mami tau "
+            + "kyunki isliye lekin magar parantu ya athva aur tatha bhi hi toh to ki ke ka ko se mein me pe par tak liye wala wali wale"
     ).split(" ")));
 
     /** Short fixes that are always right. */
@@ -246,11 +271,48 @@ public final class Words {
                 "isnt", "isn't", "arent", "aren't", "wasnt", "wasn't", "werent", "weren't", "havent", "haven't",
                 "hasnt", "hasn't", "couldnt", "couldn't", "wouldnt", "wouldn't", "shouldnt", "shouldn't",
                 "thats", "that's", "whats", "what's", "youre", "you're", "theyre", "they're", "lets", "let's",
-                "teh", "the", "adn", "and", "taht", "that", "thier", "their", "recieve", "receive"};
+                "teh", "the", "adn", "and", "taht", "that", "thier", "their", "recieve", "receive",
+                "youll", "you'll", "youve", "you've", "youd", "you'd", "theyll", "they'll", "theyve", "they've",
+                "weve", "we've", "hes", "he's", "shes", "she's", "heres", "here's", "theres", "there's",
+                "wheres", "where's", "whos", "who's", "hows", "how's", "itll", "it'll", "thatll", "that'll",
+                "mustnt", "mustn't", "neednt", "needn't", "aint", "ain't", "yall", "y'all", "oclock", "o'clock",
+                // spellings people get wrong that are too far from the right word to be found by key slips
+                "thr", "the", "ther", "there", "bac", "back", "sme", "some", "iam", "I am", "alot", "a lot", "aswell", "as well", "infact", "in fact", "atleast", "at least", "incase", "in case",
+                "eachother", "each other", "thankyou", "thank you", "ofcourse", "of course", "noone", "no one",
+                "alright", "alright", "allright", "all right", "tommorow", "tomorrow", "tomorow", "tomorrow", "tommorrow", "tomorrow",
+                "tmrw", "tomorrow", "tmr", "tomorrow", "pls", "please", "plz", "please", "thx", "thanks", "thnx", "thanks",
+                "thnks", "thanks", "tnx", "thanks", "msg", "message", "ppl", "people", "bcoz", "because", "bcz", "because",
+                "becoz", "because", "coz", "because", "wat", "what", "wht", "what", "hav", "have", "abt", "about",
+                "definately", "definitely", "definatly", "definitely", "defiantly", "definitely", "probly", "probably",
+                "probaly", "probably", "realy", "really", "writting", "writing", "comming", "coming", "begining", "beginning",
+                "beleive", "believe", "freind", "friend", "wierd", "weird", "peice", "piece", "acheive", "achieve",
+                "neccessary", "necessary", "necesary", "necessary", "occured", "occurred", "occuring", "occurring",
+                "seperate", "separate", "accomodate", "accommodate", "adress", "address", "bussiness", "business",
+                "buisness", "business", "calender", "calendar", "collegue", "colleague", "goverment", "government",
+                "immediatly", "immediately", "independant", "independent", "knowlege", "knowledge", "liason", "liaison",
+                "maintainance", "maintenance", "maintenence", "maintenance", "recomend", "recommend", "reccomend", "recommend",
+                "refered", "referred", "sucess", "success", "succesful", "successful", "successfull", "successful",
+                "suprise", "surprise", "tommorows", "tomorrow's", "truely", "truly", "untill", "until", "wich", "which",
+                "whith", "with", "wiht", "with", "becuase", "because", "beacuse", "because", "becasue", "because",
+                "enviroment", "environment", "existance", "existence", "experiance", "experience", "embarass", "embarrass",
+                "foward", "forward", "grammer", "grammar", "happend", "happened", "recieved", "received", "reciept", "receipt",
+                "sincerly", "sincerely", "rember", "remember", "remeber", "remember", "frind", "friend", "regrads", "regards", "reagrds", "regards", "kindy", "kindly", "attatched", "attached",
+                "attachement", "attachment", "aproval", "approval", "aprove", "approve", "confrim", "confirm",
+                "meeting", "meeting", "meting", "meeting", "shedule", "schedule", "schedual", "schedule", "salery", "salary",
+                "payement", "payment", "ammount", "amount", "recieving", "receiving", "plese", "please", "pleae", "please",
+                "yuo", "you", "yuor", "your", "hte", "the", "nad", "and", "waht", "what", "whta", "what", "jsut", "just",
+                "konw", "know", "knwo", "know", "liek", "like", "tiem", "time", "wrok", "work", "owrk", "work",
+                "mroe", "more", "soem", "some", "tehm", "them", "tehy", "they", "thsi", "this", "tihs", "this",
+                "form", "form", "fro", "for", "ot", "to", "si", "is", "ti", "it", "fo", "of", "nto", "not", "cna", "can",
+                "ahve", "have", "hvae", "have", "wsa", "was", "aer", "are", "aslo", "also", "alos", "also"};
         for (int i = 0; i + 1 < f.length; i += 2) FIXED.put(f[i], f[i + 1]);
         // "ill", "id", "lets" are real words too: leave them alone
         FIXED.remove("ill"); FIXED.remove("id"); FIXED.remove("lets");
+        // real words or Hindi words: leave them alone
+        for (String x : new String[]{"hes", "fro", "si", "ti", "fo", "ot", "wat", "hav", "coz", "form", "meeting", "alright", "defiantly"}) FIXED.remove(x);
     }
+
+    private static volatile int[] masks = new int[0];
 
     public static void load(InputStream in) throws IOException {
         BufferedReader r = new BufferedReader(new InputStreamReader(in, "UTF-8"));
@@ -267,8 +329,13 @@ public final class Words {
         synchronized (rank) {
             rank.clear();
             rank.putAll(m);
-            list = l.toArray(new String[0]);
+            String[] arr = l.toArray(new String[0]);
+            int[] mk = new int[arr.length];
+            for (int i = 0; i < arr.length; i++) mk[i] = mask(arr[i]);
+            masks = mk;
+            list = arr;
         }
+        forget();
         ready = true;
     }
 
@@ -381,65 +448,163 @@ public final class Words {
         return w.length() >= 5 && w.matches(".*(bo|bi|chi|cho|che|lam|ben|chhi|chho|chhe)$"); // khabo, korchi, bolcho, gelam
     }
 
+    /** True when the word is Bangla/Hindi written in English letters (so she is not writing English just now). */
+    public static boolean isDesi(String w) {
+        if (w == null || w.isEmpty()) return false;
+        String l = w.toLowerCase(Locale.ROOT);
+        Integer r = rank.get(l);
+        if (r != null && r < 3000) return false;                      // "to", "main", "are" are English first
+        return DESI.contains(l) || (r == null && looksBanglish(l));
+    }
+
+    /** True when the keyboard may swap the word in by itself: a known slip, or a word that is in no dictionary. A rare real word is only offered. */
+    public static boolean sureFix(String typed) {
+        String l = typed.toLowerCase(Locale.ROOT);
+        return FIXED.containsKey(l) || !rank.containsKey(l);
+    }
+
+    private static final String[] ROWS = {"qwertyuiop", "asdfghjkl", "zxcvbnm"};
+    private static final boolean[][] NEAR = new boolean[26][26];
+    static {
+        float[] off = {0f, 0.5f, 1.5f};
+        for (int r = 0; r < 3; r++) for (int i = 0; i < ROWS[r].length(); i++)
+            for (int q = 0; q < 3; q++) for (int j = 0; j < ROWS[q].length(); j++) {
+                float dx = (i + off[r]) - (j + off[q]);
+                if (Math.abs(r - q) <= 1 && Math.abs(dx) <= 1.1f && !(r == q && i == j))
+                    NEAR[ROWS[r].charAt(i) - 'a'][ROWS[q].charAt(j) - 'a'] = true;
+            }
+    }
+    private static boolean near(char x, char y) {
+        return x >= 'a' && x <= 'z' && y >= 'a' && y <= 'z' && NEAR[x - 'a'][y - 'a'];
+    }
+    private static boolean vowel(char c) { return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u' || c == 'y'; }
+    private static int mask(String w) {
+        int m = 0;
+        for (int i = 0; i < w.length(); i++) { char c = w.charAt(i); if (c >= 'a' && c <= 'z') m |= 1 << (c - 'a'); }
+        return m;
+    }
+
+    /**
+     * How far the typed word is from a dictionary word, counted the way fingers slip: a neighbouring key, a letter doubled or
+     * not doubled, two letters swapped and a wrong vowel cost less than an unrelated letter. Stops early above max.
+     */
+    private static float slip(String t, String c, float max, float[][] d) {
+        int n = t.length(), m = c.length();
+        for (int j = 0; j <= m; j++) d[0][j] = j * 0.9f;
+        for (int i = 1; i <= n; i++) {
+            char a = t.charAt(i - 1);
+            d[i][0] = i * 0.9f;
+            float low = d[i][0];
+            for (int j = 1; j <= m; j++) {
+                char b = c.charAt(j - 1);
+                float sub = a == b ? 0f : near(a, b) ? 0.7f : (vowel(a) && vowel(b)) ? 0.8f : 1f;
+                if (sub > 0 && i == 1 && j == 1) sub += 0.3f;                       // the first letter is usually right
+                float v = d[i - 1][j - 1] + sub;
+                // a letter typed too many: cheap when it repeats the one before, or is a neighbour key brushed on the way
+                float extra = (i > 1 && a == t.charAt(i - 2)) ? 0.45f
+                        : ((i > 1 && near(a, t.charAt(i - 2))) || (i < n && near(a, t.charAt(i)))) ? 0.8f : 0.9f;
+                if (i == 1) extra += 0.3f;
+                v = Math.min(v, d[i - 1][j] + extra);
+                // a letter left out: cheap when it is the second of a double letter
+                float miss = (j > 1 && b == c.charAt(j - 2)) ? 0.45f : b == '\'' ? 0.3f : 0.8f;
+                if (j == 1) miss += 0.3f;
+                v = Math.min(v, d[i][j - 1] + miss);
+                if (i > 1 && j > 1 && a == c.charAt(j - 2) && t.charAt(i - 2) == b && a != b)
+                    v = Math.min(v, d[i - 2][j - 2] + 0.7f);                        // two letters swapped
+                d[i][j] = v;
+                if (v < low) low = v;
+            }
+            if (low > max) return 99f;
+        }
+        return d[n][m];
+    }
+
+    private static String cacheKey, cacheVal;
+
     /** The corrected word, or null when the typed word should stay. */
-    public static String fix(String typed) {
+    public static String fix(String typed) { return fix(typed, false); }
+
+    /**
+     * The corrected word, or null when the typed word should stay.
+     * autoCap: the capital first letter was put there by the keyboard (start of a sentence), so the word is not a name.
+     */
+    public static String fix(String typed, boolean autoCap) {
         if (typed == null || typed.isEmpty() || typed.length() > 20) return null;
+        String key = autoCap ? "^" + typed : typed;
+        synchronized (FIXED) { if (key.equals(cacheKey)) return cacheVal; }
+        String out = fix0(typed, autoCap);
+        synchronized (FIXED) { cacheKey = key; cacheVal = out; }
+        return out;
+    }
+
+    private static void forget() { synchronized (FIXED) { cacheKey = null; } }
+
+    private static String fix0(String typed, boolean autoCap) {
         String w = typed.toLowerCase(Locale.ROOT);
         for (int i = 0; i < w.length(); i++) {
             char c = w.charAt(i);
             if (!(c >= 'a' && c <= 'z') && c != '\'') return null;
         }
-        if (isOwnOrDesi(w)) return null;
-        if (looksBanglish(w)) return null;   // Bangla/Hindi spelt in English letters is not an English typo
+        if (DESI.contains(w) || isContact(w) || isKept(w)) return null;   // only words she explicitly kept are left alone
+        if (looksBanglish(w) && !rank.containsKey(w) && !FIXED.containsKey(w)) return null;   // Bangla/Hindi in English letters is not an English typo
         String f = FIXED.get(w);
         if (f != null) return f.equals(typed) ? null : (f.startsWith("I") ? f : matchCase(typed, f));
-        if (w.length() < 3 || rank.containsKey(w)) return null;
-        // a word typed with a capital letter is most likely a name: never "correct" it (common typos like Teh are in FIXED above)
-        if (typed.length() >= 3 && Character.isUpperCase(typed.charAt(0))) return null;
+        if (w.length() < 3) return null;
+        // the tail of the word list holds misspellings too ("thr", "untill"): such a word only counts as right
+        // when no far more usual word is one slip away
+        Integer own0 = rank.get(w);
+        if (own0 != null && own0 < 24000) return null;
+        // a word she typed with a capital letter herself is most likely a name: never "correct" it
+        boolean cap = Character.isUpperCase(typed.charAt(0));
+        if (cap && !autoCap) return null;
         if (typed.length() > 1 && typed.equals(typed.toUpperCase(Locale.ROOT))) return null;
-        int limit = w.length() <= 4 ? 5000 : Integer.MAX_VALUE;
+        if (autoCap && !typed.substring(1).equals(w.substring(1))) return null;      // McDonald, iPhone
+        int n = w.length();
+        // short words: one slip, and only into a common word. Longer words can hold two slips.
+        float max = own0 != null ? 0.85f : n <= 4 ? 1.0f : n <= 6 ? 1.3f : n <= 8 ? 2.0f : 2.5f;
+        int limit = own0 != null ? 150 : n <= 4 ? 3000 : n <= 7 ? 15000 : Integer.MAX_VALUE;
+        String[] l = list;
+        int[] mk = masks;
+        int wm = mask(w);
+        char w0 = w.charAt(0), w1 = w.charAt(1);
+        float[][] d = new float[n + 1][n + 4];
         String best = null;
-        int bestRank = limit;
-        char[] a = w.toCharArray();
-        int n = a.length;
-        StringBuilder sb = new StringBuilder();
-        // swapped neighbours
-        for (int i = 0; i + 1 < n; i++) {
-            char t = a[i]; a[i] = a[i + 1]; a[i + 1] = t;
-            Integer r = rank.get(new String(a));
-            if (r != null && r < bestRank) { bestRank = r; best = new String(a); }
-            t = a[i]; a[i] = a[i + 1]; a[i + 1] = t;
+        float bestScore = 99f;
+        for (int i = 0; i < l.length && i < limit; i++) {
+            String c = l[i];
+            int m = c.length();
+            if (m < 3 || m - n > 2 || n - m > 2) continue;
+            if (Integer.bitCount(wm ^ mk[i]) > 4) continue;
+            char c0 = c.charAt(0);
+            if (c0 != w0 && c0 != w1 && !near(c0, w0) && c.charAt(1) != w0) continue;
+            float cost = slip(w, c, max, d);
+            if (cost > max) continue;
+            if (cost > 1.0f && c0 != w0) continue;                                   // two slips: the first letter must be right
+            if (cost > 1.0f && i > 20000) continue;                                  // ...and the word not a rare one
+            float score = cost + 0.16f * (float) Math.log10(i + 10);                 // among equals the more usual word wins
+            if (score < bestScore) { bestScore = score; best = c; }
         }
-        // one letter too many
-        for (int i = 0; i < n; i++) {
-            sb.setLength(0);
-            sb.append(w, 0, i).append(w, i + 1, n);
-            String c = sb.toString();
-            Integer r = rank.get(c);
-            if (r != null && c.length() >= 3 && r < bestRank) { bestRank = r; best = c; }
-        }
-        // one wrong letter (the first letter is trusted)
-        for (int i = 1; i < n; i++) {
-            char keep = a[i];
-            for (char ch = 'a'; ch <= 'z'; ch++) {
-                if (ch == keep) continue;
-                a[i] = ch;
-                Integer r = rank.get(new String(a));
-                if (r != null && r < bestRank) { bestRank = r; best = new String(a); }
-            }
-            a[i] = keep;
-        }
-        // one letter missing
-        for (int i = 1; i <= n; i++) {
-            for (char ch = 'a'; ch <= 'z' + 1; ch++) {
-                char put = ch > 'z' ? '\'' : ch;
-                sb.setLength(0);
-                sb.append(w, 0, i).append(put).append(w, i, n);
-                Integer r = rank.get(sb.toString());
-                if (r != null && r < bestRank) { bestRank = r; best = sb.toString(); }
-            }
-        }
+        if (best == null && own0 == null) best = split(w);
         return best == null ? null : matchCase(typed, best);
+    }
+
+    /** Two everyday words typed without the space between them ("thankyou", "alot", "iam"). */
+    private static String split(String w) {
+        int n = w.length();
+        String best = null;
+        int bestRank = Integer.MAX_VALUE;
+        for (int i = 1; i <= n - 2; i++) {
+            String a = w.substring(0, i), b = w.substring(i);
+            if (i == 1 && !(a.equals("i") || a.equals("a"))) continue;
+            if (i == 2 || (i > 1 && b.length() < 3)) continue;
+            if (DESI.contains(a) || DESI.contains(b)) continue;
+            Integer ra = rank.get(a), rb = rank.get(b);
+            int cap = i == 1 ? 1000 : 3000;
+            if (ra == null || rb == null || ra >= 3000 || rb >= cap) continue;
+            int r = Math.max(ra, rb);
+            if (r < bestRank) { bestRank = r; best = (a.equals("i") ? "I" : a) + " " + b; }
+        }
+        return best;
     }
 
     /** Most used words that start with what has been typed. */

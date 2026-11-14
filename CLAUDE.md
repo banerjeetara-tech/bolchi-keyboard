@@ -186,6 +186,14 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   `fontOn()`. Grammar fix / rewrite / translate send PLAIN letters to the AI (`FontStyles.plain`) and re-apply the font afterwards (`FontStyles.detect`) — she said the font was
   gone after she replaced a sentence.
 - Version 70: Tara wants the font to stay in EVERY app ("why can't the font stay everywhere"): `fontOn()` no longer checks the app (`typeStyleApp` is still set but unused); it is still off in `plainBox` fields (search, email, URL, password, filter, Search/Go action).
+- Version 71: auto-correct rebuilt (Tara: "not working always"). Causes found: only ONE wrong letter was handled; the first word of a sentence was never corrected
+  (auto-capital looked like a name); `words.txt` has misspellings in its tail ("thr", "untill") that counted as real words; an uncorrected typo was learned
+  as her word and then protected for ever. Now `Words.fix(typed, autoCap)` scans the list with a finger-slip distance (`slip`: neighbour key, doubled letter, swapped
+  letters, wrong vowel are cheap; two slips allowed from 5-7 letters up), a table of ~200 known misspellings/contractions/missing spaces (`FIXED`), `split` for
+  "thankyou"; learned words (`own`) no longer block a correction (they only stop the automatic swap). A rare dictionary word is only OFFERED (`sureFix`), and right after a
+  Banglish/Hinglish word (`desiRecent`, `Words.isDesi`) corrections are offered, not made. `wordAutoCap`/`shiftAuto` tell the keyboard's capital from hers.
+  Local test: 110/110 typos fixed (old code 60-odd), Banglish false changes not higher than before. ~0.5 ms per word on a PC.
+  Her question "add your intelligence": Claude cannot run inside the keyboard; her Gemini key could check a whole sentence after a full stop (not built: costs a wait and data).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

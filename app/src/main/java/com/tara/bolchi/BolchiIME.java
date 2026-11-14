@@ -130,6 +130,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private TextView convResBox;
     private long convStarted;
     private boolean shift, capsLock;
+    private boolean shiftAuto;      // the capital was switched on by the keyboard (start of a sentence), not by her
+    private boolean wordAutoCap;    // the word being typed got its capital that way, so it is not a name
+    private int desiRecent;         // she is writing Banglish/Hinglish just now: corrections are only offered, not made
     private long lastShiftTap;
 
     // word being typed on the English keys: suggestions and auto-correct
@@ -844,7 +847,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (w.length() > 0 && Words.ready && !plainField) {
             // BOLD in the middle = the keyboard's own correction or prediction.
             // Normal on the left / right = HER word: what she typed, or a word from her own memory.
-            String fx = Words.fix(w);
+            String fx = Words.fix(w, wordAutoCap);
             List<String> dict = Words.dictCompletions(w, 3);
             List<String> mem = Words.memoryMatches(w, 2);
             if (fx != null) {
@@ -1035,11 +1038,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (w.isEmpty()) return;
         String finalWord = w;
         if (Words.ready && layout == 0 && !noFix && !plainField) {
-            String fx = Words.fix(w);
+            String fx = Words.fix(w, wordAutoCap);
+            boolean calm = desiRecent == 0;
+            if (Words.isDesi(w)) desiRecent = 2;
+            else if (desiRecent > 0 && Words.inDictionary(w)) desiRecent--;
             if (fx == null) {
                 // a new word of hers: remember it so it is offered next time
                 if (w.length() >= 3 && !Words.known(w)) learn(w);
-            } else if (autoFix && wordIsThere(ic, w) && Words.autoReplaceOk(w)) {
+            } else if (autoFix && calm && Words.sureFix(w) && wordIsThere(ic, w) && Words.autoReplaceOk(w)) {
                 ic.beginBatchEdit();
                 ic.deleteSurroundingText(shown(w).length(), 0);
                 ic.commitText(shown(fx), 1);
@@ -1057,8 +1063,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 fixPrompt = true;
             }
             // count the word she wrote (the corrected one if it was fixed) and which word came before it
-            Words.record(lastWord, finalWord);
-            lastWord = finalWord.toLowerCase();
+            for (String part : finalWord.split(" ")) {          // "thankyou" became two words
+                if (part.isEmpty()) continue;
+                Words.record(lastWord, part);
+                lastWord = part.toLowerCase();
+            }
             if (++usageEdits >= 25) saveUsage();
         } else {
             lastWord = "";
@@ -2067,6 +2076,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             return;
         }
         if (wordsOn() && s.length() == 1 && (Character.isLetter(s.charAt(0)) || (s.charAt(0) == '\'' && word.length() > 0))) {
+            if (word.length() == 0) wordAutoCap = shift && shiftAuto && !capsLock;
             ic.commitText(shown(s), 1);        // in font mode the letter is written styled but tracked plain, so suggestions and auto-correct keep working
             word.append(s);
             token.append(s);
@@ -2147,6 +2157,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             while (st > 0 && (Character.isLetter(b.charAt(st - 1)) || b.charAt(st - 1) == '\'')) st--;
             if (fontOn()) { if (word.length() > 0) word.setLength(word.length() - 1); }   // text is styled: keep the plain letters in step
             else {
+                if (word.length() == 0) wordAutoCap = false;   // an older word picked up again: its capital may be a name
                 word.setLength(0);
                 if (end - st < 25 && st < end) word.append(b, st, end);
             }
@@ -2185,6 +2196,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (capsLock) { capsLock = false; shift = false; }
         else if (shift && now - lastShiftTap < 400) { capsLock = true; }
         else { shift = !shift; }
+        shiftAuto = false;
         lastShiftTap = now;
         updateShift();
     }
@@ -2212,7 +2224,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 start = s.endsWith("\n") || s.endsWith(". ") || s.endsWith("? ") || s.endsWith("! ");
             }
         }
-        if (shift != start) { shift = start; updateShift(); }
+        if (shift != start) { shift = start; shiftAuto = start; updateShift(); }
     }
 
     private void updateShift() {
