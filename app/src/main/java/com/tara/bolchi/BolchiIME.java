@@ -618,6 +618,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         });
         for (String w : prefs().getString("ownWords", "").split(" ")) Words.addOwn(w);
         Words.importUsage(prefs().getString("usage", ""));
+        if (!prefs().contains("keptWords")) {                      // first run of this version: the words she already kept stay kept
+            for (String w : prefs().getString("ownWords", "").split(" ")) Words.addKept(w);
+            prefs().edit().putString("keptWords", Words.keptAsText()).apply();
+        } else {
+            for (String w : prefs().getString("keptWords", "").split(" ")) Words.addKept(w);
+        }
         smsWatch = new SharedPreferences.OnSharedPreferenceChangeListener() {
             @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
                 if ("smsCode".equals(key)) handler.post(new Runnable() { @Override public void run() {
@@ -890,6 +896,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         paintSugs();
     }
 
+    /** She kept her own spelling on purpose: never flag this word again. */
+    private void keep(String w) {
+        Words.addKept(w);
+        Words.addOwn(w);
+        prefs().edit().putString("keptWords", Words.keptAsText()).putString("ownWords", Words.ownAsText()).apply();
+    }
+
     private void learn(String w) {
         Words.addOwn(w);
         prefs().edit().putString("ownWords", Words.ownAsText()).apply();
@@ -908,12 +921,20 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
         if (slotFix[i] && ic != null && fixShownDone != null) {
-            if (i == 0) {                    // tap her original word: put it back and remember it
-                String done = fixShownDone, typed = fixShownTyped;
+            String done = fixShownDone, typed = fixShownTyped;
+            if (fixPrompt) {
+                if (i == 0) keep(typed);     // she means her spelling: never flag it again
+                else {                       // she wants the right word: swap it in
+                    CharSequence b = ic.getTextBeforeCursor(typed.length() + 1, 0);
+                    String bs = b == null ? "" : b.toString();
+                    if (bs.endsWith(typed + " ")) { ic.deleteSurroundingText(typed.length() + 1, 0); ic.commitText(done + " ", 1); }
+                    else if (bs.endsWith(typed)) { ic.deleteSurroundingText(typed.length(), 0); ic.commitText(done, 1); }
+                }
+            } else if (i == 0) {             // tap her original word: put it back and remember it
                 CharSequence b = ic.getTextBeforeCursor(done.length() + 1, 0);
                 String bs = b == null ? "" : b.toString();
-                if (bs.endsWith(done + " ")) { ic.deleteSurroundingText(done.length() + 1, 0); ic.commitText(typed + " ", 1); learn(typed); }
-                else if (bs.endsWith(done)) { ic.deleteSurroundingText(done.length(), 0); ic.commitText(typed, 1); learn(typed); }
+                if (bs.endsWith(done + " ")) { ic.deleteSurroundingText(done.length() + 1, 0); ic.commitText(typed + " ", 1); keep(typed); }
+                else if (bs.endsWith(done)) { ic.deleteSurroundingText(done.length(), 0); ic.commitText(typed, 1); keep(typed); }
             }
             fixShownTyped = fixShownDone = null;
             paintSugs();
@@ -977,7 +998,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.commitText(val + " ", 1);
         ic.endBatchEdit();
         if (!keep) { Words.record(lastWord, val); lastWord = val.toLowerCase(); if (++usageEdits >= 25) saveUsage(); }
-        if (keep) learn(w);
+        if (keep) keep(w);
         resetWord();
         autoShift();
     }
@@ -994,7 +1015,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (fx == null) {
                 // a new word of hers: remember it so it is offered next time
                 if (w.length() >= 3 && !Words.known(w)) learn(w);
-            } else if (autoFix && wordIsThere(ic, w)) {
+            } else if (autoFix && wordIsThere(ic, w) && Words.autoReplaceOk(w)) {
                 ic.beginBatchEdit();
                 ic.deleteSurroundingText(w.length(), 0);
                 ic.commitText(fx, 1);
@@ -1003,7 +1024,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 fixDone = fx;
                 fixShownTyped = w;
                 fixShownDone = fx;
+                fixPrompt = false;
                 finalWord = fx;
+            } else {
+                // a wrong word she has used before is left as typed, but the right one is offered in bold
+                fixShownTyped = w;
+                fixShownDone = fx;
+                fixPrompt = true;
             }
             // count the word she wrote (the corrected one if it was fixed) and which word came before it
             Words.record(lastWord, finalWord);
@@ -1046,7 +1073,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.deleteSurroundingText(bs.length() - at, 0);
         ic.commitText(typed + tail, 1);
         ic.endBatchEdit();
-        learn(typed);
+        keep(typed);
         flashSpace("Kept \u201C" + typed + "\u201D");
         return true;
     }
@@ -1177,6 +1204,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String curApp = "";   // the app whose box is open now
     private HorizontalScrollView contactScroll;   // full phone book names for the word being typed
     private LinearLayout contactBox;
+    private boolean fixPrompt;                                  // the corrected word is only offered, the text was not changed
     private String fixShownTyped, fixShownDone;                 // the last auto-correct, kept in the top row
     private final boolean[] slotFix = new boolean[3];            // slot 0 = her original word, slot 1 = the corrected word
     private String lastWord = "";          // the word before the cursor position (for next-word suggestions)
@@ -2183,7 +2211,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             m = m.trim();
             if (m.isEmpty()) continue;
             mine.add(m);
-            for (String part : m.split("[^A-Za-z]+")) Words.addOwn(part);   // never auto-correct her own words
+            for (String part : m.split("[^A-Za-z]+")) { Words.addOwn(part); Words.addKept(part); }   // her saved names are never flagged
         }
         myWords = mine.toArray(new String[0]);
         List<String> nums = new ArrayList<>();

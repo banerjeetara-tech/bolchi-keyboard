@@ -22,6 +22,30 @@ public final class Words {
     private static String[] list = new String[0];
     private static final HashMap<String, Integer> rank = new HashMap<>();
     private static final Set<String> own = new HashSet<>();
+    /** Words she explicitly kept (tapped her own spelling, or saved a name): never flagged. Words she merely typed a lot are NOT in here. */
+    private static final Set<String> KEPT = new HashSet<>();
+
+    public static void addKept(String w) {
+        if (w == null || w.isEmpty()) return;
+        synchronized (KEPT) { KEPT.add(w.toLowerCase(Locale.ROOT)); }
+    }
+
+    public static String keptAsText() {
+        StringBuilder b = new StringBuilder();
+        synchronized (KEPT) { for (String w : KEPT) b.append(w).append(' '); }
+        return b.toString().trim();
+    }
+
+    private static boolean isKept(String l) {
+        synchronized (KEPT) { return KEPT.contains(l); }
+    }
+
+    /** True when the keyboard may change this word by itself; false for a word she has typed before (then it only prompts). */
+    public static boolean autoReplaceOk(String typed) {
+        String l = typed.toLowerCase(Locale.ROOT);
+        synchronized (own) { if (own.contains(l)) return false; }
+        return used(l) < 2;
+    }
     public static volatile boolean ready;
     /** Name parts from the phone book (lower case -> as written). Kept in memory only. */
     private static final java.util.TreeMap<String, String> CONTACT = new java.util.TreeMap<>();
@@ -293,12 +317,12 @@ public final class Words {
 
     public static boolean known(String w) {
         String l = w.toLowerCase(Locale.ROOT);
-        if (DESI.contains(l) || rank.containsKey(l) || isContact(l)) return true;
+        if (DESI.contains(l) || rank.containsKey(l) || isContact(l) || isKept(l)) return true;
         synchronized (own) { return own.contains(l); }
     }
 
     private static boolean isOwnOrDesi(String l) {
-        if (DESI.contains(l) || isContact(l) || used(l) >= 3) return true;   // words she keeps using are hers
+        if (DESI.contains(l) || isContact(l) || isKept(l)) return true;   // only words she explicitly kept are left alone
         synchronized (own) { return own.contains(l); }
     }
 
