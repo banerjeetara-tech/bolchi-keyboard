@@ -132,6 +132,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String typeStyleApp = "";   // the app where she turned the font on: the font is used only there
     private boolean uriBox;             // a web address / browser search bar: words are suggested and corrections offered, never swapped in by themselves
     private long lastTypeAt;            // when she last typed or deleted (to tell her own typing from a cursor moved by hand)
+    private boolean spaceEnd;           // the word is being ended by a space (not by a dot or other mark)
+
+    /** In a browser address bar: true when she is typing search words (a space, and no dot, slash or colon in the piece), not a web address. */
+    private boolean searchWords() {
+        return spaceEnd && token.indexOf(".") < 0 && token.indexOf("/") < 0 && token.indexOf(":") < 0 && token.indexOf("@") < 0;
+    }
     private boolean plainBox;           // search, address, email, password boxes: real letters only
 
     /** The font stays on in every app (Tara), but never in boxes that need real letters (search, folder names, emails...). */
@@ -1166,7 +1172,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             } else if (fx == null) {
                 // a new word of hers: remember it so it is offered next time
                 if (w.length() >= 3 && !Words.known(w)) learn(w);
-            } else if (autoFix && calm && !uriBox && Words.sureFix(w) && wordIsThere(ic, w) && Words.autoReplaceOk(w)) {
+            } else if (autoFix && calm && (!uriBox || searchWords()) && Words.sureFix(w) && wordIsThere(ic, w) && Words.autoReplaceOk(w)) {
                 ic.beginBatchEdit();
                 ic.deleteSurroundingText(shown(w).length(), 0);
                 ic.commitText(shown(fx), 1);
@@ -2280,7 +2286,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             // font mode, digits and boxes without suggestions: the character goes in as its styled look-alike
             boolean dig = Character.isDigit(s.charAt(0));
             if (dig) numTyped.append(s); else numTyped.setLength(0);
-            if (s.charAt(0) == ' ') { endWord(ic); tokenEnd(); }          // the word just ended: correct it first
+            if (s.charAt(0) == ' ') { spaceEnd = true; endWord(ic); spaceEnd = false; tokenEnd(); }          // the word just ended: correct it first
             else { resetWord(); lastWord = ""; token.setLength(0); }
             ic.commitText(FontStyles.apply(typeStyle, s), 1);
             if (dig) paintSugs();
@@ -2300,7 +2306,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         flushPhon(true);
         boolean digit = s.length() == 1 && Character.isDigit(s.charAt(0));
         if (digit) numTyped.append(s); else numTyped.setLength(0);
-        if (" ".equals(s)) { endWord(ic); tokenEnd(); }
+        if (" ".equals(s)) { spaceEnd = true; endWord(ic); spaceEnd = false; tokenEnd(); }
         else { resetWord(); lastWord = ""; if (s.length() == 1) token.append(s); else token.setLength(0); }
         ic.commitText(s, 1);
         if (digit || (s.length() == 1 && "=+-*/%\u00D7\u00F7".indexOf(s.charAt(0)) >= 0)) paintSugs();

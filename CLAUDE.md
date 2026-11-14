@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 75 = build-83** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 76 = build-84** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -232,6 +232,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   is OFFERED in bold but never swapped in (web addresses must not change); a dot gets no space; no emoji/GIFs there. Email and password boxes stay off.
   (2) `onUpdateSelection`: browsers and web pages report several typed letters as one big cursor move, which wiped the tracked word (so no suggestions / corrections).
   A move within 400 ms of her own typing (`lastTypeAt`), or with the tracked word still before the cursor, is no longer a jump. If it still fails, ask WHICH app and box.
+- Version 76 (Tara: "I need auto correct in search bar"): in a browser address / search bar (`uriBox`) a word ended by a SPACE is auto-corrected like anywhere else
+  (`searchWords`: a space means search words; a piece with a dot, slash, colon or @ is a web address and is left alone). Words ended by a dot are still only offered.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
