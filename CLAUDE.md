@@ -110,6 +110,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   word followed which; words used 2+ times come first in the top row while typing (`usedMatches`), words used 3+ times are never
   auto-corrected, and after a space the top row predicts her usual next word (`nextAfter`, pair seen 2+ times). Saved in prefs `usage`
   (top 3000 words and pairs, written every 25 words and when the box closes), local only.
+- Version 38: the phone book name row (`paintContacts`) only appears for name-like words (3+ letters and not an ordinary dictionary word,
+  or a capitalised dictionary word mid-sentence — `nameLike`), and it REPLACES the word row (same height) instead of adding a row, so the
+  keyboard no longer jumps. Tara: "typing anything, it is [bringing] the name".
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

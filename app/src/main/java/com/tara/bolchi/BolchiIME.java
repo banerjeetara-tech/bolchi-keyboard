@@ -439,7 +439,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
         contactScroll = new HorizontalScrollView(this);
         contactScroll.setHorizontalScrollBarEnabled(false);
-        contactScroll.setPadding(dp(3), dp(4), dp(3), 0);
+        contactScroll.setPadding(dp(3), 0, dp(3), 0);
         contactScroll.setVisibility(View.GONE);
         contactBox = new LinearLayout(this);
         contactBox.setOrientation(LinearLayout.HORIZONTAL);
@@ -696,9 +696,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void paintContacts(String w) {
         if (contactScroll == null) return;
         contactBox.removeAllViews();
-        List<String> names = (layout == 0 && wordsOn() && !plainField && w.length() >= 2)
+        List<String> names = (layout == 0 && wordsOn() && !plainField && nameLike(w))
                 ? Words.contactNamesFor(w, 10) : new ArrayList<String>();
-        if (names.isEmpty()) { contactScroll.setVisibility(View.GONE); return; }
+        if (names.isEmpty()) {
+            contactScroll.setVisibility(View.GONE);
+            if (sugRow != null) sugRow.setVisibility(View.VISIBLE);
+            return;
+        }
         for (final String n : names) {
             TextView t = new TextView(this);
             t.setText(n);
@@ -719,6 +723,21 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         contactScroll.scrollTo(0, 0);
         contactScroll.setVisibility(View.VISIBLE);
+        if (sugRow != null) sugRow.setVisibility(View.GONE);   // the names take the place of the word row: the keyboard keeps its height
+    }
+
+    /** Only names should bring up the phone book: not ordinary words like "the" or "there". */
+    private boolean nameLike(String w) {
+        if (w.length() < 3) return false;
+        if (!Words.inDictionary(w)) return true;
+        if (!Character.isUpperCase(w.charAt(0))) return false;
+        // a capital letter in the middle of a sentence is a name (Rose, Mark); at the start of a sentence it proves nothing
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return false;
+        CharSequence b = ic.getTextBeforeCursor(w.length() + 3, 0);
+        if (b == null || b.length() <= w.length()) return false;
+        String before = b.subSequence(0, b.length() - w.length()).toString().trim();
+        return !before.isEmpty() && ".!?\n".indexOf(before.charAt(before.length() - 1)) < 0;
     }
 
     /** Puts only the name she was typing (e.g. "Rituparna" from "Emami Rituparna") in place of the typed letters. */

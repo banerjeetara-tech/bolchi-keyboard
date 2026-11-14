@@ -243,6 +243,11 @@ public final class Words {
         ready = true;
     }
 
+    /** True for an ordinary English dictionary word (names and her own words are not). */
+    public static boolean inDictionary(String w) {
+        return w != null && rank.containsKey(w.toLowerCase(Locale.ROOT));
+    }
+
     /** All words, most used first. */
     public static String[] all() { return list; }
 
