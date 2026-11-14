@@ -80,6 +80,10 @@ public final class Spoken {
             + "kya kyun kyu kyon kaise kaisa kaisi kab kahan kaha kaun kitna kitne kitni "
             + "কেন কোথায় কোথায় কখন কেমন কি কী কে কত "
             + "क्या क्यों कैसे कब कहाँ कहां कौन कितना").split(" ")));
+    private static final java.util.Set<String> ASKS_ANY = new java.util.HashSet<>(Arrays.asList((
+            "keno kothay kokhon kemon kobe kivabe kibhabe koto kyun kyu kyon kaise kaisa kaisi kab kahan kaun kitna kitne kitni "
+            + "\u0995\u09C7\u09A8 \u0995\u09CB\u09A5\u09BE\u09DF \u0995\u09CB\u09A5\u09BE\u09AF\u09BC \u0995\u0996\u09A8 \u0995\u09C7\u09AE\u09A8 \u0995\u09A4 "
+            + "\u0915\u094D\u092F\u093E \u0915\u094D\u092F\u094B\u0902 \u0915\u0948\u0938\u0947 \u0915\u092C \u0915\u0939\u093E\u0901 \u0915\u0939\u093E\u0902 \u0915\u094C\u0928 \u0915\u093F\u0924\u0928\u093E").split(" ")));
     private static final java.util.Set<String> ASK_ENDS = new java.util.HashSet<>(Arrays.asList(
             "ki", "naki", "kya", "na", "কি", "কী", "নাকি", "क्या", "ना"));
     private static final java.util.Set<String> CHEERS = new java.util.HashSet<>(Arrays.asList(
@@ -99,8 +103,7 @@ public final class Spoken {
         if (w.length == 0) return text;
         boolean ask = ASKS.contains(w[0]) || (w.length >= 2 && ASK_ENDS.contains(w[w.length - 1]));
         // Bangla and Hindi put the question word in the middle ("tumi kemon acho"); English helpers like "is" only count at the start
-        for (int i = 1; i < w.length && !ask; i++) ask = w[i].length() > 2 && w[i].charAt(0) != 'w' && w[i].charAt(0) != 'd' && w[i].charAt(0) != 's'
-                && w[i].charAt(0) != 'c' && w[i].charAt(0) != 'a' && w[i].charAt(0) != 'i' && ASKS.contains(w[i]) && !w[i].equals("kar") && !w[i].equals("kon");
+        for (int i = 1; i < w.length && !ask; i++) ask = ASKS_ANY.contains(w[i]);
         if (ask) return t + "?";
         if (CHEERS.contains(w[0]) || (w.length >= 2 && w[0].equals("happy"))) return t + "!";
         if (w.length < 3) return text;
