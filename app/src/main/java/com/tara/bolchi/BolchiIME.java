@@ -1068,6 +1068,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 else if (bs.endsWith(sd)) { ic.deleteSurroundingText(sd.length(), 0); ic.commitText(st, 1); keep(typed); }
             }
             fixShownTyped = fixShownDone = null;
+            if (i == 0) justEnded = "";      // she kept her own word: the corrected word's emoji and GIFs no longer fit
+            hideGifs();                      // the row with the two choices is finished
             paintSugs();
             return;
         }
