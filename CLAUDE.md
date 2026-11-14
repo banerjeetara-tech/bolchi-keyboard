@@ -185,6 +185,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (`typeStyleApp`) and never in search / address / email / password / filter boxes (`plainBox`: plainField, noFix, FILTER, IME action SEARCH or GO); all font logic goes through
   `fontOn()`. Grammar fix / rewrite / translate send PLAIN letters to the AI (`FontStyles.plain`) and re-apply the font afterwards (`FontStyles.detect`) — she said the font was
   gone after she replaced a sentence.
+- Version 70: Tara wants the font to stay in EVERY app ("why can't the font stay everywhere"): `fontOn()` no longer checks the app (`typeStyleApp` is still set but unused); it is still off in `plainBox` fields (search, email, URL, password, filter, Search/Go action).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

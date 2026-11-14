@@ -119,8 +119,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String typeStyleApp = "";   // the app where she turned the font on: the font is used only there
     private boolean plainBox;           // search, address, email, password boxes: real letters only
 
-    /** The font is used only in the app where she chose it, and never in boxes that need real letters (search, folder names, emails...). */
-    private boolean fontOn() { return typeStyle >= 0 && typeStyle != 20 && !plainBox && curApp.equals(typeStyleApp); }
+    /** The font stays on in every app (Tara), but never in boxes that need real letters (search, folder names, emails...). */
+    private boolean fontOn() { return typeStyle >= 0 && typeStyle != 20 && !plainBox; }
 
     private int typeStyle = -1;   // a font chosen in the converter: new English typing comes out in it (-1 = normal)
     private int fontStyle = 3;   // the style chosen under "Font style" (starts on Script)
