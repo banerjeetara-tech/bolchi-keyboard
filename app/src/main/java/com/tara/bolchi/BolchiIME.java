@@ -427,7 +427,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         autoFix = p.getBoolean("autoFix", true);
         aiTidy = p.getBoolean("aiFix", true);
         theme = p.getInt("theme", 0);
-        if (theme < 0 || theme >= Themes.count()) theme = 0;
+        // find the theme she picked by its name, so removing the dark themes does not change it
+        String tn = p.getString("themeName", null);
+        if (tn == null && theme >= 0 && theme < Themes.OLD.length) tn = Themes.OLD[theme];
+        int at = tn == null ? -1 : Themes.indexOf(tn);
+        theme = at >= 0 ? at : 0;
         loadColors();
 
         LinearLayout root = new LinearLayout(this);
@@ -2096,7 +2100,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     // ---------- look ----------
     private void nextTheme() {
         theme = (theme + 1) % Themes.count();
-        prefs().edit().putInt("theme", theme).apply();
+        prefs().edit().putInt("theme", theme).putString("themeName", Themes.NAMES[theme]).apply();
         boolean was = listening;
         if (was) stopListening(null);
         setInputView(onCreateInputView());
