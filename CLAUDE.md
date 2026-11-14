@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 78 = build-88** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 79 = build-89** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -241,6 +241,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 78 (Tara: "if I don't select ... when will GIFs come"): after an auto-correct the GIFs come again, and the GIF row itself starts with the two choices
   (her word in quotes, the corrected word bold; chips that call `pickSug(0/1)`), then the emoji, then the GIFs. So nothing is covered and nothing waits.
   While she is still typing a word that has a correction on offer (`sugKeepsTyped`) there are still no GIFs.
+- Version 79: Tara said the version 78 row (her word · corrected word · emoji · GIFs) "is not happening". Not reproduced; one real gap found and fixed: when a correction
+  is only OFFERED (a typo she typed before, `fixPrompt`), `justEnded` held the wrong word, which has no emoji, so no emoji or GIFs came. It now holds the corrected word.
+  Still open: ask which version the Bolchi app shows, which word she typed, and for a screenshot of the top row. GIFs need her Giphy key and the English tab; a word
+  she once kept by tapping her own spelling is never corrected again.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

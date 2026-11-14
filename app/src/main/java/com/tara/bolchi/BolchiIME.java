@@ -1206,7 +1206,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 lastWord = part.toLowerCase();
             }
             if (++usageEdits >= 25) saveUsage();
-            justEnded = finalWord;
+            // emoji and GIFs go by the RIGHT word, also when the correction was only offered and her text still holds the typed one
+            justEnded = fixShownDone != null && w.equals(fixShownTyped) ? fixShownDone : finalWord;
             justEndedAt = System.currentTimeMillis();
         } else {
             lastWord = "";
