@@ -2152,12 +2152,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             col.addView(r);
         }
         sv.addView(col, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        keysBox.addView(sv, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H * 4 + 10)));
-        LinearLayout act = row();
-        TextView back = makeKey("Back to keys", 1f, cFn, cInk, 14);
-        onPress(back, cFn, new Runnable() { @Override public void run() { page = PAGE_ABC; buildKeysSoon(); } });
-        act.addView(back);
-        keysBox.addView(act);
+        // no extra button: tap a colour, or tap the palette button again, to go back to the keys
+        keysBox.addView(sv, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H * 5 + 14)));
     }
 
     private void flashSpace(String s) {

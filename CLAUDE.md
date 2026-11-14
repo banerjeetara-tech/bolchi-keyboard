@@ -144,7 +144,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   and script, nothing translated); holding ⇄ opens it on "Fix my grammar". It works on the whole text in the box (or the selection) and
   "Replace my text" swaps it in. Needs the AI key. Tara asked to keep her token use low: she wants this built in one go.
 - Version 55: theme picker. Tap 🎨 = a scrolling grid of every theme as a colour square (`buildThemes`, `PAGE_THEMES`, ✓ marks the current one);
-  hold 🎨 = the next theme (the old behaviour, `nextTheme`). `applyTheme(idx)` saves `theme` + `themeName`.
+  hold 🎨 = the next theme (the old behaviour, `nextTheme`). No "Back" button (Tara: no additional button): tap a colour or tap 🎨 again. `applyTheme(idx)` saves `theme` + `themeName`.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
