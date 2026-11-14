@@ -11,7 +11,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Push to `next` to test-compile without a release. Add `[skip ci]` to commits that change only docs.
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
-- No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (translit) can be tested locally with `javac`.
+- No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
+- Latest release: **app version 74 = build-81** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
+  of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
 ## Files (app/src/main/java/com/tara/bolchi/)
 - `BolchiIME.java` — the keyboard: layouts, emoji panel, converter panel, voice, themes, problem report.
@@ -22,9 +25,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - `Words.java` — English suggestions + auto-correct (word list in `app/src/main/assets/words.txt`, Banglish/Hinglish words protected).
   `Spoken.java` — voice self-correction ("five no sorry six" → "six", "scratch that").
   `Swipe.java` — gesture typing decoder.
-- `Converter.java` — converter options (see below). `Themes.java` — 27 themes. `Emojis.java` — emoji tabs.
+- `Converter.java` — converter options and all Gemini prompts (tidy, polish, tone, replies). `Themes.java` — 76 themes. `Emojis.java` — emoji tabs.
+- `EmojiHints.java` — emoji for a typed word (`assets/emoji.txt` + `ALIAS` short forms / Banglish + word endings) and emoji search.
+  `Gifs.java` / `GifProvider.java` — Giphy. `FontStyles.java` — Unicode fonts. `Calc.java` — sums typed in the text. `SmsCodeReceiver.java` — SMS codes.
 
-## Current features (app version 9 / build-13)
+## Features of the first builds (app version 9 / build-13) — later versions are listed below, newest last
 - Bottom bar: palette (cycles themes), ⇄ converter, Bangla / Hindi / English chips, Speak.
   Tapping the already-selected Bangla/Hindi chip switches voice output to script (বাংলা / हिंदी) and back.
 - Voice keeps listening through pauses until Stop (restarts Android SpeechRecognizer each round).
@@ -32,7 +37,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Number row, Samsung-style !#1 → 1/2, 2/2 symbol pages, emoji panel. GIFs: see version 43 below (she first said Samsung only, then asked for GIFs beside the emoji suggestions).
 - Keys type on touch-down with press highlight; touch area covers the gaps. Bigger lowercase letters, wide space bar.
 - Long-press space opens the keyboard picker. `onEvaluateFullscreenMode` returns false.
-- 60 themes: her original 27 (including the bold dark ones — she wants to KEEP those), "Plum Lavender" (the colours of the grammar-tab preview she liked) and 32 newer LIGHT ones (she said: keep adding new ones in light mode, as many as possible). She asked for no MORE dark themes ("I don't need dark anymore", then "keep all old ones"). `Themes.OLD` keeps the 43-name list so a saved theme index still maps to the same theme; prefs `themeName` stores the name. Do not add new dark themes: 10 bold (black combos, navy/coral, plum/peach, forest/cream/gold, teal/white/yellow) + 17 light.
+- 76 themes (16 more light ones added in version 72): her original 27 (including the bold dark ones — she wants to KEEP those), "Plum Lavender" (the colours of the grammar-tab preview she liked) and 32 newer LIGHT ones (she said: keep adding new ones in light mode, as many as possible). She asked for no MORE dark themes ("I don't need dark anymore", then "keep all old ones"). `Themes.OLD` keeps the 43-name list so a saved theme index still maps to the same theme; prefs `themeName` stores the name. Do not add new dark themes: 10 bold (black combos, navy/coral, plum/peach, forest/cream/gold, teal/white/yellow) + 17 light.
 
 ## Added in app version 10 (not yet confirmed by Tara)
 - Letter size 22–26 dp (capitals 0.9×), regular weight, ignores system font scale; keys 50 dp tall. Tara rejected 38 dp bold
@@ -224,6 +229,17 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   skips GIFs while a date, time or sum is in the word row. Tara did not understand the text steps for the 📋 💬 🔍 tabs: explain with pictures, not lists.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
+## iPhone version (asked 14 Nov 2026, nothing built)
+- Tara asked for Bolchi on iPhone. Told her: it must be rewritten in Swift; Apple needs a paid developer account (about ₹8,700 a year) which she does not have; Apple blocks
+  the microphone inside keyboards (voice would have to go through the Bolchi app or iPhone's own mic button), SMS reading, and direct GIF sending.
+  Offered a free web page (speak → Banglish → copy) as a first step; she did not answer and moved on to Android features. Do not start iPhone work unless she asks again.
+
+## Waiting for Tara's test results (versions 71-74, none confirmed on her phone)
+- She got a 30-point checklist. So far she reported only: date/time showed emoji instead of the date (fixed in 74), and that she could not follow the text steps for the
+  📋 💬 🔍 tabs (a picture guide was sent). Everything else in 71-74 is unconfirmed.
+- Ideas offered and NOT chosen: shortcuts ("addr" → full address), slide on the space bar to move the cursor (she did not understand it), keyboard size / one-handed.
+- Offered and not answered: checking a whole sentence with Gemini after each full stop (meaning-level correction such as their/there).
+
 ## Open issue: converter "Translate to English" fails on Tara's phone
 - Gemini (generativelanguage.googleapis.com) could not connect from her phone (connect hung > 30 s; report showed
   `SocketException: Socket closed` from our own 30 s cancel). The AI key itself was saved fine.
@@ -236,6 +252,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 
 ## Working with Tara
 - She uses a phone, writes briefly with typos; reply short and simple, no jargon.
-- She wants a visual preview before design changes are pushed; small fixes can ship directly.
+- She wants a visual preview before design changes are pushed; small fixes can ship directly. Previews and how-to guides work best as a PICTURE sent in the chat
+  (HTML drawn with Playwright to PNG); long numbered text steps confuse her.
 - She asked to keep token use low and dislikes long waits; say up front that a build takes about 4 minutes.
 - Give the direct APK link after each release; install path: Chrome → My Files → Downloads → newest file → Update.
