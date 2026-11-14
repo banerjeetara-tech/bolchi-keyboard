@@ -1622,7 +1622,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         cands = new ArrayList<>();
         candFor = "";
         candJob++;
-        if (ic != null) ic.commitText(out, 1);
+        if (ic != null) ic.commitText(shown(out), 1);      // English letters kept as typed follow the font too
         paintCands();
     }
 
@@ -1634,7 +1634,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         cands = new ArrayList<>();
         candFor = "";
         candJob++;
-        if (ic != null) ic.commitText(c + " ", 1);
+        if (ic != null) ic.commitText(shown(c + " "), 1);
         paintCands();
     }
 

@@ -176,6 +176,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   `pickContact`, swipe) uses `shown(w)`; backspace in font mode just drops the last tracked letter.
 - Version 66: the rest of the keyboard works in font mode too (Tara: "all the settings like GIF, emojis should also come"): emoji + GIF suggestions (word tracked plain),
   phone number after digits (`numTyped` fed by styled digits), next-word prediction, saved words (emails stay unstyled). Voice dictation is NOT styled (the AI tidy would break it).
+- Version 67: Tara's italic-font message came out half plain / half italic and she said correction, emoji and GIF suggestions were not coming. Likely cause: the Bangla/Hindi tabs
+  (since version 57) switch to the phonetic rows, where English suggestions do not exist and raw English letters were committed unstyled. `flushPhon` and `pickCand` now
+  commit through `shown()`. English corrections / emoji / GIFs need the ENGLISH tab (layout 0); tell her so. If it still fails with the English tab dark, get her Bolchi version first.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
