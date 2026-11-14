@@ -131,6 +131,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 44: GIFs were slow (Tara). Now: 200 ms wait, Giphy `bundle=messaging_non_clips` + limit 6 (smaller answer), the row shows at once with
   empty frames and each thumbnail fills in as it arrives (parallel), searches and thumbnails are cached in memory (`Gifs.FOUND`, `Gifs.PICS`),
   and a very big GIF (>1.5 MB) is swapped for the small one when sending.
+- Version 45: the "Save and test GIF key" button now prints timings (search ms, first picture ms) so we can see what is slow on her phone, and
+  the keyboard warms the Giphy connection when a box opens (`Gifs.warmUp`, at most every 10 min). Tara also said "the Samsung gifs are not
+  coming": Samsung's own GIF button is Samsung's keyboard, outside Bolchi.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

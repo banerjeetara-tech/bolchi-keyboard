@@ -111,14 +111,27 @@ final class Gifs {
         return b.toByteArray();
     }
 
-    /** One real request, with a plain answer for the Bolchi app. */
+    /** One real request, timed, with a plain answer for the Bolchi app. */
     static String test(String key) {
         if (key == null || key.trim().isEmpty()) return "Paste your Giphy key first.";
         try {
-            List<Item> r = search(key, "love");
-            return r.isEmpty() ? "The key works but no GIFs came back." : "GIFs work: " + r.size() + " found for \"love\".";
+            long t0 = System.currentTimeMillis();
+            List<Item> r = search(key, "love zz" + (t0 % 1000));          // never cached
+            long t1 = System.currentTimeMillis();
+            if (r.isEmpty()) r = search(key, "love");
+            if (r.isEmpty()) return "The key works but no GIFs came back (" + (t1 - t0) + " ms).";
+            long t2 = System.currentTimeMillis();
+            Bitmap b = bitmap(r.get(0).thumb);
+            long t3 = System.currentTimeMillis();
+            return "GIFs work: " + r.size() + " found.\nSearch took " + (t1 - t0) + " ms, first picture " + (t3 - t2)
+                    + " ms" + (b == null ? " (picture failed)" : "") + ".\nUnder about 800 ms each feels quick.";
         } catch (Throwable t) {
             return "GIFs did NOT work: " + t.getMessage();
         }
+    }
+
+    /** Opens the connection to Giphy ahead of time so the first real search is not slow. */
+    static void warmUp(String key) {
+        try { search(key, "hi"); } catch (Throwable ignored) { }
     }
 }

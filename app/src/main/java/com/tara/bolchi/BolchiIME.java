@@ -1250,6 +1250,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private long contactsLoadedAt;
+    private long gifWarmAt;
     private boolean contactsLoading;
 
     /** Reads the names from the phone book (if she allowed it) into memory, at most every 10 minutes. */
@@ -2008,6 +2009,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         clearOtp();
         clearSms();
         loadContactsSoon();
+        final String gk = prefs().getString("giphyKey", "").trim();
+        if (!gk.isEmpty() && System.currentTimeMillis() - gifWarmAt > 10 * 60 * 1000L) {
+            gifWarmAt = System.currentTimeMillis();
+            new Thread(new Runnable() { @Override public void run() { Gifs.warmUp(gk); } }).start();
+        }
         handler.post(new Runnable() { @Override public void run() { showSmsCode(true); } });
         List<String> mine = new ArrayList<>();
         for (String m : prefs().getString("myWords", "").split("\n")) {
