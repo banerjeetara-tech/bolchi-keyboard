@@ -27,15 +27,29 @@ final class Gifs {
         String gif;     // the animated GIF that is sent
     }
 
+    static volatile String lastShape = "";
+
+    private static JSONObject firstOf(JSONObject im, String... names) {
+        for (String n : names) {
+            JSONObject o = im.optJSONObject(n);
+            if (o != null && !o.optString("url").isEmpty()) return o;
+        }
+        return null;
+    }
+
+    private static String urlOf(JSONObject im, String... names) {
+        JSONObject o = firstOf(im, names);
+        return o == null ? "" : o.optString("url");
+    }
+
     private static final LruCache<String, Bitmap> PICS = new LruCache<>(60);
     private static final LruCache<String, List<Item>> FOUND = new LruCache<>(40);
 
     static List<Item> search(String key, String word) throws Exception {
         List<Item> cached = FOUND.get(word);
         if (cached != null) return cached;
-        // bundle=messaging_non_clips: Giphy sends only the few sizes a keyboard needs (a much smaller answer)
         URL u = new URL("https://api.giphy.com/v1/gifs/search?api_key=" + URLEncoder.encode(key.trim(), "UTF-8")
-                + "&q=" + URLEncoder.encode(word, "UTF-8") + "&limit=6&rating=g&lang=en&bundle=messaging_non_clips");
+                + "&q=" + URLEncoder.encode(word, "UTF-8") + "&limit=6&rating=g&lang=en");
         HttpURLConnection c = (HttpURLConnection) u.openConnection();
         c.setConnectTimeout(6000);
         c.setReadTimeout(10000);
@@ -46,19 +60,22 @@ final class Gifs {
         if (code >= 400) throw new Exception("Giphy problem (" + code + ")");
         JSONArray data = new JSONObject(body).optJSONArray("data");
         List<Item> out = new ArrayList<>();
+        lastShape = "";
         for (int i = 0; data != null && i < data.length(); i++) {
             JSONObject im = data.getJSONObject(i).optJSONObject("images");
             if (im == null) continue;
-            JSONObject th = im.optJSONObject("fixed_height_small_still");
-            JSONObject gf = im.optJSONObject("fixed_height");
-            if (th == null || gf == null) continue;
+            if (lastShape.isEmpty()) lastShape = String.valueOf(im.names());
+            // the small still picture for the row, and the GIF to send: take the first size that exists
+            String thumb = urlOf(im, "fixed_height_small_still", "fixed_height_still", "fixed_width_small_still", "fixed_width_still", "downsized_still", "preview_gif");
+            JSONObject gf = firstOf(im, "fixed_height", "fixed_width", "downsized", "downsized_medium", "original");
+            if (thumb.isEmpty() || gf == null) continue;
             Item it = new Item();
-            it.thumb = th.optString("url");
+            it.thumb = thumb;
             it.gif = gf.optString("url");
             // a very big GIF is slow to send: use the smaller one
-            JSONObject small = im.optJSONObject("fixed_height_small");
-            if (small != null && gf.optLong("size", 0) > 1500000L && !small.optString("url").isEmpty()) it.gif = small.optString("url");
-            if (!it.thumb.isEmpty() && !it.gif.isEmpty()) out.add(it);
+            String small = urlOf(im, "fixed_height_small", "fixed_width_small");
+            if (!small.isEmpty() && gf.optLong("size", 0) > 1500000L) it.gif = small;
+            if (!it.gif.isEmpty()) out.add(it);
         }
         if (!out.isEmpty()) FOUND.put(word, out);
         return out;
@@ -116,14 +133,12 @@ final class Gifs {
         if (key == null || key.trim().isEmpty()) return "Paste your Giphy key first.";
         try {
             long t0 = System.currentTimeMillis();
-            List<Item> r = search(key, "love zz" + (t0 % 1000));          // never cached
+            List<Item> r = search(key, "love");
             long t1 = System.currentTimeMillis();
-            if (r.isEmpty()) r = search(key, "love");
-            if (r.isEmpty()) return "The key works but no GIFs came back (" + (t1 - t0) + " ms).";
-            long t2 = System.currentTimeMillis();
+            if (r.isEmpty()) return "The key works but no usable GIFs came back (" + (t1 - t0) + " ms). Giphy sizes: " + lastShape;
             Bitmap b = bitmap(r.get(0).thumb);
-            long t3 = System.currentTimeMillis();
-            return "GIFs work: " + r.size() + " found.\nSearch took " + (t1 - t0) + " ms, first picture " + (t3 - t2)
+            long t2 = System.currentTimeMillis();
+            return "GIFs work: " + r.size() + " found.\nSearch took " + (t1 - t0) + " ms, first picture " + (t2 - t1)
                     + " ms" + (b == null ? " (picture failed)" : "") + ".\nUnder about 800 ms each feels quick.";
         } catch (Throwable t) {
             return "GIFs did NOT work: " + t.getMessage();
