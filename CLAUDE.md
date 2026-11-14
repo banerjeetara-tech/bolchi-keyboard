@@ -145,6 +145,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   "Replace my text" swaps it in. Needs the AI key. Tara asked to keep her token use low: she wants this built in one go.
 - Version 55: theme picker. Tap 🎨 = a scrolling grid of every theme as a colour square (`buildThemes`, `PAGE_THEMES`, ✓ marks the current one);
   hold 🎨 = the next theme (the old behaviour, `nextTheme`). No "Back" button (Tara: no additional button): tap a colour or tap 🎨 again. `applyTheme(idx)` saves `theme` + `themeName`.
+- Version 57: like Gboard. The Bangla / Hindi / English tabs now ALSO set the typing layout (`setLayoutTo`: Bangla → ab→বাং, Hindi → ab→हिं,
+  English → EN; if she is on the Bangla/Hindi letter keys (3/4) they stay), and the English letters of the word being typed follow the switch
+  (type "ami" then tap Bangla/Hindi/English). The layout key uses the same function. Converter got "To Hindi script" (option 6, Hinglish → Devanagari
+  via inputtools). A second tap on the selected Bangla/Hindi tab still toggles voice output script.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

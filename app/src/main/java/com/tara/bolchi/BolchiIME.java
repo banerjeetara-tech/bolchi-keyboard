@@ -72,7 +72,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private static final String[] MODE_LANG = {"bn-IN", "hi-IN", "en-IN"};
 
     private static final int PAGE_ABC = 0, PAGE_SYM1 = 1, PAGE_SYM2 = 2, PAGE_EMOJI = 3, PAGE_CONVERT = 4, PAGE_THEMES = 5;
-    private static final String[] CONV_NAMES = {"Translate to English", "To Bangla script", "To English letters", "Units and currency", "Fix my grammar", "Rewrite it better"};
+    private static final String[] CONV_NAMES = {"Translate to English", "To Bangla script", "To English letters", "Units and currency", "Fix my grammar", "Rewrite it better", "To Hindi script"};
 
     private static final String NUMBERS = "1 2 3 4 5 6 7 8 9 0";
     private static final String[] LETTERS = {"q w e r t y u i o p", "a s d f g h j k l", "z x c v b n m"};
@@ -1060,15 +1060,51 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
     }
 
+    /**
+     * Switches the typing layout. A word being typed in English letters follows the switch, like Gboard:
+     * type "ami", tap Bangla and it becomes the Bangla word, tap Hindi for the Hindi word, tap English to keep "ami".
+     */
+    private void setLayoutTo(int nl) {
+        if (nl == layout) return;
+        InputConnection ic = getCurrentInputConnection();
+        boolean toPhonetic = nl == 1 || nl == 2;
+        if (ic != null) {
+            if (layout == 0 && toPhonetic) {
+                String raw = word.toString();                 // letters typed on the English keys
+                if (!raw.isEmpty() && wordIsThere(ic, raw)) {
+                    ic.deleteSurroundingText(raw.length(), 0);
+                    word.setLength(0);
+                    fixTyped = null;
+                    phon.append(raw);
+                    ic.setComposingText(phon.toString(), 1);
+                }
+            } else if ((layout == 1 || layout == 2) && nl == 0) {
+                String raw = phon.toString();                 // letters waiting to become Bangla/Hindi: keep them as English
+                if (!raw.isEmpty()) {
+                    phon.setLength(0);
+                    candJob++;
+                    cands = new ArrayList<>();
+                    candFor = "";
+                    ic.commitText(raw, 1);
+                    word.append(raw);
+                }
+            } else if (!toPhonetic && phon.length() > 0) {
+                flushPhon(false);
+            }
+        }
+        layout = nl;
+        scriptShift = false;
+        if (nl >= 3) word.setLength(0);
+        prefs().edit().putInt("layout", layout).apply();
+        if (phon.length() > 0) { candJob++; askSuggestions(); }   // new language: fetch its words for the same letters
+        buildKeysSoon();
+        flashSpace(LAYOUT_NAME[layout]);
+    }
+
     private TextView layoutKey() {
         TextView k = makeKey(LAYOUT_KEY[layout], 1.4f, cFn, cInk, layout == 0 ? 14 : 15);
         onPress(k, cFn, new Runnable() { @Override public void run() {
-            flushPhon(false);
-            layout = (layout + 1) % LAYOUT_KEY.length;
-            scriptShift = false;
-            prefs().edit().putInt("layout", layout).apply();
-            buildKeysSoon();
-            flashSpace(LAYOUT_NAME[layout]);
+            setLayoutTo((layout + 1) % LAYOUT_KEY.length);
         } });
         return k;
     }
@@ -1753,7 +1789,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         boolean[] isSel = new boolean[1];
         final String src = currentText(isSel).trim();
 
-        for (int rIdx = 0; rIdx < 3; rIdx++) {
+        for (int rIdx = 0; rIdx < 4; rIdx++) {
             LinearLayout r = row();
             for (int c = 0; c < 2; c++) {
                 final int idx = rIdx * 2 + c;
@@ -1846,6 +1882,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (opt == 0) out = Converter.translateFree(src, mode, key);
                 else if (opt == 1) out = Converter.romanToScript(src, false);
                 else if (opt == 4 || opt == 5) out = Converter.polish(src, key, opt == 5);
+                else if (opt == 6) out = Converter.romanToScript(src, true);
                 else {
                     String r = Converter.units(src, Converter.usdRates());
                     out = r.isEmpty() ? "\u26A0 No amounts found. Try \"5 kg\" or \"\u20B9500\"" : r;
@@ -2206,8 +2243,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (was) stopListening(null);
         mode = m;
         prefs().edit().putInt("mode", m).apply();
+        // the tab also sets the typing language (the letter-key layouts she picked stay as they are)
+        setLayoutTo(m == MODE_EN ? 0 : m == MODE_BN ? (layout == 3 ? 3 : 1) : (layout == 4 ? 4 : 2));
         paintChips();
-        flashSpace(MODE_LABEL[m] + (m == MODE_BN ? " → Banglish" : m == MODE_HI ? " → Hinglish" : ""));
         if (was) startListening();
     }
 
