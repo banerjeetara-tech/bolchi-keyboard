@@ -622,7 +622,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             keysBox.addView(candRow);
             paintCands();
         } else {
-            if (wordsOn()) buildSugRow();
+            if (wordsOn() || numberStrip()) buildSugRow();
             LinearLayout nums = row();
             for (String k : NUMBERS.split(" ")) nums.addView(charKey(k));
             keysBox.addView(nums);
@@ -773,6 +773,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         slotEmoji[0] = slotEmoji[1] = slotEmoji[2] = false;
         slotNext[0] = slotNext[1] = slotNext[2] = false;
         slotNum[0] = slotNum[1] = slotNum[2] = false;
+        slotNumFill[0] = slotNumFill[1] = slotNumFill[2] = false;
         boolean[] ownSlot = new boolean[3];
         if (w.isEmpty() && !plainField && layout == 0 && Words.ready) {
             // after a space: the words she usually writes next
@@ -801,6 +802,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (used >= slot.length) break;
                 if (m.length() > w.length() && m.toLowerCase().startsWith(lw)) { ownSlot[slot[used]] = true; v[slot[used++]] = m; }
             }
+        }
+        // she is typing digits and they begin one of her numbers: offer the whole number
+        if (numTyped.length() >= 3) {
+            List<String> nums = numbersStartingWith(numTyped.toString());
+            int[] order = {1, 0, 2};
+            for (int k = 0; k < nums.size() && k < 3; k++) { v[order[k]] = nums.get(k); slotNumFill[order[k]] = true; ownSlot[order[k]] = true; }
         }
         // she typed "phone", "mobile", "number"...: offer her own phone numbers
         if (!plainField && !sugKeepsTyped && NUM_WORDS.contains(w.toLowerCase())) {
@@ -852,6 +859,21 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
+        if (slotNumFill[i] && !val.isEmpty() && ic != null) {
+            int n = numTyped.length();
+            CharSequence b = ic.getTextBeforeCursor(n, 0);
+            boolean numberBox = fieldClass == EditorInfo.TYPE_CLASS_NUMBER || fieldClass == EditorInfo.TYPE_CLASS_PHONE;
+            String out = numberBox ? val.replaceAll("[^0-9+]", "") : val;
+            if (b != null && b.toString().equals(numTyped.toString())) {
+                ic.beginBatchEdit();
+                ic.deleteSurroundingText(n, 0);
+                ic.commitText(out, 1);
+                ic.endBatchEdit();
+            }
+            numTyped.setLength(0);
+            paintSugs();
+            return;
+        }
         if (slotNum[i] && !val.isEmpty() && ic != null) {
             if (wordIsThere(ic, w)) ic.commitText(" " + val + " ", 1);
             resetWord();
@@ -990,7 +1012,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
         // the cursor was moved by hand: forget the word we were tracking
         boolean jumped = newSelStart != newSelEnd || Math.abs(newSelStart - oldSelStart) > 1;
-        if (jumped) { token.setLength(0); lastWord = ""; }
+        if (jumped) { token.setLength(0); lastWord = ""; if (numTyped.length() > 0) { numTyped.setLength(0); paintSugs(); } }
         if (word.length() > 0 && jumped) {
             word.setLength(0);
             paintSugs();
@@ -1070,6 +1092,29 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String[] myNumbers = new String[0];
     private volatile String[] meNumbers = new String[0];
     private final boolean[] slotNum = new boolean[3];
+    private final boolean[] slotNumFill = new boolean[3];     // this slot holds one of her numbers that completes the digits just typed
+    private final StringBuilder numTyped = new StringBuilder();   // the digits typed in a row
+    private int fieldClass;
+
+    private static String digitsOf(String s) { return s.replaceAll("[^0-9]", ""); }
+
+    /** Her numbers that begin with the digits typed (with or without +91), as saved. */
+    private List<String> numbersStartingWith(String t) {
+        List<String> out = new ArrayList<>();
+        if (t.length() < 3) return out;
+        for (String n : allMyNumbers()) {
+            String d = digitsOf(n);
+            String national = d.length() > 10 && d.startsWith("91") ? d.substring(d.length() - 10) : d;
+            if ((d.startsWith(t) && d.length() > t.length()) || (national.startsWith(t) && national.length() > t.length())) out.add(n);
+        }
+        return out;
+    }
+
+    /** A strip is shown in number and phone boxes too, when she has saved numbers to offer. */
+    private boolean numberStrip() {
+        return page == PAGE_SYM1 && !noFix && (fieldClass == EditorInfo.TYPE_CLASS_NUMBER || fieldClass == EditorInfo.TYPE_CLASS_PHONE)
+                && !allMyNumbers().isEmpty();
+    }
     private static final java.util.Set<String> NUM_WORDS = new java.util.HashSet<>(java.util.Arrays.asList(
             "phone", "mobile", "number", "whatsapp", "contact", "mob", "cell", "tel", "num"));
 
@@ -1670,9 +1715,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             return;
         }
         flushPhon(true);
+        boolean digit = s.length() == 1 && Character.isDigit(s.charAt(0));
+        if (digit) numTyped.append(s); else numTyped.setLength(0);
         if (" ".equals(s)) { endWord(ic); tokenEnd(); }
         else { resetWord(); lastWord = ""; if (s.length() == 1) token.append(s); else token.setLength(0); }
         ic.commitText(s, 1);
+        if (digit) paintSugs();
     }
 
     private void typeSpace() {
@@ -1715,6 +1763,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         if (composing) { ic.finishComposingText(); composing = false; }
         if (token.length() > 0) token.setLength(token.length() - 1);
+        if (numTyped.length() > 0) numTyped.setLength(numTyped.length() - 1);
         if (undoFix(ic)) return;
         if (swipeDone != null) {
             boolean there = swipeWordIsThere(ic);
@@ -1735,6 +1784,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             while (st > 0 && (Character.isLetter(b.charAt(st - 1)) || b.charAt(st - 1) == '\'')) st--;
             word.setLength(0);
             if (end - st < 25 && st < end) word.append(b, st, end);
+            paintSugs();
+        } else if (sugRow != null) {
             paintSugs();
         }
     }
@@ -1847,6 +1898,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         for (String n : prefs().getString("myNumbers", "").split("\n")) { n = n.trim(); if (!n.isEmpty()) nums.add(n); }
         myNumbers = nums.toArray(new String[0]);
         int cls = info.inputType & EditorInfo.TYPE_MASK_CLASS;
+        fieldClass = cls;
+        numTyped.setLength(0);
         int var = info.inputType & EditorInfo.TYPE_MASK_VARIATION;
         boolean wasNoFix = noFix;
         boolean text = cls == EditorInfo.TYPE_CLASS_TEXT;

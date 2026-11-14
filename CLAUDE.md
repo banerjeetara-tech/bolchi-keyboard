@@ -118,6 +118,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   top row (up to 3, tap inserts " number "): from the "My phone numbers" box in the Bolchi app (pref `myNumbers`) and from the phone book
   "Me" card (`ContactsContract.Profile`, needs the contacts permission; may be empty). Her message was cut off ("my phone number in a t"),
   so ask if she meant something else. Never put real numbers in the repo.
+- Version 41: typing 3+ digits that begin one of her saved numbers (with or without +91) offers the whole number in the top row; tap
+  replaces the typed digits (`numTyped`, `numbersStartingWith`, `slotNumFill`). Number/phone boxes get the strip too (`numberStrip`) and there
+  the number is inserted as digits only. Tara: "pressing 983 on other websites or Zoom, it is not coming".
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
