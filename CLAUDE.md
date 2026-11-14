@@ -192,7 +192,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   letters, wrong vowel are cheap; two slips allowed from 5-7 letters up), a table of ~200 known misspellings/contractions/missing spaces (`FIXED`), `split` for
   "thankyou"; learned words (`own`) no longer block a correction (they only stop the automatic swap). A rare dictionary word is only OFFERED (`sureFix`), and right after a
   Banglish/Hinglish word (`desiRecent`, `Words.isDesi`) corrections are offered, not made. `wordAutoCap`/`shiftAuto` tell the keyboard's capital from hers.
-  Local test: 110/110 typos fixed (old code 60-odd), Banglish false changes not higher than before. ~0.5 ms per word on a PC.
+  Local test on 110 typos: 110 fixed (old code 99); a Banglish sample of 153 words: 0 changed (old 18); unseen Banglish words still change about as often as before. ~0.5 ms per word on a PC.
   Her question "add your intelligence": Claude cannot run inside the keyboard; her Gemini key could check a whole sentence after a full stop (not built: costs a wait and data).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
