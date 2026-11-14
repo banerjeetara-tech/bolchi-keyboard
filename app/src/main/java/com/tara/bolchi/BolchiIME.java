@@ -71,7 +71,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private static final String[] MODE_LABEL = {"Bangla", "Hindi", "English"};
     private static final String[] MODE_LANG = {"bn-IN", "hi-IN", "en-IN"};
 
-    private static final int PAGE_ABC = 0, PAGE_SYM1 = 1, PAGE_SYM2 = 2, PAGE_EMOJI = 3, PAGE_CONVERT = 4;
+    private static final int PAGE_ABC = 0, PAGE_SYM1 = 1, PAGE_SYM2 = 2, PAGE_EMOJI = 3, PAGE_CONVERT = 4, PAGE_THEMES = 5;
     private static final String[] CONV_NAMES = {"Translate to English", "To Bangla script", "To English letters", "Units and currency", "Fix my grammar", "Rewrite it better"};
 
     private static final String NUMBERS = "1 2 3 4 5 6 7 8 9 0";
@@ -493,7 +493,15 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         plp.setMargins(dp(GAP), 0, dp(GAP), 0);
         pal.setLayoutParams(plp);
         pal.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { tick(v); nextTheme(); }
+            @Override public void onClick(View v) {
+                tick(v);
+                if (listening) stopListening(null);
+                page = page == PAGE_THEMES ? PAGE_ABC : PAGE_THEMES;     // tap: all colours as squares
+                buildKeysSoon();
+            }
+        });
+        pal.setOnLongClickListener(new View.OnLongClickListener() {      // hold: the next colour
+            @Override public boolean onLongClick(View v) { tick(v); nextTheme(); return true; }
         });
         bar.addView(pal);
 
@@ -627,7 +635,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         hideGifs();
         keysBox.removeAllViews();
         keyViews.clear();
-        directTouch = page != PAGE_EMOJI && page != PAGE_CONVERT;
+        directTouch = page != PAGE_EMOJI && page != PAGE_CONVERT && page != PAGE_THEMES;
         letterKeys.clear();
         shiftKey = null;
         spaceKey = null;
@@ -641,6 +649,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         if (page == PAGE_EMOJI) { buildEmoji(); return; }
         if (page == PAGE_CONVERT) { buildConverter(); return; }
+        if (page == PAGE_THEMES) { buildThemes(); return; }
 
         candRow = null;
         if (page == PAGE_ABC && layout >= 3) { buildScriptKeys(); return; }
@@ -2098,13 +2107,57 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     // ---------- look ----------
-    private void nextTheme() {
-        theme = (theme + 1) % Themes.count();
+    private void nextTheme() { applyTheme((theme + 1) % Themes.count()); }
+
+    private void applyTheme(int idx) {
+        theme = idx;
         prefs().edit().putInt("theme", theme).putString("themeName", Themes.NAMES[theme]).apply();
-        boolean was = listening;
-        if (was) stopListening(null);
+        if (listening) stopListening(null);
+        page = PAGE_ABC;
         setInputView(onCreateInputView());
         flashSpace(Themes.NAMES[theme]);
+    }
+
+    /** Every theme as a small square in a scrolling grid: tap one to use it. */
+    private void buildThemes() {
+        final int perRow = 6;
+        ScrollView sv = new ScrollView(this);
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        for (int i0 = 0; i0 < Themes.count(); i0 += perRow) {
+            LinearLayout r = row();
+            for (int c = 0; c < perRow; c++) {
+                final int idx = i0 + c;
+                if (idx >= Themes.count()) { r.addView(spacer(1f)); continue; }
+                TextView sw = new TextView(this);
+                boolean cur = idx == theme;
+                sw.setText(cur ? "\u2713" : "Aa");
+                sw.setTextSize(cur ? 20 : 15);
+                sw.setTypeface(Typeface.DEFAULT_BOLD);
+                sw.setGravity(Gravity.CENTER);
+                sw.setTextColor(Themes.color(idx, Themes.INK));
+                GradientDrawable g = new GradientDrawable();
+                g.setColor(Themes.color(idx, Themes.BG));
+                g.setCornerRadius(dp(10));
+                g.setStroke(dp(cur ? 4 : 3), cur ? Themes.color(idx, Themes.INK) : Themes.color(idx, Themes.ACCENT));
+                sw.setBackground(g);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(46), 1f);
+                lp.setMargins(dp(3), dp(3), dp(3), dp(3));
+                sw.setLayoutParams(lp);
+                sw.setOnClickListener(new View.OnClickListener() {
+                    @Override public void onClick(View v) { tick(v); applyTheme(idx); }
+                });
+                r.addView(sw);
+            }
+            col.addView(r);
+        }
+        sv.addView(col, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        keysBox.addView(sv, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H * 4 + 10)));
+        LinearLayout act = row();
+        TextView back = makeKey("Back to keys", 1f, cFn, cInk, 14);
+        onPress(back, cFn, new Runnable() { @Override public void run() { page = PAGE_ABC; buildKeysSoon(); } });
+        act.addView(back);
+        keysBox.addView(act);
     }
 
     private void flashSpace(String s) {
