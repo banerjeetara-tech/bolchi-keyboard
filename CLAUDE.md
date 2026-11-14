@@ -106,6 +106,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   matching full name in a scrollable row above the keys (`contactScroll`, `Words.contactNamesFor`, up to 10, names starting with the
   letters first); tapping one replaces the typed letters with ONLY the matching word (Tara: "Rituparna only, not Emami Rituparna"); the chip still shows the
   full name so contacts can be told apart. EN keys only.
+- Version 37: it learns her writing. `Words.record` counts every word she finishes on the EN keys (not password/email/web boxes) and which
+  word followed which; words used 2+ times come first in the top row while typing (`usedMatches`), words used 3+ times are never
+  auto-corrected, and after a space the top row predicts her usual next word (`nextAfter`, pair seen 2+ times). Saved in prefs `usage`
+  (top 3000 words and pairs, written every 25 words and when the box closes), local only.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

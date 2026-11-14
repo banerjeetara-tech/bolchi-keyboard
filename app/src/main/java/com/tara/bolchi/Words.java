@@ -26,6 +26,110 @@ public final class Words {
     /** Name parts from the phone book (lower case -> as written). Kept in memory only. */
     private static final java.util.TreeMap<String, String> CONTACT = new java.util.TreeMap<>();
 
+    // ---------- what she writes: how often each word, and which word follows which (kept on her phone only) ----------
+    private static final HashMap<String, Integer> USE = new HashMap<>();
+    private static final HashMap<String, HashMap<String, Integer>> NEXT = new HashMap<>();
+
+    /** She typed (or picked) `word` after `prev`: count both. */
+    public static void record(String prev, String word) {
+        if (word == null) return;
+        String w = word.toLowerCase(Locale.ROOT);
+        if (w.length() < 2 || w.length() > 20) return;
+        synchronized (USE) {
+            Integer c = USE.get(w);
+            USE.put(w, c == null ? 1 : c + 1);
+            if (prev != null && prev.length() >= 2) {
+                HashMap<String, Integer> m = NEXT.get(prev);
+                if (m == null) { m = new HashMap<>(); NEXT.put(prev, m); }
+                Integer n = m.get(w);
+                m.put(w, n == null ? 1 : n + 1);
+            }
+        }
+    }
+
+    private static int used(String l) {
+        synchronized (USE) { Integer c = USE.get(l); return c == null ? 0 : c; }
+    }
+
+    /** Words she uses often that start with these letters, most used first. */
+    public static List<String> usedMatches(String prefix, int max) {
+        List<String> out = new ArrayList<>();
+        if (prefix == null || prefix.isEmpty()) return out;
+        String p = prefix.toLowerCase(Locale.ROOT);
+        final HashMap<String, Integer> snapshot = new HashMap<>();
+        synchronized (USE) {
+            for (java.util.Map.Entry<String, Integer> e : USE.entrySet()) {
+                if (e.getValue() >= 2 && e.getKey().length() > p.length() && e.getKey().startsWith(p)) snapshot.put(e.getKey(), e.getValue());
+            }
+        }
+        List<String> keys = new ArrayList<>(snapshot.keySet());
+        java.util.Collections.sort(keys, new java.util.Comparator<String>() {
+            @Override public int compare(String a, String b) { return snapshot.get(b) - snapshot.get(a); }
+        });
+        for (int i = 0; i < keys.size() && i < max; i++) out.add(keys.get(i));
+        return out;
+    }
+
+    /** The words she most often writes right after `prev` (needs to have happened twice). */
+    public static List<String> nextAfter(String prev, int max) {
+        List<String> out = new ArrayList<>();
+        if (prev == null || prev.length() < 2) return out;
+        final HashMap<String, Integer> m;
+        synchronized (USE) {
+            HashMap<String, Integer> src = NEXT.get(prev);
+            if (src == null) return out;
+            m = new HashMap<>(src);
+        }
+        List<String> keys = new ArrayList<>();
+        for (java.util.Map.Entry<String, Integer> e : m.entrySet()) if (e.getValue() >= 2) keys.add(e.getKey());
+        java.util.Collections.sort(keys, new java.util.Comparator<String>() {
+            @Override public int compare(String a, String b) { return m.get(b) - m.get(a); }
+        });
+        for (int i = 0; i < keys.size() && i < max; i++) out.add(keys.get(i));
+        return out;
+    }
+
+    /** One text to keep in the phone's settings: the most used words and word pairs. */
+    public static String exportUsage() {
+        StringBuilder b = new StringBuilder();
+        synchronized (USE) {
+            List<java.util.Map.Entry<String, Integer>> all = new ArrayList<>(USE.entrySet());
+            java.util.Collections.sort(all, new java.util.Comparator<java.util.Map.Entry<String, Integer>>() {
+                @Override public int compare(java.util.Map.Entry<String, Integer> a, java.util.Map.Entry<String, Integer> c) { return c.getValue() - a.getValue(); }
+            });
+            for (int i = 0; i < all.size() && i < 3000; i++) b.append(all.get(i).getKey()).append(' ').append(all.get(i).getValue()).append('\n');
+            b.append("#pairs\n");
+            List<String[]> pairs = new ArrayList<>();
+            for (java.util.Map.Entry<String, HashMap<String, Integer>> e : NEXT.entrySet())
+                for (java.util.Map.Entry<String, Integer> f : e.getValue().entrySet())
+                    if (f.getValue() >= 2) pairs.add(new String[]{e.getKey(), f.getKey(), String.valueOf(f.getValue())});
+            java.util.Collections.sort(pairs, new java.util.Comparator<String[]>() {
+                @Override public int compare(String[] a, String[] c) { return Integer.parseInt(c[2]) - Integer.parseInt(a[2]); }
+            });
+            for (int i = 0; i < pairs.size() && i < 3000; i++) b.append(pairs.get(i)[0]).append(' ').append(pairs.get(i)[1]).append(' ').append(pairs.get(i)[2]).append('\n');
+        }
+        return b.toString();
+    }
+
+    public static void importUsage(String text) {
+        if (text == null || text.isEmpty()) return;
+        synchronized (USE) {
+            boolean pairs = false;
+            for (String line : text.split("\n")) {
+                if (line.equals("#pairs")) { pairs = true; continue; }
+                String[] p = line.split(" ");
+                try {
+                    if (!pairs && p.length == 2) USE.put(p[0], Integer.parseInt(p[1]));
+                    else if (pairs && p.length == 3) {
+                        HashMap<String, Integer> m = NEXT.get(p[0]);
+                        if (m == null) { m = new HashMap<>(); NEXT.put(p[0], m); }
+                        m.put(p[1], Integer.parseInt(p[2]));
+                    }
+                } catch (NumberFormatException ignored) { /* skip a damaged line */ }
+            }
+        }
+    }
+
     private static final class Person {
         final String name;
         final String[] words;
@@ -175,7 +279,7 @@ public final class Words {
     }
 
     private static boolean isOwnOrDesi(String l) {
-        if (DESI.contains(l) || isContact(l)) return true;
+        if (DESI.contains(l) || isContact(l) || used(l) >= 3) return true;   // words she keeps using are hers
         synchronized (own) { return own.contains(l); }
     }
 
@@ -262,7 +366,12 @@ public final class Words {
         List<String> out = new ArrayList<>();
         if (typed == null || typed.isEmpty()) return out;
         String p = typed.toLowerCase(Locale.ROOT);
-        // her own words first, then the common English ones
+        // words she uses a lot come first, then her own learned words
+        for (String u : usedMatches(p, 2)) {
+            if (out.size() >= max - 1) break;
+            String shown = matchCase(typed, u);
+            if (!out.contains(shown)) out.add(shown);
+        }
         synchronized (own) {
             for (String s : own) {
                 if (out.size() >= max - 1) break;

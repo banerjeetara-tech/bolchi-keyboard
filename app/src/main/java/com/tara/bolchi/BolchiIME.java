@@ -577,6 +577,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             }
         });
         for (String w : prefs().getString("ownWords", "").split(" ")) Words.addOwn(w);
+        Words.importUsage(prefs().getString("usage", ""));
         smsWatch = new SharedPreferences.OnSharedPreferenceChangeListener() {
             @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
                 if ("smsCode".equals(key)) handler.post(new Runnable() { @Override public void run() {
@@ -748,7 +749,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         sugKeepsTyped = false;
         sugSwipe = false;
         slotEmoji[0] = slotEmoji[1] = slotEmoji[2] = false;
+        slotNext[0] = slotNext[1] = slotNext[2] = false;
         boolean[] ownSlot = new boolean[3];
+        if (w.isEmpty() && !plainField && layout == 0 && Words.ready) {
+            // after a space: the words she usually writes next
+            List<String> nx = Words.nextAfter(lastWord, 3);
+            int[] order = {1, 0, 2};
+            for (int k = 0; k < nx.size() && k < 3; k++) { v[order[k]] = nx.get(k); slotNext[order[k]] = true; }
+        }
         if (w.length() > 0 && Words.ready && !plainField) {
             String fx = Words.fix(w);
             List<String> c = Words.complete(w, 3);
@@ -815,6 +823,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
+        if (slotNext[i] && !val.isEmpty() && ic != null) {
+            String out = (shift || capsLock) ? Character.toUpperCase(val.charAt(0)) + val.substring(1) : val;
+            if (val.equals("i")) out = "I";
+            ic.commitText(out + " ", 1);
+            Words.record(lastWord, val);
+            lastWord = val;
+            if (++usageEdits >= 25) saveUsage();
+            if (shift && !capsLock) { shift = false; updateShift(); }
+            paintSugs();
+            autoShift();
+            return;
+        }
         if (slotEmoji[i] && !val.isEmpty() && ic != null) {
             // the emoji goes after the word she typed
             if (wordIsThere(ic, w)) { ic.commitText(" " + val + " ", 1); addRecent(val); }
@@ -840,6 +860,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.deleteSurroundingText(w.length(), 0);
         ic.commitText(val + " ", 1);
         ic.endBatchEdit();
+        if (!keep) { Words.record(lastWord, val); lastWord = val.toLowerCase(); if (++usageEdits >= 25) saveUsage(); }
         if (keep) learn(w);
         resetWord();
         autoShift();
@@ -851,6 +872,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         word.setLength(0);
         fixTyped = null;
         if (w.isEmpty()) return;
+        String finalWord = w;
         if (Words.ready && layout == 0 && !noFix && !plainField) {
             String fx = Words.fix(w);
             if (fx == null) {
@@ -863,7 +885,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 ic.endBatchEdit();
                 fixTyped = w;
                 fixDone = fx;
+                finalWord = fx;
             }
+            // count the word she wrote (the corrected one if it was fixed) and which word came before it
+            Words.record(lastWord, finalWord);
+            lastWord = finalWord.toLowerCase();
+            if (++usageEdits >= 25) saveUsage();
+        } else {
+            lastWord = "";
         }
         paintSugs();
     }
@@ -927,7 +956,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
         // the cursor was moved by hand: forget the word we were tracking
         boolean jumped = newSelStart != newSelEnd || Math.abs(newSelStart - oldSelStart) > 1;
-        if (jumped) token.setLength(0);
+        if (jumped) { token.setLength(0); lastWord = ""; }
         if (word.length() > 0 && jumped) {
             word.setLength(0);
             paintSugs();
@@ -994,6 +1023,15 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String curApp = "";   // the app whose box is open now
     private HorizontalScrollView contactScroll;   // full phone book names for the word being typed
     private LinearLayout contactBox;
+    private String lastWord = "";          // the word before the cursor position (for next-word suggestions)
+    private int usageEdits;
+    private final boolean[] slotNext = new boolean[3];   // this slot holds a predicted next word
+
+    private void saveUsage() {
+        usageEdits = 0;
+        prefs().edit().putString("usage", Words.exportUsage()).apply();
+    }
+
     private long contactsLoadedAt;
     private boolean contactsLoading;
 
@@ -1569,7 +1607,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         flushPhon(true);
         if (" ".equals(s)) { endWord(ic); tokenEnd(); }
-        else { resetWord(); if (s.length() == 1) token.append(s); else token.setLength(0); }
+        else { resetWord(); lastWord = ""; if (s.length() == 1) token.append(s); else token.setLength(0); }
         ic.commitText(s, 1);
     }
 
@@ -1586,6 +1624,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.finishComposingText();
         composing = false;
         endWord(ic);
+        lastWord = "";
         if (".".equals(m) && (plainField || token.indexOf("@") >= 0)) {
             // inside an email or web address: a plain dot, no space after it
             ic.commitText(".", 1);
@@ -1644,6 +1683,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         composing = false;
         endWord(ic);
         tokenEnd();
+        lastWord = "";
         EditorInfo ei = getCurrentInputEditorInfo();
         if (ei != null) {
             int action = ei.imeOptions & EditorInfo.IME_MASK_ACTION;
@@ -1726,6 +1766,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         word.setLength(0);
         fixTyped = null;
         curApp = info == null || info.packageName == null ? "" : info.packageName;
+        lastWord = "";
         clearOtp();
         clearSms();
         loadContactsSoon();
@@ -2097,6 +2138,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     @Override
     public void onFinishInputView(boolean finishingInput) {
+        if (usageEdits > 0) saveUsage();
         clearOtp();                                   // leaving the box: the code strips go
         clearSms();
         if (contactScroll != null) contactScroll.setVisibility(View.GONE);
