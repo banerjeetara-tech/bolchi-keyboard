@@ -104,7 +104,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   max 2) and in the Bangla/Hindi candidate rows, and are never auto-corrected. English letters only (Bengali-script names ignored).
 - Version 35: full phone book names. Typing 2+ letters of any word of a contact name (e.g. "Ritu" for "Emami Rituparna") shows every
   matching full name in a scrollable row above the keys (`contactScroll`, `Words.contactNamesFor`, up to 10, names starting with the
-  letters first); tapping one replaces the typed letters (and a first name already typed before them) with the whole name. EN keys only.
+  letters first); tapping one replaces the typed letters with ONLY the matching word (Tara: "Rituparna only, not Emami Rituparna"); the chip still shows the
+  full name so contacts can be told apart. EN keys only.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

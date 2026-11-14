@@ -720,23 +720,17 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         contactScroll.setVisibility(View.VISIBLE);
     }
 
-    /** Puts the whole name in place of the typed letters (and any first name already typed before them). */
+    /** Puts only the name she was typing (e.g. "Rituparna" from "Emami Rituparna") in place of the typed letters. */
     private void pickContact(String name) {
         InputConnection ic = getCurrentInputConnection();
         String w = word.toString();
         if (ic != null && !w.isEmpty() && wordIsThere(ic, w)) {
-            int cut = 0;
+            String pick = name;
             java.util.regex.Matcher m = java.util.regex.Pattern.compile("[A-Za-z]+").matcher(name);
-            int at = 0;
-            while (m.find()) { if (m.group().toLowerCase().startsWith(w.toLowerCase())) { at = m.start(); break; } }
-            String lead = name.substring(0, at);                      // e.g. "Emami " when she typed "Ritu"
-            if (!lead.isEmpty()) {
-                CharSequence b = ic.getTextBeforeCursor(w.length() + lead.length(), 0);
-                if (b != null && b.toString().toLowerCase().startsWith(lead.toLowerCase())) cut = lead.length();
-            }
+            while (m.find()) { if (m.group().toLowerCase().startsWith(w.toLowerCase())) { pick = m.group(); break; } }
             ic.beginBatchEdit();
-            ic.deleteSurroundingText(w.length() + cut, 0);
-            ic.commitText(name + " ", 1);
+            ic.deleteSurroundingText(w.length(), 0);
+            ic.commitText(pick + " ", 1);
             ic.endBatchEdit();
         }
         fixTyped = null;
