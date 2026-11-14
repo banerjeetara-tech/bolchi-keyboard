@@ -73,4 +73,38 @@ public final class Spoken {
         for (String t : tok) { if (b.length() > 0) b.append(' '); b.append(t); }
         return b.toString();
     }
+
+    private static final java.util.Set<String> ASKS = new java.util.HashSet<>(Arrays.asList((
+            "what why how when where who whom whose which is are am was were do does did can could will would should shall "
+            + "keno kothay kokhon kemon kobe kivabe kibhabe ki ke kar koto kon konta "
+            + "kya kyun kyu kyon kaise kaisa kaisi kab kahan kaha kaun kitna kitne kitni "
+            + "কেন কোথায় কোথায় কখন কেমন কি কী কে কত "
+            + "क्या क्यों कैसे कब कहाँ कहां कौन कितना").split(" ")));
+    private static final java.util.Set<String> ASK_ENDS = new java.util.HashSet<>(Arrays.asList(
+            "ki", "naki", "kya", "na", "কি", "কী", "নাকি", "क्या", "ना"));
+    private static final java.util.Set<String> CHEERS = new java.util.HashSet<>(Arrays.asList(
+            "wow", "congratulations", "congrats", "hurray", "omg", "great", "awesome", "darun", "bah", "shabash", "wah", "badhai"));
+
+    /**
+     * Ends a spoken stretch the way it sounds: a question gets "?", a cheer gets "!", a full sentence gets a full stop
+     * (the Bengali / Hindi danda in those scripts). Short bits of one or two words are left open.
+     */
+    public static String punctuate(String text) {
+        if (text == null) return "";
+        String t = text.trim();
+        if (t.isEmpty()) return text;
+        char last = t.charAt(t.length() - 1);
+        if (".?!,;:।".indexOf(last) >= 0) return text;
+        String[] w = norm(t).split("\\s+");
+        if (w.length == 0) return text;
+        boolean ask = ASKS.contains(w[0]) || (w.length >= 2 && ASK_ENDS.contains(w[w.length - 1]));
+        // Bangla and Hindi put the question word in the middle ("tumi kemon acho"); English helpers like "is" only count at the start
+        for (int i = 1; i < w.length && !ask; i++) ask = w[i].length() > 2 && w[i].charAt(0) != 'w' && w[i].charAt(0) != 'd' && w[i].charAt(0) != 's'
+                && w[i].charAt(0) != 'c' && w[i].charAt(0) != 'a' && w[i].charAt(0) != 'i' && ASKS.contains(w[i]) && !w[i].equals("kar") && !w[i].equals("kon");
+        if (ask) return t + "?";
+        if (CHEERS.contains(w[0]) || (w.length >= 2 && w[0].equals("happy"))) return t + "!";
+        if (w.length < 3) return text;
+        boolean script = last >= 'ऀ' && last <= '৿';
+        return t + (script ? "।" : ".");
+    }
 }

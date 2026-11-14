@@ -197,6 +197,19 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Also in 71 (Tara: "improve own intelligence in some feature as well"): next-word guesses work from day one (`Words.USUAL`, ~200 everyday pairs such as
   thank → you, good → morning; her own pairs still come first) and days, months, cities, languages and app names get their capital (`Words.PROPER`: monday → Monday,
   kolkata → Kolkata; not "may"/"march"). Maven is blocked in Claude's cloud workspace: compile-check by running the workflow on the session branch (workflow_dispatch).
+- Version 72 (all asked by Tara in one message; not tested on a phone):
+  - Emoji / GIFs "not working always": they only showed for an exact word in `emoji.txt` and vanished the moment she pressed space. Now `EmojiHints.key` also
+    understands short forms and ~300 everyday / Banglish / Hinglish words (`ALIAS`: lol, meeting, salary, bhalobashi → love) and word endings (cakes, laughing, loved);
+    and the emoji + GIFs of the word just finished stay after the space until she types on (`justEnded`; tap puts the emoji after the space). GIFs search the plain English word.
+  - Calculator: a sum typed without spaces (`Calc.eval` on `token`: 250*12, 45x3, 200*15%) shows "= answer" bold in the middle; tap adds "=3000". The word row is now also
+    built on the !#1 symbol pages (EN layout) so the answer shows there.
+  - Date / time: typing today / tomorrow / yesterday offers the date on the right (tap adds it after the word); date / now / time are replaced by the date or time (`dateFor`).
+  - Converter: new tab "Change tone" (option 12, `Converter.tone`, chips `Converter.TONES`: Write it for me, Formal, Friendly, Short, Polite, Email, Funny; Gemini). Grid rows are now 5 / 4 / 4.
+  - Voice: `Spoken.punctuate` ends each spoken stretch with ? (question words, also Banglish/Hinglish and script), ! (wow, congrats, happy ...) or a full stop / danda
+    (3+ words). Runs in every voice mode, on by default because she asked ("should be done automatically based on the tone"); real tone of voice cannot be heard, only the words. The AI tidy prompt also picks marks by meaning.
+  - 16 more light themes (76 total): Peach Sorbet ... Morning Mist.
+  - She did not understand "slide on the space bar to move the cursor" (not built). Asked: difference "Translate to Hindi" (changes the language: English/Bengali → Hindi) vs
+    "To Hindi script" (same Hindi words, only the letters change: "kya hua" → "क्या हुआ").
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

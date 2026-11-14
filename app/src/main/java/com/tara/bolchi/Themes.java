@@ -16,7 +16,10 @@ final class Themes {
             "Apricot", "Cotton Candy", "Ice Blue", "Mint Cream", "Lemonade", "Dusty Rose",
             "Warm Grey", "Sky Lavender", "Seafoam", "Tangerine Cream", "Bubblegum", "Meadow",
             "Peacock Light", "Vanilla", "Orchid", "Cherry Blossom", "Fresh Lime", "Denim Light",
-            "Honey", "Coral Reef", "Jade", "Powder Pink", "Sand Dune", "Periwinkle"};
+            "Honey", "Coral Reef", "Jade", "Powder Pink", "Sand Dune", "Periwinkle",
+            "Peach Sorbet", "Lavender Honey", "Rose Gold", "Sky & Sunshine", "Matcha Latte", "Strawberry Milk",
+            "Blueberry Cream", "Coral & Teal", "Lilac & Lemon", "Sea Glass", "Pearl & Gold", "Mango Lassi",
+            "Watermelon", "Terracotta Cream", "Plum Blossom", "Morning Mist"};
 
     /** The list of the earlier build (43 themes), only to keep the theme she already picked when the list changes. */
     static final String[] OLD = {
@@ -89,7 +92,23 @@ final class Themes {
             {"#D8F2E2", "#FCFFFD", "#B4E4C9", "#0B3A22", "#4A7F63", "#12A15A"},
             {"#F9E6EC", "#FFFFFF", "#F1CBD8", "#4F2030", "#9A6578", "#D86A8E"},
             {"#F3E9D2", "#FFFDF6", "#E6D4AA", "#40310F", "#8A7640", "#C08A1E"},
-            {"#E6E6FA", "#FFFFFF", "#CFCFF3", "#25255C", "#6767A5", "#5252D9"}};
+            {"#E6E6FA", "#FFFFFF", "#CFCFF3", "#25255C", "#6767A5", "#5252D9"},
+            {"#FFE9DC", "#FFFBF7", "#FFD3BC", "#5A2A14", "#A0705A", "#FF7F50"},
+            {"#EFE6FA", "#FFFDF5", "#F6DFA0", "#33235A", "#7B6C9C", "#8A5BD6"},
+            {"#F9E4E0", "#FFFAF8", "#EFC7BD", "#4E2A26", "#96706A", "#C98469"},
+            {"#DDEEFC", "#FFFDF0", "#FFE38A", "#12325A", "#56739A", "#F2A900"},
+            {"#E4EDD6", "#FBF8EF", "#CFDDB8", "#2D3A1C", "#6C7A56", "#6E9A2E"},
+            {"#FFE3EA", "#FFFFFF", "#FFC4D2", "#5A1A2E", "#A0607A", "#F0527F"},
+            {"#E1E6FB", "#FFFFFF", "#C5CEF5", "#1C2660", "#5E69A8", "#4A5BD8"},
+            {"#FFE7E0", "#FFFFFF", "#BFE8E2", "#0F4A46", "#5E8A86", "#FF6B5A"},
+            {"#F0E4FA", "#FFFEF2", "#F5EC9A", "#3C2260", "#806AA0", "#9B5DE0"},
+            {"#DCF3EC", "#FAFFFD", "#BCE5DA", "#103F38", "#4F8078", "#1FA890"},
+            {"#F4F1EA", "#FFFFFF", "#E8DFC8", "#3A3220", "#857A60", "#C9A227"},
+            {"#FFF1CC", "#FFFDF5", "#FFD98A", "#5A3400", "#A07A3A", "#FF9A1F"},
+            {"#FFE1E4", "#F6FFF4", "#BFE8B8", "#4A1420", "#8A5A62", "#F0445E"},
+            {"#F6E5D8", "#FFFAF4", "#E9C7AE", "#4E2A18", "#93705C", "#C8623A"},
+            {"#F5E1EE", "#FFFFFF", "#E8C3DA", "#4A1A3C", "#8E6382", "#B8438F"},
+            {"#E8EEF2", "#FFFFFF", "#D2DDE5", "#1F2E3A", "#62727F", "#4E8FB5"}};
 
     static final int BG = 0, KEY = 1, FN = 2, INK = 3, MUTED = 4, ACCENT = 5;
 

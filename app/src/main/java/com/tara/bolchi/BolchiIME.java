@@ -72,7 +72,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private static final String[] MODE_LANG = {"bn-IN", "hi-IN", "en-IN"};
 
     private static final int PAGE_ABC = 0, PAGE_SYM1 = 1, PAGE_SYM2 = 2, PAGE_EMOJI = 3, PAGE_CONVERT = 4, PAGE_THEMES = 5;
-    private static final String[] CONV_NAMES = {"Translate to English", "To Bangla script", "To English letters", "Units and currency", "Fix my grammar", "Rewrite it better", "To Hindi script", "Translate to Hindi", "Bold", "Italic", "Bold italic", "Font style"};
+    private static final String[] CONV_NAMES = {"Translate to English", "To Bangla script", "To English letters", "Units and currency", "Fix my grammar", "Rewrite it better", "To Hindi script", "Translate to Hindi", "Bold", "Italic", "Bold italic", "Font style", "Change tone"};
 
     private static final String NUMBERS = "1 2 3 4 5 6 7 8 9 0";
     private static final String[] LETTERS = {"q w e r t y u i o p", "a s d f g h j k l", "z x c v b n m"};
@@ -116,6 +116,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private final List<TextView> vowelKeys = new ArrayList<>();
     private boolean vowelRowFull;
     private int convOption = 0;
+    private int toneStyle = 0;   // the tone chosen under "Change tone" (Converter.TONES)
+    private String justEnded = "";  // the word that was just finished: its emoji and GIFs stay until she types on
+    private long justEndedAt;
     private String typeStyleApp = "";   // the app where she turned the font on: the font is used only there
     private boolean plainBox;           // search, address, email, password boxes: real letters only
 
@@ -679,7 +682,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             keysBox.addView(candRow);
             paintCands();
         } else {
-            if (wordsOn() || numberStrip()) buildSugRow();
+            if (wordsOn() || numberStrip() || (layout == 0 && page != PAGE_ABC && !noFix && !plainField)) buildSugRow();
             LinearLayout nums = row();
             for (String k : NUMBERS.split(" ")) nums.addView(charKey(k));
             keysBox.addView(nums);
@@ -831,6 +834,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         slotNext[0] = slotNext[1] = slotNext[2] = false;
         slotFix[0] = slotFix[1] = slotFix[2] = false;
         slotNum[0] = slotNum[1] = slotNum[2] = false;
+        slotCalc[0] = slotCalc[1] = slotCalc[2] = false;
+        slotDate[0] = slotDate[1] = slotDate[2] = false;
         slotNumFill[0] = slotNumFill[1] = slotNumFill[2] = false;
         boolean[] ownSlot = new boolean[3];
         if (w.isEmpty() && fixShownTyped != null && !plainField && layout == 0) {
@@ -886,13 +891,25 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             int[] order = {2, 0, 1};
             for (int k = 0; k < nums.size() && k < 3; k++) { v[order[k]] = nums.get(k); slotNum[order[k]] = true; ownSlot[order[k]] = true; }
         }
-        // a typed word that has emojis (not a typo being fixed): offer them, never over her saved words
+        // "today", "tomorrow", "now", "date", "time": offer the real date or time
         if (!plainField && !sugKeepsTyped && w.length() >= 3) {
-            String[] em = EmojiHints.get(w);
+            String dt = dateFor(w.toLowerCase());
+            if (dt != null) { v[2] = dt; slotDate[2] = true; ownSlot[2] = true; }
+        }
+        // a sum typed without spaces ("250*12", "45x3="): the answer in the middle
+        if (!plainField && token.length() >= 3) {
+            String ans = Calc.eval(token.toString());
+            if (ans != null) { v[1] = "= " + ans; slotCalc[1] = true; ownSlot[1] = true; bold = true; }
+        }
+        // a word that has emojis (being typed, or just finished with a space): offer them, never over her saved words
+        final String ew = w.isEmpty() ? justEnded : w;
+        if (!plainField && !sugKeepsTyped && ew.length() >= 2) {
+            String[] em = EmojiHints.get(ew);
             if (em != null) {
                 int[] order = {2, 0};
                 for (int k = 0; k < order.length && k < em.length; k++) {
-                    if (ownSlot[order[k]]) continue;
+                    if (ownSlot[order[k]] || slotFix[order[k]]) continue;
+                    slotNext[order[k]] = false;
                     v[order[k]] = em[k];
                     slotEmoji[order[k]] = true;
                 }
@@ -904,11 +921,26 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             sug[i].setText(show);
             sug[i].setTypeface(i == 1 && bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
         }
-        maybeGifs(w);
+        maybeGifs(ew);
+    }
+
+    private static final String[] DATE_WORDS = {"today", "tomorrow", "yesterday", "date", "now", "time"};
+
+    /** The real date or time for "today", "tomorrow", "yesterday", "date", "now", "time"; null for any other word. */
+    private static String dateFor(String w) {
+        int k = -1;
+        for (int i = 0; i < DATE_WORDS.length; i++) if (DATE_WORDS[i].equals(w)) k = i;
+        if (k < 0) return null;
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        if (k >= 4) return new java.text.SimpleDateFormat("h:mm a", java.util.Locale.ENGLISH).format(c.getTime());
+        if (k == 1) c.add(java.util.Calendar.DAY_OF_MONTH, 1);
+        if (k == 2) c.add(java.util.Calendar.DAY_OF_MONTH, -1);
+        return new java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.ENGLISH).format(c.getTime());
     }
 
     private void resetWord() {
         fixTyped = null;
+        justEnded = "";
         if (word.length() == 0) return;
         word.setLength(0);
         paintSugs();
@@ -982,6 +1014,29 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             paintSugs();
             return;
         }
+        if (slotCalc[i] && !val.isEmpty() && ic != null) {
+            // the answer goes after the sum: "250*12" becomes "250*12=3000"
+            String ans = val.substring(2);
+            ic.commitText(shown((token.toString().endsWith("=") ? "" : "=") + ans + " "), 1);
+            token.setLength(0);
+            numTyped.setLength(0);
+            resetWord();
+            paintSugs();
+            return;
+        }
+        if (slotDate[i] && !val.isEmpty() && ic != null) {
+            if (wordIsThere(ic, w)) {
+                String lw = w.toLowerCase();
+                if (lw.equals("date") || lw.equals("now") || lw.equals("time")) {       // the word itself becomes the date / time
+                    ic.beginBatchEdit();
+                    ic.deleteSurroundingText(shown(w).length(), 0);
+                    ic.commitText(shown(val + " "), 1);
+                    ic.endBatchEdit();
+                } else ic.commitText(shown(" " + val + " "), 1);                          // "tomorrow 15 Nov 2026"
+            }
+            resetWord();
+            return;
+        }
         if (slotNum[i] && !val.isEmpty() && ic != null) {
             if (wordIsThere(ic, w)) ic.commitText(" " + val + " ", 1);
             resetWord();
@@ -1000,7 +1055,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             return;
         }
         if (slotEmoji[i] && !val.isEmpty() && ic != null) {
-            // the emoji goes after the word she typed
+            // the emoji goes after the word she typed (after a space the word is already finished)
+            if (w.isEmpty()) { ic.commitText(val + " ", 1); addRecent(val); return; }
             if (wordIsThere(ic, w)) { ic.commitText(" " + val + " ", 1); addRecent(val); }
             resetWord();
             return;
@@ -1069,6 +1125,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 lastWord = part.toLowerCase();
             }
             if (++usageEdits >= 25) saveUsage();
+            justEnded = finalWord;
+            justEndedAt = System.currentTimeMillis();
         } else {
             lastWord = "";
         }
@@ -1137,6 +1195,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         // with a font on, one typed letter is two characters long (a styled letter, or a letter plus its line), so the cursor moves by 2 per letter
         int step = fontOn() ? 2 : 1;
         boolean jumped = newSelStart != newSelEnd || Math.abs(newSelStart - oldSelStart) > step;
+        if (jumped && System.currentTimeMillis() - justEndedAt > 400) justEnded = "";
         if (jumped) { token.setLength(0); lastWord = ""; if (numTyped.length() > 0) { numTyped.setLength(0); paintSugs(); } }
         if (word.length() > 0 && jumped) {
             word.setLength(0);
@@ -1255,6 +1314,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     // her own phone numbers: typed in the Bolchi app, plus the "Me" card of the phone book
     private String[] myNumbers = new String[0];
     private volatile String[] meNumbers = new String[0];
+    private final boolean[] slotCalc = new boolean[3];        // this slot holds the answer of the sum just typed
+    private final boolean[] slotDate = new boolean[3];        // this slot holds today's date / the time
     private final boolean[] slotNum = new boolean[3];
     private final boolean[] slotNumFill = new boolean[3];     // this slot holds one of her numbers that completes the digits just typed
     private final StringBuilder numTyped = new StringBuilder();   // the digits typed in a row
@@ -1313,6 +1374,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void pickEmoji(String em) {
         InputConnection ic = getCurrentInputConnection();
         String w = word.toString();
+        if (ic != null && w.isEmpty() && !justEnded.isEmpty()) { ic.commitText(em + " ", 1); addRecent(em); return; }
         if (ic != null && !w.isEmpty() && wordIsThere(ic, w)) { ic.commitText(" " + em + " ", 1); addRecent(em); }
         resetWord();
     }
@@ -1321,9 +1383,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void maybeGifs(String w) {
         if (gifScroll == null) return;
         final String key = prefs().getString("giphyKey", "").trim();
-        String[] em = (!plainField && layout == 0 && wordsOn() && !key.isEmpty() && w.length() >= 3) ? EmojiHints.get(w) : null;
+        String[] em = (!plainField && layout == 0 && wordsOn() && !key.isEmpty() && w.length() >= 2) ? EmojiHints.get(w) : null;
         if (em == null) { if (!gifFor.isEmpty()) hideGifs(); return; }
-        final String q = w.toLowerCase();
+        final String q = EmojiHints.key(w);          // the plain English word ("cakes" and "bhalobashi" search as "cake" and "love")
+        if (q == null) return;
         if (q.equals(gifFor)) return;
         hideGifs();
         gifFor = q;
@@ -1877,11 +1940,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final String src = currentText(isSel).trim();
 
         // small tabs, four to a row, in a sensible order (two rows, shorter than before)
-        final int[] ORDER = {0, 7, 1, 6, 2, 3, 4, 5, 8, 9, 10, 11};
+        final int[][] ORDER = {{0, 7, 1, 6, 2}, {3, 4, 5, 12}, {8, 9, 10, 11}};   // languages, then help with the message, then fonts
         for (int rIdx = 0; rIdx < 3; rIdx++) {
             LinearLayout r = row();
-            for (int c = 0; c < 4; c++) {
-                final int idx = ORDER[rIdx * 4 + c];
+            for (int c = 0; c < ORDER[rIdx].length; c++) {
+                final int idx = ORDER[rIdx][c];
                 boolean on = idx == convOption;
                 final int fill = on ? cInk : cKey;
                 TextView o = makeKey(CONV_NAMES[idx], 1f, fill, on ? cKey : cInk, 12);
@@ -1924,6 +1987,33 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             keysBox.addView(hs, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46)));
         }
 
+        if (convOption == 12) {
+            // the tones as chips: tap one and the message is written again that way
+            HorizontalScrollView hs = new HorizontalScrollView(this);
+            hs.setHorizontalScrollBarEnabled(false);
+            LinearLayout fb = new LinearLayout(this);
+            fb.setOrientation(LinearLayout.HORIZONTAL);
+            for (int i = 0; i < Converter.TONES.length; i++) {
+                final int st = i;
+                TextView chip = new TextView(this);
+                chip.setText(Converter.TONES[i]);
+                chip.setTextSize(15);
+                chip.setGravity(Gravity.CENTER);
+                chip.setPadding(dp(14), 0, dp(14), 0);
+                boolean sel = i == toneStyle;
+                chip.setTextColor(sel ? cKey : cInk);
+                chip.setBackground(box(sel ? cInk : cKey, 10));
+                chip.setOnClickListener(new View.OnClickListener() {
+                    @Override public void onClick(View v) { tick(v); toneStyle = st; convResult = null; buildKeysSoon(); }
+                });
+                LinearLayout.LayoutParams clp2 = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
+                clp2.setMargins(dp(2), dp(2), dp(2), dp(2));
+                fb.addView(chip, clp2);
+            }
+            hs.addView(fb, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            keysBox.addView(hs, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46)));
+        }
+
         String label = isSel[0] ? "Selected text" : "Your text";
         TextView srcBox = panelBox(label, src.isEmpty() ? "Type or speak a message first" : src, false);
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
@@ -1954,7 +2044,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             page = PAGE_ABC; buildKeysSoon();
         } });
         if (convOption == 3) use.setText("Add result");
-        else if (convOption >= 8) use.setText("Done");
+        else if (convOption >= 8 && convOption <= 11) use.setText("Done");
         if (convResult != null && convResult.startsWith("\u26A0")) use.setText("Try again");
         act.addView(use);
         keysBox.addView(act);
@@ -1976,7 +2066,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final int opt = convOption;
         final String key = prefs().getString("aikey", "");
         if (opt == 2) { showResult(job, Converter.toEnglishLetters(src)); return; }
-        if (opt >= 8) {   // fonts work on the phone at once, no internet
+        if (opt >= 8 && opt <= 11) {   // fonts work on the phone at once, no internet
             int st = opt == 8 ? FontStyles.BOLD : opt == 9 ? FontStyles.ITALIC : opt == 10 ? FontStyles.BOLD_ITALIC : fontStyle;   // -1 = Normal
             String styled = st < 0 ? FontStyles.plain(src) : FontStyles.apply(st, src);
             typeStyle = st >= 0 && st != 20 ? st : -1;
@@ -2017,6 +2107,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 else if (opt == 4 || opt == 5) {
                     out = Converter.polish(plainSrc, key, opt == 5);
                     if (keepStyle >= 0) out = FontStyles.apply(keepStyle, out);    // her font stays after the grammar fix / rewrite
+                }
+                else if (opt == 12) {
+                    out = Converter.tone(plainSrc, key, toneStyle);
+                    if (keepStyle >= 0) out = FontStyles.apply(keepStyle, out);
                 }
                 else if (opt == 6) out = Converter.romanToScript(plainSrc, true);
                 else if (opt == 7) out = Converter.translateToHindi(plainSrc, key);
@@ -2077,6 +2171,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         if (wordsOn() && s.length() == 1 && (Character.isLetter(s.charAt(0)) || (s.charAt(0) == '\'' && word.length() > 0))) {
             if (word.length() == 0) wordAutoCap = shift && shiftAuto && !capsLock;
+            justEnded = "";
             ic.commitText(shown(s), 1);        // in font mode the letter is written styled but tracked plain, so suggestions and auto-correct keep working
             word.append(s);
             token.append(s);
@@ -2091,7 +2186,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (" ".equals(s)) { endWord(ic); tokenEnd(); }
         else { resetWord(); lastWord = ""; if (s.length() == 1) token.append(s); else token.setLength(0); }
         ic.commitText(s, 1);
-        if (digit) paintSugs();
+        if (digit || (s.length() == 1 && "=+-*/%\u00D7\u00F7".indexOf(s.charAt(0)) >= 0)) paintSugs();
     }
 
     private void typeSpace() {
@@ -2260,6 +2355,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         fixTyped = null;
         curApp = info == null || info.packageName == null ? "" : info.packageName;
         lastWord = "";
+        justEnded = "";
         fixShownTyped = fixShownDone = null;
         clearOtp();
         clearSms();
@@ -2638,8 +2734,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (ic != null) {
             if (!heard.isEmpty()) {
                 if (!composing) roundLead = lead();
-                ic.setComposingText(roundLead + convert(heard), 1);
-                spokenAll.append(roundLead).append(convert(heard));
+                String said = Spoken.punctuate(convert(heard));     // ? ! or a full stop, from how the sentence is built
+                ic.setComposingText(roundLead + said, 1);
+                spokenAll.append(roundLead).append(said);
             }
             ic.finishComposingText();
         }

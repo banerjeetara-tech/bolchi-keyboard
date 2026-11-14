@@ -145,7 +145,8 @@ final class Converter {
                         + "When the speaker corrects themselves (for example 'at five, no sorry, six'), keep only the corrected "
                         + "version. Remove stammering and false starts: a broken piece of a word followed by the full word "
                         + "('wh what's' becomes 'What's', 'I I think' becomes 'I think', 'ami ami jabo' becomes 'ami jabo'), and "
-                        + "filler sounds like 'um', 'uh', 'aa'. Remove accidental repeats. Add basic punctuation and capital letters. Do not add or remove "
+                        + "filler sounds like 'um', 'uh', 'aa'. Remove accidental repeats. Add punctuation and capital letters, choosing each mark from the meaning and tone: a question ends with a question mark, "
+                        + "excitement or a greeting with an exclamation mark, a list gets commas, a new thought starts a new sentence. Do not add or remove "
                         + "meaning and do not answer the text. Reply with only the cleaned text.",
                 text);
     }
@@ -158,6 +159,26 @@ final class Converter {
                 ? "Rewrite the user's message so it is clear, natural and well written, correcting any wrong sentence. "
                 : "Fix the grammar, spelling and punctuation of the user's message, changing as little else as possible. ";
         return gemini(key, task + keep + "Reply with only the resulting message, nothing else.", text);
+    }
+
+    static final String[] TONES = {"Write it for me", "Formal", "Friendly", "Short", "Polite", "Email", "Funny"};
+
+    /** Says the same thing in another tone, or turns a few rough words into a complete message. */
+    static String tone(String text, String key, int tone) throws Exception {
+        String keep = "Keep the language exactly: English stays English, Banglish or Hinglish stays in English letters, Bengali or Hindi script "
+                + "stays in that script. Keep names, numbers and links as they are. Do not invent facts. Reply with only the message, nothing else.";
+        String task;
+        switch (tone) {
+            case 1: task = "Rewrite the user's message in a formal, professional tone suitable for office communication. "; break;
+            case 2: task = "Rewrite the user's message in a warm, friendly, casual tone. "; break;
+            case 3: task = "Rewrite the user's message as short as possible while keeping every important point. "; break;
+            case 4: task = "Rewrite the user's message so it is polite and respectful, softening anything that sounds rude or abrupt. "; break;
+            case 5: task = "Turn the user's message into a short, well-structured email body with a greeting and a closing line (no subject line, no signature name). "; break;
+            case 6: task = "Rewrite the user's message in a light, funny tone, with one or two fitting emojis. "; break;
+            default: task = "The user wrote a few rough words about what they want to say. Write the complete, natural, polite message they would send "
+                    + "(one to three sentences), as if written by them. "; break;
+        }
+        return gemini(key, task + keep, text);
     }
 
     static String toBanglaScript(String text, String key) throws Exception {
