@@ -121,6 +121,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 41: typing 3+ digits that begin one of her saved numbers (with or without +91) offers the whole number in the top row; tap
   replaces the typed digits (`numTyped`, `numbersStartingWith`, `slotNumFill`). Number/phone boxes get the strip too (`numberStrip`) and there
   the number is inserted as digits only. Tara: "pressing 983 on other websites or Zoom, it is not coming".
+- Version 42: auto-correct was turning Banglish into English on the EN keys ("bhat" → "beat", so her words were never learned and no
+  predictions appeared after "ami bhat khabo" typed 3-4 times). `Words.fix` now skips Banglish-looking spellings (`looksBanglish`: bh/kh/gh/jh/dh
+  starts, "aa", verb endings bo/chi/cho/che/lam...) and the protected word list (`DESI`) is longer.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

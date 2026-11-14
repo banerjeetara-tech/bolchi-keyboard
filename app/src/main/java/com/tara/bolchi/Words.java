@@ -206,7 +206,12 @@ public final class Words {
             + "kal parso raat subah shaam ghar bahar jaunga jaungi jayega jayegi gaya gayi aaya aayi aao jao karo karna "
             + "karunga karungi kiya kar raha rahi rahe khana khaya bolo bola dekho dekha suno suna pata chahiye sakta "
             + "sakti lekin aur ya toh to agar kyunki liye saath paas se ko ka ki ke mein par bhi hi wala wali "
-            + "bhaiya didi mummy papa chacha mausi dost ladka ladki yaar arre arey ji"
+            + "bhaiya didi mummy papa chacha mausi dost ladka ladki yaar arre arey ji "
+            + "bhat bhaat roti ruti dal mach maach jol pani chai tomar amake tomake oke take bolo dekhi dekha shuno aschi aschhi acchi "
+            + "bhabchi bhabo bhabe bujhte bujhi bujhchi pari hoyechhe hocche gelo aashi ashbo thakchi diye niye theke kore kora kono konodin "
+            + "shob sobai ekdom ekebare mato jonyo beshi kom aro aaro ebar eibar kivabe kibhabe era ora ekta duto tin char paanch pach choy "
+            + "saat aat noy dosh taka kaj kaaj ghar bhalobasha valo bhaloi thikache thikai han naa nai khai khaichi khelchi dekhchi bolchhi "
+            + "korchhi jacchhi aschhe jachhe dilo nilo elo gechhe hoyechhe korechhe bolechhe dekhechhe khechhe aar tahole tahle noile nahole"
     ).split(" ")));
 
     /** Short fixes that are always right. */
@@ -315,6 +320,14 @@ public final class Words {
         return cand;
     }
 
+    /** Spellings that are typical of Bangla/Hindi in English letters (bhat, khabo, korchi, bhaat). */
+    private static boolean looksBanglish(String w) {
+        if (w.length() < 3) return false;
+        if (w.matches("^(bh|kh|gh|jh|dh|chh|th[aeiou]h).*")) return true;                 // bhat, khabo, ghar, jhol, dhaka
+        if (w.contains("aa")) return true;                                                // bhaat, khaabo
+        return w.length() >= 5 && w.matches(".*(bo|bi|chi|cho|che|lam|ben|chhi|chho|chhe)$"); // khabo, korchi, bolcho, gelam
+    }
+
     /** The corrected word, or null when the typed word should stay. */
     public static String fix(String typed) {
         if (typed == null || typed.isEmpty() || typed.length() > 20) return null;
@@ -324,6 +337,7 @@ public final class Words {
             if (!(c >= 'a' && c <= 'z') && c != '\'') return null;
         }
         if (isOwnOrDesi(w)) return null;
+        if (looksBanglish(w)) return null;   // Bangla/Hindi spelt in English letters is not an English typo
         String f = FIXED.get(w);
         if (f != null) return f.equals(typed) ? null : (f.startsWith("I") ? f : matchCase(typed, f));
         if (w.length() < 3 || rank.containsKey(w)) return null;
