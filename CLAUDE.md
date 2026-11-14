@@ -179,6 +179,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 67: Tara's italic-font message came out half plain / half italic and she said correction, emoji and GIF suggestions were not coming. Likely cause: the Bangla/Hindi tabs
   (since version 57) switch to the phonetic rows, where English suggestions do not exist and raw English letters were committed unstyled. `flushPhon` and `pickCand` now
   commit through `shown()`. English corrections / emoji / GIFs need the ENGLISH tab (layout 0); tell her so. If it still fails with the English tab dark, get her Bolchi version first.
+- Version 68: ROOT CAUSE of "correction / emoji / GIF not working in font mode": `onUpdateSelection` treated the 2-character styled letter as a cursor jump (> 1) and wiped
+  the tracked word after every letter. The jump threshold is now 2 when `typeStyle >= 0`. (Earlier guesses in versions 65-67 were wrong.)
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

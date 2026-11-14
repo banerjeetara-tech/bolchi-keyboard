@@ -1119,7 +1119,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                                   int candidatesStart, int candidatesEnd) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
         // the cursor was moved by hand: forget the word we were tracking
-        boolean jumped = newSelStart != newSelEnd || Math.abs(newSelStart - oldSelStart) > 1;
+        // with a font on, one typed letter is two characters long (a styled letter, or a letter plus its line), so the cursor moves by 2 per letter
+        int step = typeStyle >= 0 ? 2 : 1;
+        boolean jumped = newSelStart != newSelEnd || Math.abs(newSelStart - oldSelStart) > step;
         if (jumped) { token.setLength(0); lastWord = ""; if (numTyped.length() > 0) { numTyped.setLength(0); paintSugs(); } }
         if (word.length() > 0 && jumped) {
             word.setLength(0);
