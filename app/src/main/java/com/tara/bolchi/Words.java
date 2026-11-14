@@ -44,6 +44,7 @@ public final class Words {
     /** True when the keyboard may change this word by itself; false for a word she has typed before (then it only prompts). */
     public static boolean autoReplaceOk(String typed) {
         String l = typed.toLowerCase(Locale.ROOT);
+        if (PROPER.containsKey(l)) return true;
         synchronized (own) { if (own.contains(l)) return false; }
         return used(l) < 2;
     }
@@ -95,15 +96,64 @@ public final class Words {
         return out;
     }
 
-    /** The words she most often writes right after `prev` (needs to have happened twice). */
+    /** Everyday English: the words that usually come next. Her own habits (NEXT) always come first. */
+    private static final HashMap<String, String[]> USUAL = new HashMap<>();
+    static {
+        String t = "i:am will have|i'm:not going sorry|i'll:be call send|i've:been sent got|you:are can have|you're:welcome right not|we:are will have|"
+            + "they:are will have|he:is was will|she:is was will|it:is was will|it's:a not ok|this:is week one|that:is was the|that's:great fine why|"
+            + "there:is are was|here:is are you|what:is are do|what's:the up your|when:will are is|where:are is do|who:is are will|why:are is do|"
+            + "how:are is much|which:is one are|am:i not going|is:it the not|are:you we they|was:a not the|were:you not the|be:there a able|"
+            + "been:a to waiting|have:a to you|has:been to a|had:a to been|will:be call send|would:be you like|can:you i we|could:you be not|"
+            + "should:i be we|shall:i we be|may:i be not|might:be not have|must:be have not|do:you not it|does:not it this|did:you not it|"
+            + "don't:know worry have|can't:wait be come|won't:be come take|didn't:know get see|doesn't:matter work have|"
+            + "thank:you god|thanks:for a and|please:send let check|pls:send call check|sorry:for i to|hello:sir dear how|hi:sir dear how|"
+            + "dear:sir all team|good:morning night evening|happy:birthday to anniversary|many:thanks happy more|best:regards wishes of|"
+            + "kind:regards attention of|warm:regards wishes welcome|with:regards the you|"
+            + "let:me us you|let's:go meet do|see:you the if|talk:to later soon|call:me you back|send:me the it|give:me you a|tell:me him her|"
+            + "ask:him her them|show:me the you|help:me you with|wait:for a till|come:to back here|go:to back there|get:the a back|"
+            + "take:care a the|look:at forward into|looking:forward for at|make:sure it a|need:to a the|want:to a the|have:a to you|"
+            + "going:to on out|coming:to back home|trying:to|able:to|used:to|supposed:to|according:to|due:to|thanks:for a and|"
+            + "to:the be you|of:the this my|in:the a this|on:the my this|at:the home least|for:the you your|from:the my home|by:the tomorrow today|"
+            + "the:same meeting file|a:lot few good|an:hour email update|my:phone name mother|your:name email reply|our:team office meeting|"
+            + "and:the i then|but:i the not|or:not the else|so:i that we|if:you i possible|because:i of the|as:per soon well|then:i we you|"
+            + "not:able sure yet|no:problem need issue|yes:please i sure|ok:thanks i sure|okay:thanks i sure|sure:i will thanks|"
+            + "very:good much nice|too:much many late|so:much i that|much:better more appreciated|more:than details time|"
+            + "last:week night month|next:week month time|this:week is month|every:day month time|per:month day our|"
+            + "today:i is evening|tomorrow:morning i we|yesterday:i we evening|tonight:i we|now:i we|just:now a checked|"
+            + "will:be call send|shall:i we be|kindly:check share confirm|find:attached the below|attached:herewith file is|"
+            + "as:per soon well|per:our the your|soon:as|well:as|such:as|each:other|at:the home least|least:one|of:course the this|"
+            + "right:now|after:that the lunch|before:that the lunch|during:the|about:the it this|into:the|over:the|under:the|between:the|"
+            + "one:of more day|two:days more|few:days minutes more|some:time more of|all:the of is|any:update other time|"
+            + "meeting:is with at|office:today tomorrow|home:now today|phone:number call|mobile:number|email:id address|"
+            + "happy:birthday to anniversary|birthday:to wishes|new:year one|get:well the a|well:soon done|take:care a the|care:of|"
+            + "love:you it|miss:you|how:are is much|are:you we they|fine:thanks and thank|nice:to day|great:day job work|"
+            + "on:the my this|way:to|reach:home by|reached:home office safely|leaving:now office in|running:late|late:today|"
+            + "on:the my this|waiting:for|check:and the with|share:the with|confirm:the|update:me the|reply:soon|forward:to the";
+        for (String e : t.split("\\|")) {
+            int k = e.indexOf(':');
+            if (k > 0 && !USUAL.containsKey(e.substring(0, k))) USUAL.put(e.substring(0, k), e.substring(k + 1).split(" "));
+        }
+    }
+
+    /** Names that are always written with a capital letter (days, months, places, languages). */
+    private static final HashMap<String, String> PROPER = new HashMap<>();
+    static {
+        for (String n : ("Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February April June July August September "
+                + "October November December India Indian Kolkata Calcutta Delhi Mumbai Bangalore Bengaluru Chennai Hyderabad Pune Bengal "
+                + "Bengali Bangla Hindi English British American America Europe Asia Africa Australia Dubai London Singapore "
+                + "Google WhatsApp Facebook Instagram YouTube Gmail Samsung Android Zoom Outlook Excel Microsoft Amazon Flipkart "
+                + "Diwali Durga Puja Holi Eid Christmas").split(" ")) PROPER.put(n.toLowerCase(Locale.ROOT), n);
+    }
+
+    /** The words she most often writes right after `prev` (her own pairs seen twice first, then everyday English). */
     public static List<String> nextAfter(String prev, int max) {
         List<String> out = new ArrayList<>();
-        if (prev == null || prev.length() < 2) return out;
+        if (prev == null || prev.isEmpty()) return out;
+        prev = prev.toLowerCase(Locale.ROOT);
         final HashMap<String, Integer> m;
         synchronized (USE) {
             HashMap<String, Integer> src = NEXT.get(prev);
-            if (src == null) return out;
-            m = new HashMap<>(src);
+            m = src == null ? new HashMap<String, Integer>() : new HashMap<>(src);
         }
         List<String> keys = new ArrayList<>();
         for (java.util.Map.Entry<String, Integer> e : m.entrySet()) if (e.getValue() >= 2) keys.add(e.getKey());
@@ -111,6 +161,11 @@ public final class Words {
             @Override public int compare(String a, String b) { return m.get(b) - m.get(a); }
         });
         for (int i = 0; i < keys.size() && i < max; i++) out.add(keys.get(i));
+        String[] u = USUAL.get(prev);
+        if (u != null) for (String x : u) {
+            if (out.size() >= max) break;
+            if (!out.contains(x)) out.add(x);
+        }
         return out;
     }
 
@@ -460,7 +515,7 @@ public final class Words {
     /** True when the keyboard may swap the word in by itself: a known slip, or a word that is in no dictionary. A rare real word is only offered. */
     public static boolean sureFix(String typed) {
         String l = typed.toLowerCase(Locale.ROOT);
-        return FIXED.containsKey(l) || !rank.containsKey(l);
+        return FIXED.containsKey(l) || PROPER.containsKey(l) || !rank.containsKey(l);
     }
 
     private static final String[] ROWS = {"qwertyuiop", "asdfghjkl", "zxcvbnm"};
@@ -549,6 +604,8 @@ public final class Words {
         if (looksBanglish(w) && !rank.containsKey(w) && !FIXED.containsKey(w)) return null;   // Bangla/Hindi in English letters is not an English typo
         String f = FIXED.get(w);
         if (f != null) return f.equals(typed) ? null : (f.startsWith("I") ? f : matchCase(typed, f));
+        String pn = PROPER.get(w);
+        if (pn != null) return typed.equals(w) ? pn : null;                // monday -> Monday (only when typed all small)
         if (w.length() < 3) return null;
         // the tail of the word list holds misspellings too ("thr", "untill"): such a word only counts as right
         // when no far more usual word is one slip away

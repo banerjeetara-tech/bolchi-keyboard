@@ -194,6 +194,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Banglish/Hinglish word (`desiRecent`, `Words.isDesi`) corrections are offered, not made. `wordAutoCap`/`shiftAuto` tell the keyboard's capital from hers.
   Local test on 110 typos: 110 fixed (old code 99); a Banglish sample of 153 words: 0 changed (old 18); unseen Banglish words still change about as often as before. ~0.5 ms per word on a PC.
   Her question "add your intelligence": Claude cannot run inside the keyboard; her Gemini key could check a whole sentence after a full stop (not built: costs a wait and data).
+  Also in 71 (Tara: "improve own intelligence in some feature as well"): next-word guesses work from day one (`Words.USUAL`, ~200 everyday pairs such as
+  thank → you, good → morning; her own pairs still come first) and days, months, cities, languages and app names get their capital (`Words.PROPER`: monday → Monday,
+  kolkata → Kolkata; not "may"/"march"). Maven is blocked in Claude's cloud workspace: compile-check by running the workflow on the session branch (workflow_dispatch).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
