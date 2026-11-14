@@ -243,6 +243,15 @@ public final class Words {
         ready = true;
     }
 
+    /** True when some ordinary English word starts with these letters (so predictions have something to offer). */
+    public static boolean hasDictionaryStart(String prefix) {
+        if (prefix == null || prefix.isEmpty()) return false;
+        String p = prefix.toLowerCase(Locale.ROOT);
+        String[] l = list;
+        for (int i = 0; i < l.length; i++) if (l[i].startsWith(p)) return true;
+        return false;
+    }
+
     /** True for an ordinary English dictionary word (names and her own words are not). */
     public static boolean inDictionary(String w) {
         return w != null && rank.containsKey(w.toLowerCase(Locale.ROOT));

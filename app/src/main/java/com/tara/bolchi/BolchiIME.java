@@ -726,12 +726,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (sugRow != null) sugRow.setVisibility(View.GONE);   // the names take the place of the word row: the keyboard keeps its height
     }
 
-    /** Only names should bring up the phone book: not ordinary words like "the" or "there". */
+    /**
+     * The phone book names take over the word row only when English predictions have nothing to offer:
+     * no dictionary word starts with the letters, or the word has a capital letter in the middle of a sentence (a name).
+     */
     private boolean nameLike(String w) {
         if (w.length() < 3) return false;
-        if (!Words.inDictionary(w)) return true;
+        if (!Words.hasDictionaryStart(w)) return true;
         if (!Character.isUpperCase(w.charAt(0))) return false;
-        // a capital letter in the middle of a sentence is a name (Rose, Mark); at the start of a sentence it proves nothing
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return false;
         CharSequence b = ic.getTextBeforeCursor(w.length() + 3, 0);
