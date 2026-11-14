@@ -32,7 +32,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Number row, Samsung-style !#1 → 1/2, 2/2 symbol pages, emoji panel. GIFs: see version 43 below (she first said Samsung only, then asked for GIFs beside the emoji suggestions).
 - Keys type on touch-down with press highlight; touch area covers the gaps. Bigger lowercase letters, wide space bar.
 - Long-press space opens the keyboard picker. `onEvaluateFullscreenMode` returns false.
-- 27 themes: 10 bold (black combos, navy/coral, plum/peach, forest/cream/gold, teal/white/yellow) + 17 light.
+- 28 themes (last one "Plum Lavender", the colours of the grammar-tab preview Tara liked): 10 bold (black combos, navy/coral, plum/peach, forest/cream/gold, teal/white/yellow) + 17 light.
 
 ## Added in app version 10 (not yet confirmed by Tara)
 - Letter size 22–26 dp (capitals 0.9×), regular weight, ignores system font scale; keys 50 dp tall. Tara rejected 38 dp bold

@@ -10,7 +10,7 @@ final class Themes {
             "Black & Gold", "Black & Red", "Black & Mint", "Black & Pink", "Black & Sky",
             "Black, White & Red", "Navy & Coral", "Plum & Peach", "Forest, Cream & Gold", "Teal, White & Yellow",
             "Cream", "Mint", "Lavender", "Sky", "Rose", "Peach", "Lemon", "Ocean",
-            "Sage", "Coral", "Sand", "Lilac", "Aqua", "Blush", "Olive", "Silver", "Black & White"};
+            "Sage", "Coral", "Sand", "Lilac", "Aqua", "Blush", "Olive", "Silver", "Black & White", "Plum Lavender"};
 
     private static final String[][] HEX = {
             {"#0E0E0E", "#1E1E1E", "#2C2C2C", "#F5F5F5", "#A0A0A0", "#D4A72C"},
@@ -39,7 +39,8 @@ final class Themes {
             {"#FBE8E4", "#FFFCFB", "#F2D0C8", "#4A2620", "#8A5F57", "#D9776A"},
             {"#ECEBD5", "#FDFDF6", "#DAD8B3", "#33331A", "#6E6C48", "#7A7A1F"},
             {"#E9EBEE", "#FFFFFF", "#D3D7DD", "#22262C", "#5E646D", "#3D5A80"},
-            {"#F0F0F0", "#FFFFFF", "#D6D6D6", "#000000", "#555555", "#000000"}};
+            {"#F0F0F0", "#FFFFFF", "#D6D6D6", "#000000", "#555555", "#000000"},
+            {"#EBDFF0", "#FFFFFF", "#DCC8E6", "#3A1F45", "#7A6A80", "#944FAA"}};
 
     static final int BG = 0, KEY = 1, FN = 2, INK = 3, MUTED = 4, ACCENT = 5;
 
