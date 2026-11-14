@@ -134,6 +134,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 45: the "Save and test GIF key" button now prints timings (search ms, first picture ms) so we can see what is slow on her phone, and
   the keyboard warms the Giphy connection when a box opens (`Gifs.warmUp`, at most every 10 min). Tara also said "the Samsung gifs are not
   coming": Samsung's own GIF button is Samsung's keyboard, outside Bolchi.
+- Version 47: her GIF test on version 46 read "6 found, search 563 ms, first picture 1275 ms" (network, mostly the first connection to Giphy's picture
+  server). `Gifs.warmUp` now also fetches 2 thumbnails to open that connection, every 4 min at most; GIF wait 150 ms. Do NOT add speculative
+  searches: Giphy's free beta key allows about 100 calls per hour.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

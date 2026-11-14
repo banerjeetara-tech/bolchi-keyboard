@@ -146,7 +146,14 @@ final class Gifs {
     }
 
     /** Opens the connection to Giphy ahead of time so the first real search is not slow. */
-    static void warmUp(String key) {
-        try { search(key, "hi"); } catch (Throwable ignored) { }
+    static void warmUp(final String key) {
+        try {
+            List<Item> r = search(key, "hi");
+            // also open the connection to the picture server, which is the slow first step
+            for (int i = 0; i < r.size() && i < 2; i++) {
+                final String url = r.get(i).thumb;
+                new Thread(new Runnable() { @Override public void run() { bitmap(url); } }).start();
+            }
+        } catch (Throwable ignored) { }
     }
 }

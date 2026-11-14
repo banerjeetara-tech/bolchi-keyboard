@@ -1204,7 +1204,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 } });
             } }).start();
         } };
-        handler.postDelayed(gifAsk, 200);
+        handler.postDelayed(gifAsk, 150);
     }
 
     private boolean acceptsGif(EditorInfo ei) {
@@ -2010,7 +2010,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         clearSms();
         loadContactsSoon();
         final String gk = prefs().getString("giphyKey", "").trim();
-        if (!gk.isEmpty() && System.currentTimeMillis() - gifWarmAt > 10 * 60 * 1000L) {
+        if (!gk.isEmpty() && System.currentTimeMillis() - gifWarmAt > 4 * 60 * 1000L) {
             gifWarmAt = System.currentTimeMillis();
             new Thread(new Runnable() { @Override public void run() { Gifs.warmUp(gk); } }).start();
         }
