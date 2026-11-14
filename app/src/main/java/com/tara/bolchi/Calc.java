@@ -4,11 +4,25 @@ package com.tara.bolchi;
 public final class Calc {
     private Calc() { }
 
+    private static final java.util.regex.Pattern TAIL = java.util.regex.Pattern.compile(
+            "(?<![A-Za-z0-9.,])\\d[\\d.,]*%?(?:\\s*[-+*/xX\u00D7\u00F7]\\s*\\d[\\d.,]*%?)+\\s*=?\\s*$");
+
+    /** The sum that ends this text ("total 20+30" gives "20+30", "20 + 30 =" too), or null. For text that was pasted, not typed. */
+    public static String tail(CharSequence before) {
+        if (before == null || before.length() < 3) return null;
+        java.util.regex.Matcher m = TAIL.matcher(before);
+        return m.find() ? m.group().trim() : null;
+    }
+
     /** The answer as text ("3000", "12.5"), or null when this is not a sum. */
     public static String eval(String t) {
         if (t == null) return null;
-        String s = t.trim();
+        String s = t.replace(" ", "").trim();
         if (s.endsWith("=")) s = s.substring(0, s.length() - 1);
+        // a date (14/11/2026, 14-11-26) or a phone number with dashes is not a sum
+        if (s.matches("\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}")) return null;
+        if (s.matches("\\d+(-\\d+)+") && (s.matches(".*\\d{5,}.*") || s.indexOf('-') != s.lastIndexOf('-'))) return null;
+        if (s.matches("0\\d+[-/].*")) return null;
         if (s.length() < 3 || s.length() > 40) return null;
         double[] num = new double[20];
         char[] op = new char[20];

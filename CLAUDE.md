@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 76 = build-84** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 77 = build-86** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -234,6 +234,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   A move within 400 ms of her own typing (`lastTypeAt`), or with the tracked word still before the cursor, is no longer a jump. If it still fails, ask WHICH app and box.
 - Version 76 (Tara: "I need auto correct in search bar"): in a browser address / search bar (`uriBox`) a word ended by a SPACE is auto-corrected like anywhere else
   (`searchWords`: a space means search words; a piece with a dot, slash, colon or @ is a web address and is left alone). Words ended by a dot are still only offered.
+- Version 77: (1) the GIF row was covering the two auto-correct choices (her word / the corrected word) the moment the corrected word had an emoji. GIFs are now
+  skipped while a correction, a kept-typed word or Undo is in the word row; the emoji still shows in the right slot. (2) Calculator works for a sum that was PASTED or left
+  earlier: `Calc.tail` reads the sum right before the cursor ("20+30", "20 + 30 =") when nothing is being typed, and `onUpdateSelection` repaints after a paste / cursor move.
+  Dates (14/11/2026) and dashed phone numbers are not treated as sums.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

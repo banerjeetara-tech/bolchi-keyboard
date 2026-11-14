@@ -953,9 +953,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (dt != null) { v[2] = dt; slotDate[2] = true; ownSlot[2] = true; }
         }
         // a sum typed without spaces ("250*12", "45x3="): the answer in the middle
-        if (!plainField && token.length() >= 3) {
-            String ans = Calc.eval(token.toString());
-            if (ans != null) { v[1] = "= " + ans; slotCalc[1] = true; ownSlot[1] = true; bold = true; }
+        if (!plainField) {
+            String sum = token.length() >= 3 ? token.toString() : null;
+            String ans = sum == null ? null : Calc.eval(sum);
+            if (ans == null && w.isEmpty()) {
+                // not typed just now (pasted, or she came back to it): look at the sum that sits right before the cursor
+                InputConnection sc = getCurrentInputConnection();
+                sum = sc == null ? null : Calc.tail(sc.getTextBeforeCursor(44, 0));
+                ans = sum == null ? null : Calc.eval(sum);
+            }
+            if (ans != null) { v[1] = "= " + ans; slotCalc[1] = true; ownSlot[1] = true; bold = true; calcHasEq = sum.trim().endsWith("="); }
         }
         // a word that has emojis (being typed, or just finished with a space): offer them, never over her saved words
         final String ew = w.isEmpty() ? justEnded : w;
@@ -978,7 +985,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             sug[i].setTypeface(i == 1 && bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
         }
         // a date, the time or a sum is showing in the word row: GIFs must not cover it
-        maybeGifs(slotDate[2] || slotCalc[1] || uriBox ? "" : ew);
+        // ...and never the two words of an auto-correct (her word / the corrected word): she must be able to pick one
+        maybeGifs(slotDate[2] || slotCalc[1] || uriBox || slotFix[0] || slotFix[1] || sugKeepsTyped || slotUndo[0] ? "" : ew);
     }
 
     private static final String[] DATE_WORDS = {"today", "tomorrow", "yesterday", "date", "now", "time"};
@@ -1082,7 +1090,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (slotCalc[i] && !val.isEmpty() && ic != null) {
             // the answer goes after the sum: "250*12" becomes "250*12=3000"
             String ans = val.substring(2);
-            ic.commitText(shown((token.toString().endsWith("=") ? "" : "=") + ans + " "), 1);
+            ic.commitText(shown((calcHasEq ? "" : "=") + ans + " "), 1);
             token.setLength(0);
             numTyped.setLength(0);
             resetWord();
@@ -1280,6 +1288,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (word.length() > 0 && jumped) {
             word.setLength(0);
             paintSugs();
+        } else if (jumped && newSelStart == newSelEnd && sugRow != null) {
+            paintSugs();        // text was pasted or the cursor moved: a sum before the cursor gets its answer
         }
     }
 
@@ -1394,6 +1404,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     // her own phone numbers: typed in the Bolchi app, plus the "Me" card of the phone book
     private String[] myNumbers = new String[0];
     private volatile String[] meNumbers = new String[0];
+    private boolean calcHasEq;                                 // the sum in the text already ends with "="
     private final boolean[] slotCalc = new boolean[3];        // this slot holds the answer of the sum just typed
     private final boolean[] slotDate = new boolean[3];        // this slot holds today's date / the time
     private final boolean[] slotNum = new boolean[3];
