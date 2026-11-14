@@ -140,6 +140,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 48: the GIF row no longer makes the keys jump (Tara: "keyboard is jumping right away and showing that gif"). When GIFs arrive they
   REPLACE the word row (`sugRow` hidden, `gifScroll` 40 dp high, same as the row) with emoji chips first then 40 dp thumbnails, exactly like the
   phone book names row. Until the GIFs arrive the word row with its emoji slots stays. `hideGifs()` brings the word row back.
+- Version 49: grammar help. The ⇄ converter has two new choices, "Fix my grammar" and "Rewrite it better" (`Converter.polish`, Gemini, same language
+  and script, nothing translated); holding ⇄ opens it on "Fix my grammar". It works on the whole text in the box (or the selection) and
+  "Replace my text" swaps it in. Needs the AI key. Tara asked to keep her token use low: she wants this built in one go.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone

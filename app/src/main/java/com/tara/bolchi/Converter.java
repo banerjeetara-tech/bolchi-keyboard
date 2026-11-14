@@ -132,6 +132,16 @@ final class Converter {
                 text);
     }
 
+    /** Fixes the grammar of what she wrote, or rewrites it so it reads well. Same language and script, nothing translated. */
+    static String polish(String text, String key, boolean rewrite) throws Exception {
+        String keep = "Keep the meaning, the tone and the language exactly: English stays English, Banglish or Hinglish stays in English letters, "
+                + "Bengali or Hindi script stays in that script. Keep names, numbers, emojis and links as they are. Do not translate and do not add new information. ";
+        String task = rewrite
+                ? "Rewrite the user's message so it is clear, natural and well written, correcting any wrong sentence. "
+                : "Fix the grammar, spelling and punctuation of the user's message, changing as little else as possible. ";
+        return gemini(key, task + keep + "Reply with only the resulting message, nothing else.", text);
+    }
+
     static String toBanglaScript(String text, String key) throws Exception {
         return gemini(key,
                 "Rewrite the user's text in Bengali script. The text is Bengali written in English letters (Banglish), "
