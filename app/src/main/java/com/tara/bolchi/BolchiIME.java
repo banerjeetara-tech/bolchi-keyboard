@@ -120,6 +120,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private LinearLayout sugRow;
     private final TextView[] sug = new TextView[3];
     private final String[] sugVal = {"", "", ""};
+    private final boolean[] slotEmoji = new boolean[3];   // this suggestion slot holds an emoji for the typed word
     private boolean sugKeepsTyped;
     private String[] myWords = new String[0];   // her own entries (email, name) from the Bolchi app
     private boolean autoFix = true;
@@ -245,6 +246,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (sugRow != null) {
             sugKeepsTyped = false;
             sugSwipe = true;
+            slotEmoji[0] = slotEmoji[1] = slotEmoji[2] = false;
             String[] v = {got.size() > 2 ? Words.matchCase(swFirst, got.get(2)) : "", "", got.size() > 1 ? Words.matchCase(swFirst, got.get(1)) : ""};
             v[1] = v[2]; v[2] = v[0]; v[0] = "";
             for (int i = 0; i < 3; i++) { sugVal[i] = v[i]; sug[i].setText(v[i]); sug[i].setTypeface(Typeface.DEFAULT); }
@@ -570,6 +572,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         prefs().registerOnSharedPreferenceChangeListener(smsWatch);
         if (!Words.ready) new Thread(new Runnable() { @Override public void run() {
             try { Words.load(getAssets().open("words.txt")); } catch (Throwable t) { saveProblem(t); }
+            try { EmojiHints.load(getAssets().open("emoji.txt")); } catch (Throwable t) { saveProblem(t); }
         } }).start();
     }
 
@@ -680,6 +683,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         boolean bold = false;
         sugKeepsTyped = false;
         sugSwipe = false;
+        slotEmoji[0] = slotEmoji[1] = slotEmoji[2] = false;
+        boolean[] ownSlot = new boolean[3];
         if (w.length() > 0 && Words.ready && !plainField) {
             String fx = Words.fix(w);
             List<String> c = Words.complete(w, 3);
@@ -699,7 +704,19 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             int used = 0;
             for (String m : myWords) {
                 if (used >= slot.length) break;
-                if (m.length() > w.length() && m.toLowerCase().startsWith(lw)) v[slot[used++]] = m;
+                if (m.length() > w.length() && m.toLowerCase().startsWith(lw)) { ownSlot[slot[used]] = true; v[slot[used++]] = m; }
+            }
+        }
+        // a typed word that has emojis (not a typo being fixed): offer them, never over her saved words
+        if (!plainField && !sugKeepsTyped && w.length() >= 3) {
+            String[] em = EmojiHints.get(w);
+            if (em != null) {
+                int[] order = {2, 0};
+                for (int k = 0; k < order.length && k < em.length; k++) {
+                    if (ownSlot[order[k]]) continue;
+                    v[order[k]] = em[k];
+                    slotEmoji[order[k]] = true;
+                }
             }
         }
         for (int i = 0; i < 3; i++) {
@@ -734,6 +751,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
+        if (slotEmoji[i] && !val.isEmpty() && ic != null) {
+            // the emoji goes after the word she typed
+            if (wordIsThere(ic, w)) { ic.commitText(" " + val + " ", 1); addRecent(val); }
+            resetWord();
+            return;
+        }
         if (sugSwipe) {
             // another guess for the word that was just slid
             if (val.isEmpty() || ic == null || !swipeWordIsThere(ic)) return;

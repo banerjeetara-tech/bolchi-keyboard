@@ -91,6 +91,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 27: the SMS code button lives in its own `smsRow` (Android's inline-suggestion updates were wiping it via `clearOtp`), and
   it also shows in password-type boxes. The Bolchi app shows "Last text seen by Bolchi: time (code found?)" under the SMS button
   to tell "no SMS broadcast" from "no code recognised". Ask Tara what that line says if the code still does not appear.
+- Emoji suggestions (version 31, automatic): `EmojiHints` + `assets/emoji.txt` (built from Emojibase data via a script; ~2800 words).
+  Typing a whole word that has emojis (e.g. "family") puts up to 2 emojis in the suggestion slots (right, then left; never over her saved
+  words and not while a typo fix is offered); tapping inserts " 😀 " after the word. Saved names (`myWords`) stay automatic, no switch.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
