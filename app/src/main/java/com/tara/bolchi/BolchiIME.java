@@ -836,16 +836,24 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             for (int k = 0; k < nx.size() && k < 3; k++) { v[order[k]] = nx.get(k); slotNext[order[k]] = true; }
         }
         if (w.length() > 0 && Words.ready && !plainField) {
+            // BOLD in the middle = the keyboard's own correction or prediction.
+            // Normal on the left / right = HER word: what she typed, or a word from her own memory.
             String fx = Words.fix(w);
-            List<String> c = Words.complete(w, 3);
+            List<String> dict = Words.dictCompletions(w, 3);
+            List<String> mem = Words.memoryMatches(w, 2);
             if (fx != null) {
-                v[0] = w; v[1] = fx; sugKeepsTyped = true; bold = autoFix;
-                for (String x : c) if (!x.equals(fx)) { v[2] = x; break; }
+                v[0] = w; sugKeepsTyped = true;                     // her word, exactly as typed
+                v[1] = fx;                                          // the corrected word
+                for (String x : mem) if (!x.equals(fx) && !x.equals(w)) { v[2] = x; break; }
+                if (v[2].isEmpty()) for (String x : dict) if (!x.equals(fx)) { v[2] = x; break; }
             } else {
-                if (c.size() > 0) v[1] = c.get(0);
-                if (c.size() > 1) v[0] = c.get(1);
-                if (c.size() > 2) v[2] = c.get(2);
+                if (!dict.isEmpty()) v[1] = dict.get(0);            // the predicted word
+                if (!mem.isEmpty()) v[0] = mem.get(0);              // her word from memory
+                else if (dict.size() > 1) v[0] = dict.get(1);
+                if (mem.size() > 1) v[2] = mem.get(1);
+                else if (dict.size() > 2) v[2] = dict.get(2);
             }
+            bold = !v[1].isEmpty();
         }
         if (w.length() >= 2) {
             String lw = w.toLowerCase();

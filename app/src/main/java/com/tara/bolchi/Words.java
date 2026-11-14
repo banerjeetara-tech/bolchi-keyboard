@@ -289,6 +289,35 @@ public final class Words {
     /** All words, most used first. */
     public static String[] all() { return list; }
 
+    /** Ordinary English dictionary words that start with these letters (the keyboard's own predictions). */
+    public static List<String> dictCompletions(String typed, int max) {
+        List<String> out = new ArrayList<>();
+        if (typed == null || typed.isEmpty()) return out;
+        String p = typed.toLowerCase(Locale.ROOT);
+        String[] l = list;
+        for (int i = 0; i < l.length && out.size() < max; i++) {
+            String w = l[i];
+            if (w.length() > p.length() && w.startsWith(p)) out.add(matchCase(typed, w));
+        }
+        return out;
+    }
+
+    /** Words from HER memory that start with these letters: the ones she uses most, her learned words and her contacts. */
+    public static List<String> memoryMatches(String typed, int max) {
+        List<String> out = new ArrayList<>();
+        if (typed == null || typed.isEmpty()) return out;
+        String p = typed.toLowerCase(Locale.ROOT);
+        for (String u : usedMatches(p, max)) { String m = matchCase(typed, u); if (!out.contains(m)) out.add(m); }
+        synchronized (own) {
+            for (String o : own) {
+                if (out.size() >= max) break;
+                if (o.length() > p.length() && o.startsWith(p)) { String m = matchCase(typed, o); if (!out.contains(m)) out.add(m); }
+            }
+        }
+        for (String c : contactMatches(p, 1)) { if (out.size() >= max) break; String m = matchCase(typed, c); if (!out.contains(m)) out.add(m); }
+        return out.size() > max ? new ArrayList<>(out.subList(0, max)) : out;
+    }
+
     /** Her own learned words that start with these letters (for the Bangla/Hindi typing rows). */
     public static List<String> ownMatches(String prefix, int max) {
         List<String> out = new ArrayList<>();

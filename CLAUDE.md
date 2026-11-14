@@ -166,6 +166,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 62: font MODE. Choosing Bold / Italic / Bold italic or a Font style chip in the converter also sets `typeStyle`, so everything she types next on the EN keys
   comes out in that font (`commit` swaps each letter/digit via `FontStyles.apply`; word suggestions step aside); the space bar shows the font and "(font on)".
   The first chip "Normal" (fontStyle -1) turns it off and restores plain letters. Not for upside down / strikethrough / underline. In memory only.
+- Version 63: the top row while typing a word has a fixed meaning (Tara: "the predictive one will show the corrected one in bold, and mine will come as from the memory"):
+  MIDDLE slot in BOLD = the keyboard's own correction (`Words.fix`) or dictionary prediction (`dictCompletions`); LEFT/RIGHT, normal weight = HER word:
+  what she typed (quoted, when a correction exists) or words from her memory (`memoryMatches`: most used, learned words, contacts).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
