@@ -80,6 +80,20 @@ public final class Words {
     /** All words, most used first. */
     public static String[] all() { return list; }
 
+    /** Her own learned words that start with these letters (for the Bangla/Hindi typing rows). */
+    public static List<String> ownMatches(String prefix, int max) {
+        List<String> out = new ArrayList<>();
+        if (prefix == null || prefix.isEmpty()) return out;
+        String p = prefix.toLowerCase(Locale.ROOT);
+        synchronized (own) {
+            for (String s : own) {
+                if (out.size() >= max) break;
+                if (s.length() > p.length() && s.startsWith(p)) out.add(s);
+            }
+        }
+        return out;
+    }
+
     /** Words the user wants kept as typed. */
     public static void addOwn(String w) {
         if (w == null || w.isEmpty()) return;

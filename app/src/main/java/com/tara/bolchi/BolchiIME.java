@@ -1103,6 +1103,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     private void pickCand(String c) {
         InputConnection ic = getCurrentInputConnection();
+        // she kept the English letters (a name): remember it so it is offered next time
+        if (phon.length() >= 3 && c.equals(phon.toString()) && c.charAt(0) < 128) learn(c);
         phon.setLength(0);
         cands = new ArrayList<>();
         candFor = "";
@@ -1159,6 +1161,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             return;
         }
         List<String> show = new ArrayList<>(cands);
+        // her own saved names and words that start with what she typed (English letters)
+        String lp = phon.toString().toLowerCase();
+        int added = 0;
+        for (String m : myWords) {
+            if (added >= 2) break;
+            if (m.length() > lp.length() && m.toLowerCase().startsWith(lp) && !show.contains(m)) { show.add(m); added++; }
+        }
+        for (String o : Words.ownMatches(lp, 2)) {
+            if (added >= 3) break;
+            String shown = Words.matchCase(phon.toString(), o);
+            if (!show.contains(shown)) { show.add(shown); added++; }
+        }
         show.add(phon.toString());
         for (int i = 0; i < show.size(); i++) {
             final String c = show.get(i);

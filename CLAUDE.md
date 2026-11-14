@@ -96,6 +96,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   words and not while a typo fix is offered); tapping inserts " 😀 " after the word. Saved names (`myWords`) stay automatic, no switch.
 - Version 32 (names): `Words.fix` never auto-corrects a word typed with a capital letter (names like Tara were turned into "tar" and never
   learned); saved names (`myWords`) are offered from 2 typed letters. Tara said "name suggestion not working" on version 31.
+- Version 33: on the ab→বাং / ab→हिं rows (`paintCands`) her saved names (`myWords`) and learned words that start with the typed
+  English letters are added as candidates; keeping the raw English letters there learns them. Tara said names still did not
+  show on version 32 (EN keys logic was tested fine locally) — ask which layout she was on if it persists.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## Open issue: converter "Translate to English" fails on Tara's phone
