@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 86 = build-104** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 87 = build-106** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -295,6 +295,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (it reuses `contactBox` / `contactScroll`; `pickMoney`): every other currency with its sign, ₹ first for foreign money, $ first for rupees. The Units tab shows rupees as
   $ / € / £ / AED and foreign money as ₹. "try" (Turkish lira) is left out because it is an English word. She also restated the three name choices (only name, name with
   surname, full name with number): that is what version 83 does (a second phone number adds a fourth chip).
+- Version 87 (Tara: "10rs = how many dollar? ... I don't know the currency ... go to converter, it will show the currency name with country, whichever I select
+  will come to the chat"): ⇄ → "Units and currency" with money in the text now shows a scrolling LIST instead of the result box (`Converter.moneyList`, `LANDS`):
+  flag, currency name, country, and today's value for the last amount in the text (27 rows). A tap writes "= value" after her text ("10rs = $0.11") and returns to
+  the keys. Rates are fetched first if missing ("Getting today's rates…"; a failure shows the usual ⚠ box with Try again). Text without money still gets the old result box.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

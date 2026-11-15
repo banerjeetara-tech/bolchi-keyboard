@@ -2331,6 +2331,71 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             keysBox.addView(hs, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46)));
         }
 
+        if (convOption == 3 && convResult == null && !src.isEmpty() && Converter.hasCurrency(src)) {
+            // money in the text: every currency with its country and today's value. A tap writes "= value" into the message.
+            ScrollView sc = new ScrollView(this);
+            LinearLayout box = new LinearLayout(this);
+            box.setOrientation(LinearLayout.VERTICAL);
+            sc.addView(box);
+            List<String[]> rows = Converter.moneyList(src);
+            if (rows == null) {
+                listHint(box, "Getting today\u2019s rates\u2026");
+                final int job = ++convJob;
+                new Thread(new Runnable() { @Override public void run() {
+                    String bad = null;
+                    try { Converter.usdRates(); if (Converter.moneyList(src) == null) bad = "\u26A0 Couldn\u2019t work out this amount"; }
+                    catch (Throwable t) { bad = "\u26A0 Couldn\u2019t get today\u2019s currency rates. Check the internet and try again"; }
+                    final String msg = bad;
+                    handler.post(new Runnable() { @Override public void run() {
+                        if (job != convJob || page != PAGE_CONVERT || convOption != 3) return;
+                        convResult = msg;
+                        try { buildKeys(); } catch (Exception ex) { saveProblem(ex); }
+                    } });
+                } }).start();
+            } else {
+                listHint(box, rows.get(0)[0] + "  (" + rows.get(0)[1].replaceAll("^\\S+\\s+", "") + ")  =  tap one to add it to your message");
+                for (int i = 1; i < rows.size(); i++) {
+                    final String value = rows.get(i)[1];
+                    LinearLayout r = row();
+                    r.setBackground(box(cKey, 10));
+                    r.setGravity(Gravity.CENTER_VERTICAL);
+                    TextView name = new TextView(this);
+                    name.setText(rows.get(i)[0]);
+                    name.setTextColor(cInk);
+                    name.setTextSize(15);
+                    name.setSingleLine(true);
+                    name.setEllipsize(TextUtils.TruncateAt.END);
+                    name.setPadding(dp(12), 0, dp(6), 0);
+                    name.setGravity(Gravity.CENTER_VERTICAL);
+                    r.addView(name, new LinearLayout.LayoutParams(0, dp(44), 1f));
+                    TextView val = new TextView(this);
+                    val.setText(value);
+                    val.setTextColor(cInk);
+                    val.setTextSize(16);
+                    val.setTypeface(Typeface.DEFAULT_BOLD);
+                    val.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+                    val.setPadding(dp(6), 0, dp(14), 0);
+                    r.addView(val, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(44)));
+                    r.setOnClickListener(new View.OnClickListener() {
+                        @Override public void onClick(View v) {
+                            tick(v);
+                            try { commit((src.endsWith(" ") ? "" : " ") + "= " + value + " "); page = PAGE_ABC; buildKeysSoon(); } catch (Exception ex) { saveProblem(ex); }
+                        }
+                    });
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                    lp.setMargins(dp(3), dp(2), dp(3), dp(2));
+                    box.addView(r, lp);
+                }
+            }
+            keysBox.addView(sc, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(2 * (KEY_H + 8))));
+            LinearLayout act0 = row();
+            TextView back0 = makeKey("Back to keys", 1f, cFn, cInk, 14);
+            onPress(back0, cFn, new Runnable() { @Override public void run() { page = PAGE_ABC; buildKeysSoon(); } });
+            act0.addView(back0);
+            keysBox.addView(act0);
+            return;
+        }
+
         String label = isSel[0] ? "Selected text" : "Your text";
         TextView srcBox = panelBox(label, src.isEmpty() ? "Type or speak a message first" : src, false);
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(

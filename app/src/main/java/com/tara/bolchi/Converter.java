@@ -332,6 +332,50 @@ final class Converter {
         return l.isEmpty() ? null : l.toArray(new String[0]);
     }
 
+    /** Country code (for the flag), currency name and country of every currency in CURRENCIES, same order. */
+    private static final String[][] LANDS = {{"IN", "Indian Rupee", "India"}, {"US", "US Dollar", "United States"}, {"EU", "Euro", "Europe"},
+            {"GB", "Pound", "United Kingdom"}, {"AE", "Dirham", "UAE (Dubai)"}, {"SG", "Singapore Dollar", "Singapore"}, {"AU", "Australian Dollar", "Australia"},
+            {"CA", "Canadian Dollar", "Canada"}, {"JP", "Yen", "Japan"}, {"CN", "Yuan", "China"}, {"CH", "Swiss Franc", "Switzerland"}, {"SA", "Riyal", "Saudi Arabia"},
+            {"QA", "Riyal", "Qatar"}, {"KW", "Dinar", "Kuwait"}, {"OM", "Rial", "Oman"}, {"BH", "Dinar", "Bahrain"}, {"BD", "Taka", "Bangladesh"},
+            {"NP", "Rupee", "Nepal"}, {"LK", "Rupee", "Sri Lanka"}, {"PK", "Rupee", "Pakistan"}, {"TH", "Baht", "Thailand"}, {"MY", "Ringgit", "Malaysia"},
+            {"HK", "Dollar", "Hong Kong"}, {"NZ", "Dollar", "New Zealand"}, {"ZA", "Rand", "South Africa"}, {"KR", "Won", "South Korea"},
+            {"ID", "Rupiah", "Indonesia"}, {"RU", "Ruble", "Russia"}};
+
+    private static String flag(String cc) {
+        return new String(Character.toChars(0x1F1E6 + cc.charAt(0) - 'A')) + new String(Character.toChars(0x1F1E6 + cc.charAt(1) - 'A'));
+    }
+
+    /**
+     * For the converter list: the last amount of money in the text in every other currency. Each row is {flag + currency + country, value with sign};
+     * row 0 is {what she typed (e.g. "₹10"), its currency and country}. Null when there is no money in the text or the rates are not here yet.
+     */
+    static java.util.List<String[]> moneyList(String text) {
+        JSONObject rates = ratesNow();
+        if (rates == null) return null;
+        Matcher m = AMOUNT.matcher(FontStyles.plain(text));
+        String cur = null;
+        double v = 0;
+        while (m.find()) {
+            String sym = g(m, 1), mult = g(m, 3), unit = g(m, 4);
+            String c = currencyOf(sym, unit);
+            if (c == null && sym.isEmpty() && unit.isEmpty() && (mult.startsWith("la") || mult.startsWith("cr"))) c = "INR";
+            if (c == null) continue;
+            try { v = amount(m.group(2), mult); cur = c; } catch (Exception e) { /* not a number */ }
+        }
+        if (cur == null) return null;
+        double from = cur.equals("USD") ? 1 : rates.optDouble(cur, 0);
+        if (from <= 0) return null;
+        java.util.List<String[]> out = new java.util.ArrayList<>();
+        for (int i = 0; i < CURRENCIES.length; i++) {
+            String c = CURRENCIES[i];
+            String label = flag(LANDS[i][0]) + "  " + LANDS[i][1] + " \u00B7 " + LANDS[i][2];
+            if (c.equals(cur)) { out.add(0, new String[]{sign(c) + n(v), label}); continue; }
+            double t = c.equals("USD") ? 1 : rates.optDouble(c, 0);
+            if (t > 0) out.add(new String[]{label, sign(c) + n(v / from * t)});
+        }
+        return out.size() < 2 ? null : out;
+    }
+
     /** The rates if they are already here (no waiting); null when they still have to be fetched. */
     static JSONObject ratesNow() {
         return ratesKept != null && System.currentTimeMillis() - ratesAt < 6 * 3600 * 1000L ? ratesKept : null;
