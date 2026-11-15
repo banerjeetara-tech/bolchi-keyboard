@@ -487,6 +487,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         theme = at >= 0 ? at : tn != null && Themes.indexOf("Mint") >= 0 ? Themes.indexOf("Mint") : 0;      // a theme that was taken out again: a light one, not black
         loadColors();
 
+        // the keyboard window itself must be see-through, or the app behind never shows (the see-through themes paint their own colour on top)
+        try {
+            if (getWindow() != null && getWindow().getWindow() != null)
+                getWindow().getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+        } catch (Exception ignored) { }
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(cBg);

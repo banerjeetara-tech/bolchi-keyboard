@@ -344,6 +344,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 93 (Tara asked whether changing rates are picked up; she said yes to a fresher fetch): currency rates are kept 1 hour instead of 6 (`Converter.usdRates` / `ratesNow`).
   The free services themselves update about once a day, so "about" stays in the wording.
 - Version 94 (clear themes): 30 new see-through combinations at the end of the palette: 10 with 2 colours, 10 with 3, 10 with 4 (the 4th colour is the number row). Background alpha 5%, keys 30%, function keys 36%, so the app shows through; ink is dark on light keys and white on dark keys. Appended at the end so saved theme indexes stay the same.
+- Version 95 (window): the keyboard's own window was opaque, so the see-through themes could not show the app behind. `onCreateInputView` now makes the IME window background transparent; the keyboard root still paints the theme colour (alpha), so solid themes look the same. Tara's screenshot (build 118) was a solid keyboard: check which theme she picked.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
