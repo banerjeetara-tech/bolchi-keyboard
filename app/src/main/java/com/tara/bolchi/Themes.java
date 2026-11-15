@@ -19,7 +19,10 @@ final class Themes {
             "Honey", "Coral Reef", "Jade", "Powder Pink", "Sand Dune", "Periwinkle",
             "Peach Sorbet", "Lavender Honey", "Rose Gold", "Sky & Sunshine", "Matcha Latte", "Strawberry Milk",
             "Blueberry Cream", "Coral & Teal", "Lilac & Lemon", "Sea Glass", "Pearl & Gold", "Mango Lassi",
-            "Watermelon", "Terracotta Cream", "Plum Blossom", "Morning Mist"};
+            "Watermelon", "Terracotta Cream", "Plum Blossom", "Morning Mist",
+            // see-through ("glass") themes: the colours carry an alpha value, so the app shows through the keyboard
+            "Glass Clear", "Glass Rose", "Glass Peach", "Glass Lemon", "Glass Mint", "Glass Aqua", "Glass Sky", "Glass Lavender", "Glass Lilac", "Glass Blush",
+            "Glass Sand", "Glass Coral", "Glass Sage", "Glass Pearl", "Glass Sunrise", "Glass Ocean", "Glass Smoke", "Glass Navy", "Glass Plum", "Glass Forest"};
 
     /** The list of the earlier build (43 themes), only to keep the theme she already picked when the list changes. */
     static final String[] OLD = {
@@ -108,7 +111,28 @@ final class Themes {
             {"#FFE1E4", "#F6FFF4", "#BFE8B8", "#4A1420", "#8A5A62", "#F0445E"},
             {"#F6E5D8", "#FFFAF4", "#E9C7AE", "#4E2A18", "#93705C", "#C8623A"},
             {"#F5E1EE", "#FFFFFF", "#E8C3DA", "#4A1A3C", "#8E6382", "#B8438F"},
-            {"#E8EEF2", "#FFFFFF", "#D2DDE5", "#1F2E3A", "#62727F", "#4E8FB5"}};
+            {"#E8EEF2", "#FFFFFF", "#D2DDE5", "#1F2E3A", "#62727F", "#4E8FB5"},
+            // glass themes (#AARRGGBB)
+            {"#2EFFFFFF", "#B3FFFFFF", "#A6E6E6E6", "#1C1C1C", "#5A5A5A", "#4E8FB5"},
+            {"#2EFFD6E0", "#B3FFFFFF", "#A6F7B6C8", "#4A1426", "#8A5A68", "#E0527A"},
+            {"#2EFFE0C8", "#B3FFFFFF", "#A6F9C4A0", "#4E2A12", "#93705A", "#F08A3C"},
+            {"#2EFFF4B8", "#B3FFFFFF", "#A6F6E38A", "#4A3C00", "#8A7A3A", "#E0B400"},
+            {"#2ECFF5E3", "#B3FFFFFF", "#A6A6E6C8", "#0E3F2C", "#4F8070", "#1FA870"},
+            {"#2EC8F2F4", "#B3FFFFFF", "#A69ADFE4", "#0C3C42", "#4C7C82", "#14A0B0"},
+            {"#2ED2E8FF", "#B3FFFFFF", "#A6A8CFF8", "#10305A", "#52708F", "#2F7FE0"},
+            {"#2EE4DCFF", "#B3FFFFFF", "#A6C8B8F6", "#2C1C5A", "#6A5C92", "#7A5CE0"},
+            {"#2EF1D8F6", "#B3FFFFFF", "#A6DDB4E8", "#44184E", "#84608C", "#B04CC8"},
+            {"#2EFBDCD8", "#B3FFFFFF", "#A6F2B8B0", "#4E1C16", "#8E625C", "#E0604C"},
+            {"#2EF2E6D0", "#B3FFFFFF", "#A6E2CDA6", "#44341A", "#84745A", "#C89A3C"},
+            {"#2EFFD4CC", "#B3FFFFFF", "#A6FAAE9E", "#521C10", "#925E54", "#F0583C"},
+            {"#2EDCE8D4", "#B3FFFFFF", "#A6BCD0AE", "#24361A", "#647658", "#6A9A4C"},
+            {"#2EF4F0EA", "#B3FFFFFF", "#A6E0D8CC", "#2E2A24", "#6E6A62", "#B89A5C"},
+            {"#2EFFE2D6", "#B3FFFFFF", "#A6FFD08A", "#4A2410", "#8A6450", "#F07A4C"},
+            {"#2ECDEBF2", "#B3FFFFFF", "#A69FD3E6", "#0E3448", "#4E7488", "#1C8CC0"},
+            {"#38000000", "#6B000000", "#941A1A1A", "#FFFFFF", "#D0D0D0", "#FFC83C"},
+            {"#380A1E46", "#6B0A1E46", "#9410285A", "#FFFFFF", "#C8D4EC", "#FF8A6C"},
+            {"#383A1040", "#6B3A1040", "#944A1852", "#FFFFFF", "#E4CCE8", "#FFB48A"},
+            {"#380C3220", "#6B0C3220", "#94124028", "#FFFFFF", "#CCE4D6", "#F0D060"}};
 
     static final int BG = 0, KEY = 1, FN = 2, INK = 3, MUTED = 4, ACCENT = 5;
 
@@ -118,6 +142,9 @@ final class Themes {
         int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
         return (0.299 * r + 0.587 * g + 0.114 * b) > 160 ? Color.parseColor("#111111") : Color.WHITE;
     }
+
+    /** True for a see-through theme (its background colour is not solid). */
+    static boolean glass(int theme) { return theme >= 0 && theme < HEX.length && HEX[theme][BG].length() == 9; }
 
     static int count() { return NAMES.length; }
 
@@ -132,3 +159,4 @@ final class Themes {
         return Color.parseColor(HEX[theme][part]);
     }
 }
+

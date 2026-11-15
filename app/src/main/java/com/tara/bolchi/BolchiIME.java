@@ -3030,7 +3030,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (idx >= Themes.count()) { r.addView(spacer(1f)); continue; }
                 TextView sw = new TextView(this);
                 boolean cur = idx == theme;
-                sw.setText(cur ? "\u2713" : "Aa");
+                sw.setText(cur ? "\u2713" : Themes.glass(idx) ? "\u25C7" : "Aa");      // a diamond marks the see-through ones
                 sw.setTextSize(cur ? 20 : 15);
                 sw.setTypeface(Typeface.DEFAULT_BOLD);
                 sw.setGravity(Gravity.CENTER);

@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 84 = build-100** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 85 = build-102** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -25,7 +25,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - `Words.java` — English suggestions + auto-correct (word list in `app/src/main/assets/words.txt`, Banglish/Hinglish words protected).
   `Spoken.java` — voice self-correction ("five no sorry six" → "six", "scratch that").
   `Swipe.java` — gesture typing decoder.
-- `Converter.java` — converter options and all Gemini prompts (tidy, polish, tone, replies). `Themes.java` — 76 themes. `Emojis.java` — emoji tabs.
+- `Converter.java` — converter options and all Gemini prompts (tidy, polish, tone, replies). `Themes.java` — 96 themes (20 see-through). `Emojis.java` — emoji tabs.
 - `EmojiHints.java` — emoji for a typed word (`assets/emoji.txt` + `ALIAS` short forms / Banglish + word endings) and emoji search.
   `Gifs.java` / `GifProvider.java` — Giphy. `FontStyles.java` — Unicode fonts. `Calc.java` — sums typed in the text. `SmsCodeReceiver.java` — SMS codes.
 
@@ -285,9 +285,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   amount in other money (`Converter.money`, `slotMoney`): rupees → $ (bold, middle) € £; anything else → ₹ (middle) first. A tap REPLACES the typed amount with the tapped
   one (her word was "convert"; the calculator appends instead, so ask if she wanted "10rs = $0.11"). Rates come in the background (`fetchRatesSoon`, at most one try a
   minute, kept 6 hours), so the first time the row appears a moment late and needs internet. Not tested on a phone.
-- Asked 15 Nov 2026, NOT built: "add transparent keyboard under colour palette". A picture preview was sent (A = clear light glass, B = smoked dark glass, keys
-  half see-through over the chat); waiting for her choice. Told her: what shows behind the keyboard is decided by the app (many apps resize and show a plain colour).
-  To build: a theme entry in `Themes` with alpha colours and a transparent `root` background; check the word row / GIF row backgrounds too.
+- Version 85 (Tara: "add transparent keyboard under colour palette", then "as many as posb" after the picture preview): 20 see-through "Glass" themes at the END of the
+  theme list (96 total; a ◇ marks them in the 🎨 grid): 16 light tints (Glass Clear, Rose, Peach ... Ocean) and 4 smoked ones with white letters (Smoke, Navy, Plum,
+  Forest; needed over dark apps, and shown in the preview, although she asked for no more dark themes: remove them if she objects). They are ordinary `Themes.HEX`
+  rows written as #AARRGGBB (`Themes.glass`). NOT tested on a phone: what shows through is decided by the app (many show a plain colour behind the keyboard), and
+  it is not known whether Samsung's keyboard window lets the app show through at all. Ask her for a screenshot.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
