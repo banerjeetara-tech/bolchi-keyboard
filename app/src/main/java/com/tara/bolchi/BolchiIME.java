@@ -472,6 +472,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         voiceScript[0] = p.getBoolean("bnScript", false);
         voiceScript[1] = p.getBoolean("hiScript", false);
         autoFix = p.getBoolean("autoFix", true);
+        if (!p.getBoolean("autoOn82", false)) {          // once: the switch sat beside the word row and a stray tap could turn auto-correct off for good
+            autoFix = true;
+            p.edit().putBoolean("autoFix", true).putBoolean("autoOn82", true).apply();
+        }
         aiTidy = p.getBoolean("aiFix", true);
         theme = p.getInt("theme", 0);
         // find the theme she picked by its name, so removing the dark themes does not change it
@@ -776,6 +780,15 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     // ---------- suggestions and auto-correct (English keys) ----------
     private boolean wordsOn() { return layout == 0 && page == PAGE_ABC && !noFix; }
 
+    private void setAutoFix(boolean on, TextView auto) {
+        autoFix = on;
+        prefs().edit().putBoolean("autoFix", on).apply();
+        auto.setText(on ? "Auto \u2713" : "Auto OFF");
+        auto.setTextColor(on ? cInk : 0xFFD32F2F);
+        flashSpace(on ? "Auto-correct on" : "Auto-correct off");
+        paintSugs();
+    }
+
     private void buildSugRow() {
         sugRow = row();
         for (int i = 0; i < 3; i++) {
@@ -787,15 +800,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             sug[i] = t;
             sugRow.addView(t);
         }
-        final TextView auto = makeKey(autoFix ? "Auto \u2713" : "Auto \u2715", 0.7f, cFn, autoFix ? cInk : cMuted, 13);
+        final TextView auto = makeKey(autoFix ? "Auto \u2713" : "Auto OFF", 0.7f, cFn, autoFix ? cInk : 0xFFD32F2F, 13);
         auto.setLayoutParams(new LinearLayout.LayoutParams(0, dp(40), 0.7f));
-        onPress(auto, cFn, new Runnable() { @Override public void run() {
-            autoFix = !autoFix;
-            prefs().edit().putBoolean("autoFix", autoFix).apply();
-            auto.setText(autoFix ? "Auto \u2713" : "Auto \u2715");
-            auto.setTextColor(autoFix ? cInk : cMuted);
-            flashSpace(autoFix ? "Auto-correct on" : "Auto-correct off");
-            paintSugs();
+        // A tap can only switch auto-correct ON. Switching it OFF needs a hold, so a stray thumb next to the word row cannot turn it off for good.
+        auto.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) {
+            tick(v);
+            if (autoFix) { flashSpace("Auto-correct is on (hold to turn off)"); return; }
+            setAutoFix(true, auto);
+        } });
+        auto.setOnLongClickListener(new View.OnLongClickListener() { @Override public boolean onLongClick(View v) {
+            tick(v);
+            setAutoFix(!autoFix, auto);
+            return true;
         } });
         sugRow.addView(auto);
         keysBox.addView(sugRow);
@@ -1181,9 +1197,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String finalWord = w;
         if (Words.ready && layout == 0 && !noFix && !plainField) {
             String fx = Words.fix(w, wordAutoCap);
-            boolean calm = desiRecent == 0;
+            // right after Banglish / Hinglish words a correction is only offered, except a known English slip ("recieve"), which is always put right
+            boolean calm = desiRecent == 0 || Words.knownSlip(w);
             if (Words.isDesi(w)) desiRecent = 2;
-            else if (desiRecent > 0 && Words.inDictionary(w)) desiRecent--;
+            else if (desiRecent > 0 && (fx != null || Words.inDictionary(w))) desiRecent--;     // a mistyped English word counts as English too
             String dfx = !calm && !Words.known(w) ? Words.desiFix(w) : null;
             if (dfx != null) {
                 // close to a Banglish / Hinglish word: left as typed, the likely word is offered in bold
@@ -1206,6 +1223,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 finalWord = fx;
             } else {
                 // a wrong word she has used before is left as typed, but the right one is offered in bold
+                // why it was not changed is kept for the Bolchi app screen, so a "not working" report can be understood
+                String why = !autoFix ? "Auto is switched off" : !calm ? "just after Banglish words"
+                        : (uriBox && !searchWords()) ? "web address box" : !Words.sureFix(w) ? "rare real word"
+                        : !wordIsThere(ic, w) ? "the app did not show the text to the keyboard (" + curApp + ")" : "typed 5+ times before";
+                prefs().edit().putString("fixWhy", "\u201C" + w + "\u201D \u2192 " + fx + ": " + why).apply();
                 fixShownTyped = w;
                 fixShownDone = fx;
                 fixPrompt = true;
@@ -2808,6 +2830,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         cands = new ArrayList<>();
         word.setLength(0);
         fixTyped = null;
+        if (!restarting) desiRecent = 0;       // a new box starts fresh: Banglish typed in the last chat must not hold back corrections here
         curApp = info == null || info.packageName == null ? "" : info.packageName;
         lastWord = "";
         justEnded = "";

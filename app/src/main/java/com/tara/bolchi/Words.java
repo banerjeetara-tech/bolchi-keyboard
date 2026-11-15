@@ -327,7 +327,7 @@ public final class Words {
                 "isnt", "isn't", "arent", "aren't", "wasnt", "wasn't", "werent", "weren't", "havent", "haven't",
                 "hasnt", "hasn't", "couldnt", "couldn't", "wouldnt", "wouldn't", "shouldnt", "shouldn't",
                 "thats", "that's", "whats", "what's", "youre", "you're", "theyre", "they're", "lets", "let's",
-                "teh", "the", "adn", "and", "taht", "that", "thier", "their", "recieve", "receive",
+                "teh", "the", "wil", "will", "adn", "and", "taht", "that", "thier", "their", "recieve", "receive",
                 "youll", "you'll", "youve", "you've", "youd", "you'd", "theyll", "they'll", "theyve", "they've",
                 "weve", "we've", "hes", "he's", "shes", "she's", "heres", "here's", "theres", "there's",
                 "wheres", "where's", "whos", "who's", "hows", "how's", "itll", "it'll", "thatll", "that'll",
@@ -513,6 +513,11 @@ public final class Words {
         return DESI.contains(l) || (r == null && looksBanglish(l));
     }
 
+    /** True for a spelling from the table of known English slips ("recieve", "teh", "dont"): always safe to put right. */
+    public static boolean knownSlip(String typed) {
+        return typed != null && FIXED.containsKey(typed.toLowerCase(Locale.ROOT));
+    }
+
     /** True when the keyboard may swap the word in by itself: a known slip, or a word that is in no dictionary. A rare real word is only offered. */
     public static boolean sureFix(String typed) {
         String l = typed.toLowerCase(Locale.ROOT);
@@ -613,7 +618,7 @@ public final class Words {
                 if (i == 1) extra += 0.3f;
                 v = Math.min(v, d[i - 1][j] + extra);
                 // a letter left out: cheap when it is the second of a double letter
-                float miss = (j > 1 && b == c.charAt(j - 2)) ? 0.45f : b == '\'' ? 0.3f : 0.8f;
+                float miss = (j > 1 && b == c.charAt(j - 2)) ? 0.45f : b == '\'' ? 0.3f : 0.62f;     // a dropped letter is the commonest slip: cheaper than a neighbour key
                 if (j == 1) miss += 0.3f;
                 v = Math.min(v, d[i][j - 1] + miss);
                 if (i > 1 && j > 1 && a == c.charAt(j - 2) && t.charAt(i - 2) == b && a != b)

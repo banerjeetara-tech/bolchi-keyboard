@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 81 = build-93** (14 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 82** (15 Nov 2026; check the build number on GitHub). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -261,6 +261,13 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   `myWords`. (2) Backspace after a correction only puts the word back the first time; the second time for the same word keeps it (`undoneOnce`). (3) A space typed right
   after tapping a suggestion adds no second space (`pickedSpace`). NOT confirmed that KEPT was the cause: if it still fails, ask for a screenshot of the top row while the
   wrong word is typed (is the bold correction shown? is "Auto ✓" on?).
+- Version 82 (Tara: "autocorrect is still not working"; again no screenshot). Simulating `endWord` on a PC showed the word engine corrects her test sentence, so the
+  block is around it. Fixed, none confirmed on her phone: (1) the "Auto ✓" key beside the word row switched auto-correct off FOR GOOD with one stray tap; now a tap only
+  switches it on, off needs a hold, it reads "Auto OFF" in red, and it is switched back on once (pref `autoOn82`). (2) `desiRecent` (corrections only offered after Banglish)
+  never wore off while she typed misspelt words and survived into the next app; now a mistyped English word counts down too, a new box resets it, and known slips
+  (`Words.knownSlip`, the `FIXED` table) are swapped even right after Banglish. (3) A left-out letter cost more than a neighbour key, so salry → salty, managr → manage,
+  staus → stays; `slip` miss cost 0.8 → 0.62 (local list: 111/113 typos, was 106; Banglish sample unchanged). (4) The Bolchi app now shows under "Installed version":
+  "Auto-correct: ON/OFF" and "Last word not corrected: word → fix: reason" (pref `fixWhy`). If she reports it again, ask for a screenshot of that line FIRST.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
