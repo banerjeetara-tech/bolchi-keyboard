@@ -378,7 +378,7 @@ final class Converter {
 
     /** The rates if they are already here (no waiting); null when they still have to be fetched. */
     static JSONObject ratesNow() {
-        return ratesKept != null && System.currentTimeMillis() - ratesAt < 6 * 3600 * 1000L ? ratesKept : null;
+        return ratesKept != null && System.currentTimeMillis() - ratesAt < 3600 * 1000L ? ratesKept : null;
     }
 
     /** Every currency the keyboard knows, in the order they are offered. */
@@ -463,9 +463,9 @@ final class Converter {
     private static volatile JSONObject ratesKept;
     private static volatile long ratesAt;
 
-    /** Today's rates against USD from a free service (no key needed). Three services are tried; the answer is kept for 6 hours. */
+    /** Today's rates against USD from a free service (no key needed). Three services are tried; the answer is kept for 1 hour. */
     static synchronized JSONObject usdRates() throws Exception {
-        if (ratesKept != null && System.currentTimeMillis() - ratesAt < 6 * 3600 * 1000L) return ratesKept;
+        if (ratesKept != null && System.currentTimeMillis() - ratesAt < 3600 * 1000L) return ratesKept;
         String[] urls = {"https://open.er-api.com/v6/latest/USD", "https://api.frankfurter.app/latest?from=USD",
                 "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json"};
         for (String u : urls) {

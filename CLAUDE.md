@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 92 = build-116** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 93 = build-117** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -341,6 +341,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
     and a full stop the timer wrote is deleted again if she speaks within 15 s (`autoDot`). Stop still writes it. If full stops STILL come at once, the phone's speech
     engine is writing them itself (then strip a trailing "." from the engine text in `onResults`); ask which chip was dark and whether the AI fix was on.
   - She is unhappy with the quality (many builds, nothing verified on her phone). Fewer, checked changes; ask for a short screen recording when a report is unclear.
+- Version 93 (Tara asked whether changing rates are picked up; she said yes to a fresher fetch): currency rates are kept 1 hour instead of 6 (`Converter.usdRates` / `ratesNow`).
+  The free services themselves update about once a day, so "about" stays in the wording.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
