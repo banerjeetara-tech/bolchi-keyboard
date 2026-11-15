@@ -26,7 +26,8 @@ final class Themes {
             // soft colour combinations in the style of "Mint" (white keys): background + side keys + accent in different colours;
             // the last eight give the number row a soft colour of its own
             "Mint & Peach", "Rose & Sage", "Lavender & Lemon", "Sky & Blush", "Peach & Teal", "Lilac & Mint", "Cream & Rose", "Seafoam & Coral", "Butter & Lavender", "Ice & Gold",
-            "Blush & Navy", "Pistachio & Plum", "Mint, Peach & Lemon", "Rose, Sky & Cream", "Lavender, Mint & Blush", "Sky, Lemon & Rose", "Peach, Lilac & Mint", "Seafoam, Butter & Coral", "Lilac, Sky & Lemon", "Cream, Sage & Rose"};
+            "Blush & Navy", "Pistachio & Plum", "Mint, Peach & Lemon", "Rose, Sky & Cream", "Lavender, Mint & Blush", "Sky, Lemon & Rose", "Peach, Lilac & Mint", "Seafoam, Butter & Coral", "Lilac, Sky & Lemon", "Cream, Sage & Rose",
+            "Clear Rose & Sky", "Clear Mint & Lilac", "Clear Lemon & Sky", "Clear Peach & Teal", "Clear Lavender & Aqua", "Clear Sage & Cream", "Clear Coral & Ice", "Clear Blush & Gold", "Clear Ocean & Foam", "Clear Plum & Pearl", "Clear Rose, Sky & Lemon", "Clear Mint, Lilac & Peach", "Clear Peach, Teal & Butter", "Clear Lavender, Aqua & Rose", "Clear Sage, Cream & Coral", "Clear Ocean, Mint & Gold", "Clear Blush, Lilac & Sky", "Clear Lemon, Pistachio & Plum", "Clear Coral, Lavender & Mint", "Clear Pearl, Sky & Rose", "Clear Rose, Sky, Lemon & Mint", "Clear Mint, Lilac, Peach & Sky", "Clear Peach, Teal, Butter & Rose", "Clear Lavender, Aqua, Rose & Lemon", "Clear Sage, Cream, Coral & Sky", "Clear Ocean, Mint, Gold & Lilac", "Clear Blush, Lilac, Sky & Lemon", "Clear Lemon, Pistachio, Plum & Rose", "Clear Coral, Lavender, Mint & Sky", "Clear Pearl, Sky, Rose & Mint"};
 
     /** The list of the earlier build (43 themes), only to keep the theme she already picked when the list changes. */
     static final String[] OLD = {
@@ -157,7 +158,38 @@ final class Themes {
             {"#FBE6D8", "#FFFFFF", "#E2CFEE", "#4A2412", "#8A6452", "#E0703C", "#D6F0E2"},
             {"#DDF3EF", "#FFFFFF", "#F8EDB8", "#0C3B35", "#477A72", "#17A592", "#FBD9D0"},
             {"#EFE1F4", "#FFFFFF", "#CDE2F6", "#3A1848", "#7A5888", "#9A48B8", "#FBF2C8"},
-            {"#F6F0E2", "#FFFFFF", "#D0E0C2", "#3A3020", "#7A7060", "#5A7D3A", "#F8DCE2"}};
+            {"#F6F0E2", "#FFFFFF", "#D0E0C2", "#3A3020", "#7A7060", "#5A7D3A", "#F8DCE2"},
+            // clear see-through combinations: 2, 3 and 4 colours (background, keys, function keys, accent, number row)
+            {"#0DFFFFFF", "#4DF4B6C8", "#5CF4B6C8", "#1A1A1A", "#5A5A5A", "#FFF4B6C8"},
+            {"#0DFFFFFF", "#4DA8E6CF", "#5CA8E6CF", "#1A1A1A", "#5A5A5A", "#FFA8E6CF"},
+            {"#0DFFFFFF", "#4DFFF1A8", "#5CFFF1A8", "#1A1A1A", "#5A5A5A", "#FFFFF1A8"},
+            {"#0DFFFFFF", "#4DFFC8A8", "#5CFFC8A8", "#1A1A1A", "#5A5A5A", "#FFFFC8A8"},
+            {"#0DFFFFFF", "#4DD2C4F2", "#5CD2C4F2", "#1A1A1A", "#5A5A5A", "#FFD2C4F2"},
+            {"#0DFFFFFF", "#4DC4D8B4", "#5CC4D8B4", "#1A1A1A", "#5A5A5A", "#FFC4D8B4"},
+            {"#0DFFFFFF", "#4DFFB0A0", "#5CFFB0A0", "#1A1A1A", "#5A5A5A", "#FFFFB0A0"},
+            {"#0DFFFFFF", "#4DF8D0DA", "#5CF8D0DA", "#1A1A1A", "#5A5A5A", "#FFF8D0DA"},
+            {"#0DFFFFFF", "#4D9ED8E8", "#5C9ED8E8", "#1A1A1A", "#5A5A5A", "#FF9ED8E8"},
+            {"#0DFFFFFF", "#4DD8B4E0", "#5CD8B4E0", "#1A1A1A", "#5A5A5A", "#FFD8B4E0"},
+            {"#0DF4B6C8", "#4D9ED8F0", "#5CFFF1A8", "#1A1A1A", "#5A5A5A", "#FFFFF1A8"},
+            {"#0DA8E6CF", "#4DD2C4F2", "#5CFFC8A8", "#1A1A1A", "#5A5A5A", "#FFFFC8A8"},
+            {"#0DFFC8A8", "#4D9ADCD4", "#5CFFF1A8", "#1A1A1A", "#5A5A5A", "#FFFFF1A8"},
+            {"#0DD2C4F2", "#4DA8E4EE", "#5CF4B6C8", "#1A1A1A", "#5A5A5A", "#FFF4B6C8"},
+            {"#0DC4D8B4", "#4DF8EBD0", "#5CFFB0A0", "#1A1A1A", "#5A5A5A", "#FFFFB0A0"},
+            {"#0D9ED8E8", "#4DB8EAD2", "#5CFFD86A", "#1A1A1A", "#5A5A5A", "#FFFFD86A"},
+            {"#0DF8D0DA", "#4DDCCBF2", "#5CBFE0F6", "#1A1A1A", "#5A5A5A", "#FFBFE0F6"},
+            {"#0DFFF1A8", "#4DC8E4B0", "#5CD8B4E0", "#1A1A1A", "#5A5A5A", "#FFD8B4E0"},
+            {"#0DFFB0A0", "#4DCFC6F2", "#5CB0EAD2", "#1A1A1A", "#5A5A5A", "#FFB0EAD2"},
+            {"#0DF4EFE6", "#4DBFE0F6", "#5CF4B6C8", "#1A1A1A", "#5A5A5A", "#FFF4B6C8"},
+            {"#0DF4B6C8", "#4D9ED8F0", "#5CFFF1A8", "#1A1A1A", "#5A5A5A", "#FFFFF1A8", "#5CA8E6CF"},
+            {"#0DA8E6CF", "#4DD2C4F2", "#5CFFC8A8", "#1A1A1A", "#5A5A5A", "#FFFFC8A8", "#5CBFE0F6"},
+            {"#0DFFC8A8", "#4D9ADCD4", "#5CFFF1A8", "#1A1A1A", "#5A5A5A", "#FFFFF1A8", "#5CF4B6C8"},
+            {"#0DD2C4F2", "#4DA8E4EE", "#5CF4B6C8", "#1A1A1A", "#5A5A5A", "#FFF4B6C8", "#5CFFF1A8"},
+            {"#0DC4D8B4", "#4DF8EBD0", "#5CFFB0A0", "#1A1A1A", "#5A5A5A", "#FFFFB0A0", "#5CBFE0F6"},
+            {"#0D9ED8E8", "#4DB8EAD2", "#5CFFD86A", "#1A1A1A", "#5A5A5A", "#FFFFD86A", "#5CD2C4F2"},
+            {"#0DF8D0DA", "#4DDCCBF2", "#5CBFE0F6", "#1A1A1A", "#5A5A5A", "#FFBFE0F6", "#5CFFF1A8"},
+            {"#0DFFF1A8", "#4DC8E4B0", "#5CD8B4E0", "#1A1A1A", "#5A5A5A", "#FFD8B4E0", "#5CF4B6C8"},
+            {"#0DFFB0A0", "#4DCFC6F2", "#5CB0EAD2", "#1A1A1A", "#5A5A5A", "#FFB0EAD2", "#5CBFE0F6"},
+            {"#0DF4EFE6", "#4DBFE0F6", "#5CF4B6C8", "#1A1A1A", "#5A5A5A", "#FFF4B6C8", "#5CA8E6CF"}};
 
     static final int BG = 0, KEY = 1, FN = 2, INK = 3, MUTED = 4, ACCENT = 5;
 
