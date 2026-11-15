@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 90 = build-112** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 91 = build-114** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -324,6 +324,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   - AI tidy kept only a leading space of the spoken text; a leading full stop / other head is now kept as it is (`head` in `tidyApply`). Her dictated message showed
     "stoppedAnd" and "removing.fter" (lost space / letter at a round boundary): cause NOT found, watch for it.
   - Wrong words from the speech engine ("pause" → "cause", "pauE"): that is the phone's engine, not Bolchi; the AI fix (hold Speak) repairs some. Told her.
+- Version 91 (Tara: "in Bengali typing it's unable to pick English words"): on the ab→বাং / ab→हिं rows (`paintCands`) English words for the typed letters now stand
+  right after the first Bangla / Hindi word: the word itself when it is in the dictionary, else its corrected spelling (`Words.fix`), plus the likeliest longer word
+  (`Words.dictCompletions`); the row is capped at 6 + the raw letters. Space still takes the FIRST (Bangla / Hindi) word. Not shown for Banglish words (`Words.isDesi`).
+  If she meant that space should write the English word by itself, ask first: on the Bangla tab "office" is normally wanted as অফিস.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

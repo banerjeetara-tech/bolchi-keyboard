@@ -2074,7 +2074,19 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             String shown = Words.matchCase(phon.toString(), o);
             if (!show.contains(shown)) { show.add(shown); added++; }
         }
-        show.add(phon.toString());
+        // English words for the same letters, right after the first Bangla / Hindi word: the word itself when it is English ("office"),
+        // else its corrected spelling ("offce"), and the likeliest longer word ("off" -> "office"). So an English word can be picked without changing tab.
+        String raw = phon.toString();
+        if (Words.ready && raw.length() >= 2 && !Words.isDesi(raw)) {
+            List<String> en = new ArrayList<>();
+            if (Words.inDictionary(raw)) en.add(raw);
+            else { String fx = Words.fix(raw); if (fx != null) en.add(fx); }
+            if (raw.length() >= 3) for (String d : Words.dictCompletions(raw, 1)) { String m = Words.matchCase(raw, d); if (!en.contains(m)) en.add(m); }
+            int at = Math.min(1, show.size());
+            for (String e : en) if (!show.contains(e)) show.add(at++, e);
+            while (show.size() > 6) show.remove(show.size() - 1);       // keep the row readable: the English words stay, extra Bangla / Hindi guesses go
+        }
+        if (!show.contains(raw)) show.add(raw);
         for (int i = 0; i < show.size(); i++) {
             final String c = show.get(i);
             boolean top = i == 0;
