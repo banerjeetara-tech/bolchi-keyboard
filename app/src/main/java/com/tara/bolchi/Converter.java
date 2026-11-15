@@ -304,6 +304,39 @@ final class Converter {
         return false;
     }
 
+    /** True when the piece just typed is one amount of money: "10rs", "₹500", "$20", "50usd", "5lakh". */
+    static boolean isMoney(String token) {
+        Matcher m = AMOUNT.matcher(FontStyles.plain(token));
+        if (!m.matches()) return false;
+        String mult = g(m, 3);
+        return currencyOf(g(m, 1), g(m, 4)) != null || (g(m, 1).isEmpty() && g(m, 4).isEmpty() && (mult.startsWith("la") || mult.startsWith("cr")));
+    }
+
+    /** The typed amount in other money, with signs: rupees give $ € £; anything else gives ₹ first. Null when it is not money or a rate is missing. */
+    static String[] money(String token, JSONObject rates) {
+        Matcher m = AMOUNT.matcher(FontStyles.plain(token));
+        if (rates == null || !m.matches()) return null;
+        String cur = currencyOf(g(m, 1), g(m, 4));
+        if (cur == null) cur = "INR";
+        double v;
+        try { v = amount(m.group(2), g(m, 3)); } catch (Exception e) { return null; }
+        double from = cur.equals("USD") ? 1 : rates.optDouble(cur, 0);
+        if (from <= 0) return null;
+        String[] to = cur.equals("INR") ? new String[]{"USD", "EUR", "GBP"} : cur.equals("USD") ? new String[]{"INR", "EUR", "GBP"}
+                : new String[]{"INR", "USD", cur.equals("EUR") ? "GBP" : "EUR"};
+        String[] out = new String[3];
+        for (int i = 0; i < 3; i++) {
+            double t = to[i].equals("USD") ? 1 : rates.optDouble(to[i], 0);
+            out[i] = t <= 0 ? "" : sign(to[i]) + n(v / from * t);
+        }
+        return out[0].isEmpty() ? null : out;
+    }
+
+    /** The rates if they are already here (no waiting); null when they still have to be fetched. */
+    static JSONObject ratesNow() {
+        return ratesKept != null && System.currentTimeMillis() - ratesAt < 6 * 3600 * 1000L ? ratesKept : null;
+    }
+
     private static String currencyOf(String sym, String unit) {
         if (unit.equals("usd") || unit.startsWith("dollar")) return "USD";
         if (unit.equals("eur") || unit.startsWith("euro")) return "EUR";
@@ -358,8 +391,8 @@ final class Converter {
         return null;
     }
 
-    private static JSONObject ratesKept;
-    private static long ratesAt;
+    private static volatile JSONObject ratesKept;
+    private static volatile long ratesAt;
 
     /** Today's rates against USD from a free service (no key needed). Three services are tried; the answer is kept for 6 hours. */
     static synchronized JSONObject usdRates() throws Exception {

@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 83 = build-97** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 84 = build-100** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -280,6 +280,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
     "5 lakh", "2 crore", "50k", "kms", "30 degree" and digits typed in a font were not understood; the single rate service (open.er-api.com) had no fallback.
     Now all of those are read, rates try three services (`usdRates`: er-api, frankfurter, jsdelivr currency-api) and are kept 6 hours. A bare "5 in" is no longer inches.
     Tested on a PC with made-up rates; the rate services could not be reached from Claude's workspace, so the two fallbacks are untested.
+- Version 84 (Tara: "suppose i press 10rs it will show 10 dollar if i want to convert, similarly for all other currency available with sign"): an amount of money typed
+  in one piece on the EN keys ("10rs", "rs10", "₹500", "$20", "50usd", "20eur", "100aed", "5lakh"; `Converter.isMoney` on `token`) fills the word row with the same
+  amount in other money (`Converter.money`, `slotMoney`): rupees → $ (bold, middle) € £; anything else → ₹ (middle) first. A tap REPLACES the typed amount with the tapped
+  one (her word was "convert"; the calculator appends instead, so ask if she wanted "10rs = $0.11"). Rates come in the background (`fetchRatesSoon`, at most one try a
+  minute, kept 6 hours), so the first time the row appears a moment late and needs internet. Not tested on a phone.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

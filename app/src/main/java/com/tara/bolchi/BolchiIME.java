@@ -1038,6 +1038,21 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 }
             }
         }
+        // an amount of money typed in one piece ("10rs", "$20", "50usd"): the same amount in other money, with signs. Tap one to swap it in.
+        slotMoney = false;
+        if (!plainField && !uriBox && token.length() >= 2 && Converter.isMoney(token.toString())) {
+            String[] mv = Converter.money(token.toString(), Converter.ratesNow());
+            if (mv == null) fetchRatesSoon();
+            else {
+                v[1] = mv[0]; v[0] = mv[1]; v[2] = mv[2];
+                slotMoney = true;
+                bold = true;
+                sugKeepsTyped = false;
+                for (int i = 0; i < 3; i++) slotFix[i] = slotUndo[i] = slotCalc[i] = slotDate[i] = slotEmoji[i] = slotNext[i] = false;
+                if (contactScroll != null) contactScroll.setVisibility(View.GONE);
+                sugRow.setVisibility(View.VISIBLE);
+            }
+        }
         for (int i = 0; i < 3; i++) {
             sugVal[i] = v[i];
             String show = i == 0 && (sugKeepsTyped || slotFix[0]) && !slotUndo[0] ? "\u201C" + v[i] + "\u201D" : v[i];
@@ -1046,7 +1061,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         // a date, the time or a sum is showing in the word row: GIFs must not cover it
         // (after an auto-correct the GIF row carries the two choices itself: her word and the corrected word come first in it)
-        maybeGifs(slotDate[2] || slotCalc[1] || uriBox || sugKeepsTyped || slotUndo[0] ? "" : ew);
+        maybeGifs(slotMoney || slotDate[2] || slotCalc[1] || uriBox || sugKeepsTyped || slotUndo[0] ? "" : ew);
     }
 
     private static final String[] DATE_WORDS = {"today", "tomorrow", "yesterday", "date", "now", "time"};
@@ -1101,6 +1116,22 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
+        if (slotMoney) {
+            // "10rs" becomes the amount she tapped, e.g. "$0.11"
+            if (val.isEmpty() || ic == null) return;
+            String typed = shown(token.toString());
+            CharSequence b = ic.getTextBeforeCursor(typed.length(), 0);
+            ic.beginBatchEdit();
+            if (b != null && b.toString().equals(typed)) ic.deleteSurroundingText(typed.length(), 0);
+            else ic.commitText(" ", 1);
+            ic.commitText(val + " ", 1);
+            ic.endBatchEdit();
+            token.setLength(0);
+            numTyped.setLength(0);
+            resetWord();
+            paintSugs();
+            return;
+        }
         if (slotUndo[i]) {
             if (ic != null && deletedBuf.length() > 0) ic.commitText(deletedBuf.toString(), 1);
             deletedBuf.setLength(0);
@@ -1477,6 +1508,21 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String[] myNumbers = new String[0];
     private volatile String[] meNumbers = new String[0];
     private boolean calcHasEq;                                 // the sum in the text already ends with "="
+    private boolean slotMoney;                                // the word row holds a typed amount of money in other currencies
+    private long ratesAskedAt;
+
+    /** Fetches today's currency rates in the background (at most once a minute), then paints the word row again. */
+    private void fetchRatesSoon() {
+        if (System.currentTimeMillis() - ratesAskedAt < 60 * 1000L) return;
+        ratesAskedAt = System.currentTimeMillis();
+        new Thread(new Runnable() { @Override public void run() {
+            try {
+                Converter.usdRates();
+                handler.post(new Runnable() { @Override public void run() { try { paintSugs(); } catch (Exception ex) { saveProblem(ex); } } });
+            } catch (Throwable ignored) { /* no internet: no money row this time */ }
+        } }).start();
+    }
+
     private final boolean[] slotCalc = new boolean[3];        // this slot holds the answer of the sum just typed
     private final boolean[] slotDate = new boolean[3];        // this slot holds today's date / the time
     private final boolean[] slotNum = new boolean[3];
