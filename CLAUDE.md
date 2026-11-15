@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 91 = build-114** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 92 = build-116** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -329,6 +329,18 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (`Words.dictCompletions`); the row is capped at 6 + the raw letters. Space still takes the FIRST (Bangla / Hindi) word. Not shown for Banglish words (`Words.isDesi`).
   Also in 91: "wat", "hav", "coz" are corrected again (an old line had taken them out of `FIXED`; they are in `Words.SHORT` now, so after Banglish they are only offered).
   If she meant that space should write the English word by itself, ask first: on the Bangla tab "office" is normally wanted as অফিস.
+- Version 92 (Tara: "this English to Bangla I meant for both typing and speaking"; "it is still taking pause immediately and not removing if I start speaking again";
+  "very poor, like something cheap"):
+  - Speaking on the Bangla chip: `Translit` got about 400 more English words as the Bengali engine writes them (`LOAN`), and Bengali endings on them are split off
+    (`ENDS`: "অফিসের" → "office er", "মিটিংটা" → "meeting ta", "ফাইলগুলো" → "file gulo"). Words not in the list still come out by sound; only the AI fix repairs those.
+    Never match by sound alone: Bengali words collide with English ones (pore, kore, more, boi).
+  - Typing on the Bangla / Hindi tab: a usual English word of 5+ letters that is not Banglish (`Words.clearlyEnglish`: office, meeting, please, report) goes FIRST in the
+    row and space writes it in English; shorter or doubtful words are still only offered second.
+  - Voice full stop, again: the likely source of the IMMEDIATE full stop was the AI fix (on for her), which closed every stretch with a full stop about a second after
+    each pause. `tidyApply` now strips a final full stop the AI adds while she is still listening. The silence timer is 3 s after the round ends (about 5 s of silence),
+    and a full stop the timer wrote is deleted again if she speaks within 15 s (`autoDot`). Stop still writes it. If full stops STILL come at once, the phone's speech
+    engine is writing them itself (then strip a trailing "." from the engine text in `onResults`); ask which chip was dark and whether the AI fix was on.
+  - She is unhappy with the quality (many builds, nothing verified on her phone). Fewer, checked changes; ask for a short screen recording when a report is unclear.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

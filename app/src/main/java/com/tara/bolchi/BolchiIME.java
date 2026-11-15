@@ -1990,6 +1990,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         InputConnection ic = getCurrentInputConnection();
         String word = phon.toString();
         String out = useSuggestion && word.equals(candFor) && !cands.isEmpty() ? cands.get(0) : word;
+        if (useSuggestion && Words.ready && Words.clearlyEnglish(word)) out = word;      // "office", "meeting", "please": an English word stays English
         phon.setLength(0);
         cands = new ArrayList<>();
         candFor = "";
@@ -2082,7 +2083,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (Words.inDictionary(raw)) en.add(raw);
             else { String fx = Words.fix(raw); if (fx != null) en.add(fx); }
             if (raw.length() >= 3) for (String d : Words.dictCompletions(raw, 1)) { String m = Words.matchCase(raw, d); if (!en.contains(m)) en.add(m); }
-            int at = Math.min(1, show.size());
+            int at = Words.clearlyEnglish(raw) ? 0 : Math.min(1, show.size());      // a clear English word goes first: space writes it
             for (String e : en) if (!show.contains(e)) show.add(at++, e);
             while (show.size() > 6) show.remove(show.size() - 1);       // keep the row readable: the English words stay, extra Bangla / Hindi guesses go
         }
@@ -3340,6 +3341,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (ic != null) ic.finishComposingText();
             if (composing) spokenAll.append(lastPartial);
             else if (stopDue && ic != null) endSentence();      // Stop pressed: the last sentence gets its full stop now
+            autoDot = false;
         }
         handler.removeCallbacks(writeStop);
         stopDue = false;
@@ -3391,6 +3393,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         CharSequence b = ic.getTextBeforeCursor(all.length(), 0);
         if (b == null || !b.toString().equals(all)) { spokenAll.setLength(0); return; }   // she edited by hand: leave it
         String head = said.substring(0, said.length() - said.replaceFirst("^[\\s.\u0964]+", "").length());     // the space / full stop before the first word stays
+        // While she is still speaking, the AI must not close the text with a full stop of its own: the last sentence may not be finished.
+        // (Stops inside the text, ? and ! stay. The end gets its stop from the silence timer or the Stop button.)
+        if (listening && out.length() > 1 && (out.endsWith(".") || out.endsWith("\u0964")) && !said.endsWith(".") && !said.endsWith("\u0964"))
+            out = out.substring(0, out.length() - 1);
         String clean = head + out;
         String neu = clean + all.substring(said.length());
         if (!neu.equals(all)) {
@@ -3431,25 +3437,40 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         @Override public void run() {
             if (!listening || !stopDue || composing) return;
             stopDue = false;
-            try { endSentence(); } catch (Exception ex) { saveProblem(ex); }
+            try { autoDot = endSentence(); autoDotAt = System.currentTimeMillis(); } catch (Exception ex) { saveProblem(ex); }
         }
     };
 
-    private void endSentence() {
+    private boolean autoDot;      // the timer wrote a full stop by itself: it is taken away again if she carries on speaking soon
+    private long autoDotAt;
+
+    private boolean endSentence() {
         InputConnection ic = getCurrentInputConnection();
-        if (ic == null) return;
+        if (ic == null) return false;
         CharSequence b = ic.getTextBeforeCursor(1, 0);
         char c = b == null || b.length() == 0 ? ' ' : b.charAt(0);
-        if (!Character.isLetterOrDigit(c)) return;
+        if (!Character.isLetterOrDigit(c)) return false;
         String dot = c >= '\u0900' && c <= '\u09FF' ? "\u0964" : ".";
         ic.commitText(dot, 1);
         spokenAll.append(dot);
+        return true;
     }
 
     /** What goes before a new spoken stretch (a space). She is speaking again, so the stretch before it is not closed with a full stop any more. */
     private String newLead() {
         handler.removeCallbacks(writeStop);
         stopDue = false;
+        if (autoDot && System.currentTimeMillis() - autoDotAt < 15000) {
+            // she carries on speaking: the full stop the timer wrote was only a pause to think, so it goes again
+            InputConnection ic = getCurrentInputConnection();
+            CharSequence b = ic == null ? null : ic.getTextBeforeCursor(1, 0);
+            if (b != null && b.length() == 1 && (b.charAt(0) == '.' || b.charAt(0) == '\u0964')) {
+                ic.deleteSurroundingText(1, 0);
+                int n = spokenAll.length();
+                if (n > 0 && (spokenAll.charAt(n - 1) == '.' || spokenAll.charAt(n - 1) == '\u0964')) spokenAll.setLength(n - 1);
+            }
+        }
+        autoDot = false;
         return lead();
     }
 
@@ -3497,7 +3518,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 stopDue = Spoken.wantsStop(said);
                 roundEndAt = System.currentTimeMillis();
                 handler.removeCallbacks(writeStop);
-                if (stopDue) handler.postDelayed(writeStop, 1500);
+                if (stopDue) handler.postDelayed(writeStop, 3000);
                 ic.setComposingText(roundLead + said, 1);
                 spokenAll.append(roundLead).append(said);
             }

@@ -409,6 +409,15 @@ public final class Words {
         return false;
     }
 
+    /** True for a usual English word of 5+ letters that is not also Bangla / Hindi: on the Bangla / Hindi tab such a word is meant as English. */
+    public static boolean clearlyEnglish(String w) {
+        if (w == null || w.length() < 5) return false;
+        String l = w.toLowerCase(Locale.ROOT);
+        Integer r = rank.get(l);
+        // "office", "phone" sit in the protected list too, but they are English first (a usual dictionary word)
+        return r != null && r < (DESI.contains(l) ? 4000 : 10000) && !looksBanglish(l);
+    }
+
     /** True for an ordinary English dictionary word (names and her own words are not). */
     public static boolean inDictionary(String w) {
         return w != null && rank.containsKey(w.toLowerCase(Locale.ROOT));
