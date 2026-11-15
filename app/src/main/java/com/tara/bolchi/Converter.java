@@ -256,22 +256,36 @@ final class Converter {
 
     // ---------- units and currency ----------
     private static final Pattern AMOUNT = Pattern.compile(
-            "(?i)(₹|rs\\.?|\\$|€|£)?\\s*(\\d+(?:[.,]\\d+)?)\\s*(kgs?|kilos?|kilograms?|lbs?|pounds?|grams?|gms?|g|oz|ounces?|"
-                    + "km|kilometers?|kilometres?|miles?|mi|meters?|metres?|m|ft|feet|foot|cm|inch(?:es)?|in|"
-                    + "litres?|liters?|l|ml|gallons?|gal|°?c|°?f|celsius|fahrenheit|"
-                    + "inr|rupees?|usd|dollars?|eur|euros?|gbp|aed|dirhams?)?\\b");
+            "(?i)(₹|rs\\.?|inr|usd|\\$|€|£)?\\s*(\\d+(?:,\\d+)*(?:\\.\\d+)?)\\s*(k(?![a-z])|lakhs?|lacs?|crores?|cr(?![a-z]))?\\s*"
+                    + "(kgs?|kilos?|kilograms?|lbs?|pounds?|grams?|gms?|g|oz|ounces?|"
+                    + "kms?|kilometers?|kilometres?|miles?|mi|meters?|metres?|m|ft|feet|foot|cms?|inch(?:es)?|"
+                    + "litres?|liters?|l|ml|gallons?|gal|°?c|°?f|celsius|fahrenheit|degrees?|"
+                    + "inr|rupees?|rs\\.?|/-|usd|dollars?|eur|euros?|gbp|aed|dirhams?)?(?![A-Za-z])");
 
-    /** Returns one line per amount found, e.g. "5 kg = 11.02 lb". needsRates is filled if currency was found. */
+    /** The number as written: 1,500 and 1,00,000 are thousands; 5,5 is five and a half; k / lakh / crore multiply. */
+    private static double amount(String num, String mult) {
+        String t = num.matches("\\d+,\\d{1,2}") ? num.replace(',', '.') : num.replace(",", "");
+        double v = Double.parseDouble(t);
+        String x = mult == null ? "" : mult.toLowerCase(Locale.ROOT);
+        if (x.equals("k")) v *= 1000;
+        else if (x.startsWith("la")) v *= 100000;
+        else if (x.startsWith("cr")) v *= 10000000;
+        return v;
+    }
+
+    private static String g(Matcher m, int i) { return m.group(i) == null ? "" : m.group(i).toLowerCase(Locale.ROOT); }
+
+    /** Returns one line per amount found, e.g. "5 kg = 11.02 lb". Currency lines need usdRates. */
     static String units(String text, JSONObject usdRates) {
-        Matcher m = AMOUNT.matcher(text);
+        Matcher m = AMOUNT.matcher(FontStyles.plain(text));       // digits typed in a font are still digits
         StringBuilder out = new StringBuilder();
         while (m.find()) {
-            String sym = m.group(1) == null ? "" : m.group(1).toLowerCase(Locale.ROOT);
-            String unit = m.group(3) == null ? "" : m.group(3).toLowerCase(Locale.ROOT).replace("°", "");
-            if (sym.isEmpty() && unit.isEmpty()) continue;
+            String sym = g(m, 1), mult = g(m, 3);
+            String unit = g(m, 4).replace("°", "");
+            if (sym.isEmpty() && unit.isEmpty() && !(mult.startsWith("la") || mult.startsWith("cr"))) continue;
             double v;
-            try { v = Double.parseDouble(m.group(2).replace(",", ".")); } catch (Exception e) { continue; }
-            String line = convertOne(v, sym, unit, usdRates);
+            try { v = amount(m.group(2), mult); } catch (Exception e) { continue; }
+            String line = convertOne(v, sym, unit.isEmpty() && sym.isEmpty() ? "inr" : unit, usdRates);     // "5 lakh" means rupees
             if (line != null) {
                 if (out.length() > 0) out.append(" · ");
                 out.append(line);
@@ -281,17 +295,22 @@ final class Converter {
     }
 
     static boolean hasCurrency(String text) {
-        Matcher m = AMOUNT.matcher(text);
+        Matcher m = AMOUNT.matcher(FontStyles.plain(text));
         while (m.find()) {
-            if (currencyOf(m.group(1) == null ? "" : m.group(1).toLowerCase(Locale.ROOT),
-                    m.group(3) == null ? "" : m.group(3).toLowerCase(Locale.ROOT)) != null) return true;
+            String sym = g(m, 1), mult = g(m, 3), unit = g(m, 4);
+            if (currencyOf(sym, unit) != null) return true;
+            if (sym.isEmpty() && unit.isEmpty() && (mult.startsWith("la") || mult.startsWith("cr"))) return true;
         }
         return false;
     }
 
     private static String currencyOf(String sym, String unit) {
-        if (sym.equals("₹") || sym.startsWith("rs") || unit.equals("inr") || unit.startsWith("rupee")) return "INR";
-        if (sym.equals("$") || unit.equals("usd") || unit.startsWith("dollar")) return "USD";
+        if (unit.equals("usd") || unit.startsWith("dollar")) return "USD";
+        if (unit.equals("eur") || unit.startsWith("euro")) return "EUR";
+        if (unit.equals("gbp")) return "GBP";
+        if (unit.equals("aed") || unit.startsWith("dirham")) return "AED";
+        if (sym.equals("₹") || sym.startsWith("rs") || sym.equals("inr") || unit.equals("inr") || unit.startsWith("rupee") || unit.startsWith("rs") || unit.equals("/-")) return "INR";
+        if (sym.equals("$") || sym.equals("usd")) return "USD";
         if (sym.equals("€") || unit.equals("eur") || unit.startsWith("euro")) return "EUR";
         if (sym.equals("£") || unit.equals("gbp")) return "GBP";
         if (unit.equals("aed") || unit.startsWith("dirham")) return "AED";
@@ -325,31 +344,51 @@ final class Converter {
         if (unit.matches("lbs?|pounds?")) return n(v) + " lb = " + n(v / 2.20462) + " kg";
         if (unit.matches("grams?|gms?|g")) return n(v) + " g = " + n(v / 28.3495) + " oz";
         if (unit.matches("oz|ounces?")) return n(v) + " oz = " + n(v * 28.3495) + " g";
-        if (unit.matches("km|kilometers?|kilometres?")) return n(v) + " km = " + n(v / 1.60934) + " miles";
+        if (unit.matches("kms?|kilometers?|kilometres?")) return n(v) + " km = " + n(v / 1.60934) + " miles";
         if (unit.matches("miles?|mi")) return n(v) + " miles = " + n(v * 1.60934) + " km";
         if (unit.matches("meters?|metres?|m")) return n(v) + " m = " + n(v * 3.28084) + " ft";
         if (unit.matches("ft|feet|foot")) return n(v) + " ft = " + n(v / 3.28084) + " m";
-        if (unit.equals("cm")) return n(v) + " cm = " + n(v / 2.54) + " in";
+        if (unit.matches("cms?")) return n(v) + " cm = " + n(v / 2.54) + " in";
         if (unit.matches("inch(?:es)?|in")) return n(v) + " in = " + n(v * 2.54) + " cm";
         if (unit.matches("litres?|liters?|l")) return n(v) + " L = " + n(v / 3.78541) + " gal";
         if (unit.equals("ml")) return n(v) + " ml = " + n(v / 29.5735) + " fl oz";
         if (unit.matches("gallons?|gal")) return n(v) + " gal = " + n(v * 3.78541) + " L";
-        if (unit.matches("c|celsius")) return n(v) + " °C = " + n(v * 9 / 5 + 32) + " °F";
+        if (unit.matches("c|celsius|degrees?")) return n(v) + " °C = " + n(v * 9 / 5 + 32) + " °F";
         if (unit.matches("f|fahrenheit")) return n(v) + " °F = " + n((v - 32) * 5 / 9) + " °C";
         return null;
     }
 
-    /** Today's rates against USD from a free service (no key needed). */
-    static JSONObject usdRates() throws Exception {
-        HttpURLConnection c = (HttpURLConnection) new URL("https://open.er-api.com/v6/latest/USD").openConnection();
-        c.setConnectTimeout(10000);
-        c.setReadTimeout(15000);
-        int code = c.getResponseCode();
-        if (code != 200) throw new UserMessage("Couldn't get today's currency rates");
-        JSONObject j = new JSONObject(read(c.getInputStream()));
-        JSONObject r = j.optJSONObject("rates");
-        if (r == null) throw new UserMessage("Couldn't get today's currency rates");
-        return r;
+    private static JSONObject ratesKept;
+    private static long ratesAt;
+
+    /** Today's rates against USD from a free service (no key needed). Three services are tried; the answer is kept for 6 hours. */
+    static synchronized JSONObject usdRates() throws Exception {
+        if (ratesKept != null && System.currentTimeMillis() - ratesAt < 6 * 3600 * 1000L) return ratesKept;
+        String[] urls = {"https://open.er-api.com/v6/latest/USD", "https://api.frankfurter.app/latest?from=USD",
+                "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json"};
+        for (String u : urls) {
+            try {
+                HttpURLConnection c = (HttpURLConnection) new URL(u).openConnection();
+                c.setConnectTimeout(6000);
+                c.setReadTimeout(10000);
+                if (c.getResponseCode() != 200) continue;
+                JSONObject j = new JSONObject(read(c.getInputStream()));
+                JSONObject r = j.optJSONObject("rates");
+                if (r == null) {
+                    JSONObject low = j.optJSONObject("usd");        // third service: {"usd": {"inr": 88.1, ...}}
+                    if (low == null) continue;
+                    r = new JSONObject();
+                    for (String k : new String[]{"inr", "eur", "gbp", "aed"}) r.put(k.toUpperCase(Locale.ROOT), low.optDouble(k, 0));
+                }
+                if (r.optDouble("INR", 0) <= 0) continue;
+                ratesKept = r;
+                ratesAt = System.currentTimeMillis();
+                return r;
+            } catch (UserMessage um) { throw um;
+            } catch (Exception next) { /* try the next service */ }
+        }
+        if (ratesKept != null) return ratesKept;             // older rates are better than nothing
+        throw new UserMessage("Couldn't get today's currency rates. Check the internet and try again");
     }
 
     private static String read(InputStream in) throws Exception {

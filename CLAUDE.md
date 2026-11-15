@@ -276,6 +276,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
     (key, limit, error type), shows which copied text it is answering, and a ⚠ note is no longer typed into the box when tapped. Ask for a screenshot of the ⚠ line.
   - Emoji search (🔍 tab): no fault found (`EmojiHints.search` works on a PC); only the hint text changed. NOT fixed: ask what she sees after tapping 🔍
     (does the "🔍 type a word" chip appear above the keys?) or whether she meant emoji suggestions while typing a word.
+  - Units and currency (Tara: "also not working", no example given). Gaps found in `Converter.units`: "500 rs", "500/-", "1,500" (read as 1.5), "₹1,00,000",
+    "5 lakh", "2 crore", "50k", "kms", "30 degree" and digits typed in a font were not understood; the single rate service (open.er-api.com) had no fallback.
+    Now all of those are read, rates try three services (`usdRates`: er-api, frankfurter, jsdelivr currency-api) and are kept 6 hours. A bare "5 in" is no longer inches.
+    Tested on a PC with made-up rates; the rate services could not be reached from Claude's workspace, so the two fallbacks are untested.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
