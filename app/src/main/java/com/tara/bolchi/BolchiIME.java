@@ -484,7 +484,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String tn = p.getString("themeName", null);
         if (tn == null && theme >= 0 && theme < Themes.OLD.length) tn = Themes.OLD[theme];
         int at = tn == null ? -1 : Themes.indexOf(tn);
-        theme = at >= 0 ? at : 0;
+        theme = at >= 0 ? at : tn != null && Themes.indexOf("Mint") >= 0 ? Themes.indexOf("Mint") : 0;      // a theme that was taken out again: a light one, not black
         loadColors();
 
         LinearLayout root = new LinearLayout(this);
@@ -3130,9 +3130,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 g.setColor(Themes.color(idx, Themes.BG));
                 if (Themes.combo(idx)) {
                     // a colourful combination: the square shows its colours side by side
-                    int nr = Themes.numberRow(idx), k = Themes.color(idx, Themes.KEY), f = Themes.color(idx, Themes.FN);
+                    int bg0 = Themes.color(idx, Themes.BG), f = Themes.color(idx, Themes.FN), nr = Themes.numberRow(idx);
                     g.setOrientation(GradientDrawable.Orientation.LEFT_RIGHT);
-                    g.setColors(nr == k ? new int[]{k, k, f, f} : new int[]{nr, nr, k, k, f, f});
+                    g.setColors(nr == Themes.color(idx, Themes.KEY) ? new int[]{bg0, bg0, f, f} : new int[]{nr, nr, bg0, bg0, f, f});
                 }
                 g.setCornerRadius(dp(10));
                 g.setStroke(dp(cur ? 4 : 3), cur ? Themes.color(idx, Themes.INK) : Themes.color(idx, Themes.ACCENT));
@@ -3327,17 +3327,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             InputConnection ic = getCurrentInputConnection();
             if (ic != null) ic.finishComposingText();
             if (composing) spokenAll.append(lastPartial);
-            else if (stopDue && ic != null) {
-                // Stop pressed: the last sentence gets its full stop now
-                CharSequence b = ic.getTextBeforeCursor(1, 0);
-                char c = b == null || b.length() == 0 ? ' ' : b.charAt(0);
-                if (Character.isLetterOrDigit(c)) {
-                    String dot = c >= '\u0900' && c <= '\u09FF' ? "\u0964" : ".";
-                    ic.commitText(dot, 1);
-                    spokenAll.append(dot);
-                }
-            }
+            else if (stopDue && ic != null) endSentence();      // Stop pressed: the last sentence gets its full stop now
         }
+        handler.removeCallbacks(writeStop);
         stopDue = false;
         composing = false;
         lastPartial = "";
@@ -3359,7 +3351,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final int job = tidyJob;
         new Thread(new Runnable() { @Override public void run() {
             String got;
-            try { got = Converter.tidy(said.trim(), key); } catch (Throwable t) { got = null; }
+            try { got = Converter.tidy(said.replaceFirst("^[\\s.\u0964]+", "").trim(), key); } catch (Throwable t) { got = null; }
             final String out = got;
             handler.post(new Runnable() { @Override public void run() {
                 tidyBusy = false;
@@ -3386,7 +3378,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (ic == null || !all.startsWith(said)) return;
         CharSequence b = ic.getTextBeforeCursor(all.length(), 0);
         if (b == null || !b.toString().equals(all)) { spokenAll.setLength(0); return; }   // she edited by hand: leave it
-        String clean = (said.startsWith(" ") ? " " : "") + out;
+        String head = said.substring(0, said.length() - said.replaceFirst("^[\\s.\u0964]+", "").length());     // the space / full stop before the first word stays
+        String clean = head + out;
         String neu = clean + all.substring(said.length());
         if (!neu.equals(all)) {
             ic.beginBatchEdit();
@@ -3418,17 +3411,34 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private boolean stopDue;      // the last spoken stretch looks like a whole sentence but has no full stop yet
     private long roundEndAt;
 
-    /** What goes before a new spoken stretch: a space, and first the full stop the stretch before it was still owed when the silence was long. */
-    private String newLead() {
-        String l = lead();
-        boolean due = stopDue && !l.isEmpty() && System.currentTimeMillis() - roundEndAt > 2000;
-        stopDue = false;
-        if (!due) return l;
+    /**
+     * The full stop of a spoken sentence. It is written by itself when she has stayed silent for about 3.5 seconds (the 2 seconds that end a
+     * listening round plus this wait). If she speaks again sooner, the pause was only a pause and no stop is written.
+     */
+    private final Runnable writeStop = new Runnable() {
+        @Override public void run() {
+            if (!listening || !stopDue || composing) return;
+            stopDue = false;
+            try { endSentence(); } catch (Exception ex) { saveProblem(ex); }
+        }
+    };
+
+    private void endSentence() {
         InputConnection ic = getCurrentInputConnection();
-        CharSequence b = ic == null ? null : ic.getTextBeforeCursor(1, 0);
+        if (ic == null) return;
+        CharSequence b = ic.getTextBeforeCursor(1, 0);
         char c = b == null || b.length() == 0 ? ' ' : b.charAt(0);
-        if (".?!,;:\u0964".indexOf(c) >= 0) return l;
-        return (c >= '\u0900' && c <= '\u09FF' ? "\u0964" : ".") + l;
+        if (!Character.isLetterOrDigit(c)) return;
+        String dot = c >= '\u0900' && c <= '\u09FF' ? "\u0964" : ".";
+        ic.commitText(dot, 1);
+        spokenAll.append(dot);
+    }
+
+    /** What goes before a new spoken stretch (a space). She is speaking again, so the stretch before it is not closed with a full stop any more. */
+    private String newLead() {
+        handler.removeCallbacks(writeStop);
+        stopDue = false;
+        return lead();
     }
 
     private String lead() {
@@ -3458,15 +3468,24 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         hushBeep();
         String heard = first(results);
         if (mode == MODE_EN) heard = Spoken.fix(heard);   // Bangla/Hindi speech is written exactly as heard
+        heard = Spoken.dedupe(heard, mode == MODE_EN);     // "I have I have stopped": what was said twice in a row is written once
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) {
             if (!heard.isEmpty()) {
                 if (!composing) roundLead = newLead();
+                // she paused and then repeated her last words: they are not written a second time
+                CharSequence tail = ic.getTextBeforeCursor(60, 0);
+                if (tail != null && !composing) {
+                    String cut = Spoken.dropRepeat(tail.toString(), heard, mode == MODE_EN);
+                    if (!cut.isEmpty()) heard = cut;
+                }
                 // ? or ! from how the sentence is built. A full stop is NOT added at every pause (she often pauses to think in the middle of a sentence):
                 // it comes only when she stays silent for long before speaking again, or presses Stop.
                 String said = Spoken.punctuate(convert(heard), false);
                 stopDue = Spoken.wantsStop(said);
                 roundEndAt = System.currentTimeMillis();
+                handler.removeCallbacks(writeStop);
+                if (stopDue) handler.postDelayed(writeStop, 1500);
                 ic.setComposingText(roundLead + said, 1);
                 spokenAll.append(roundLead).append(said);
             }

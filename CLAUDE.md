@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 89 = build-110** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 90 = build-112** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -25,7 +25,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - `Words.java` — English suggestions + auto-correct (word list in `app/src/main/assets/words.txt`, Banglish/Hinglish words protected).
   `Spoken.java` — voice self-correction ("five no sorry six" → "six", "scratch that").
   `Swipe.java` — gesture typing decoder.
-- `Converter.java` — converter options and all Gemini prompts (tidy, polish, tone, replies). `Themes.java` — 120 themes (20 see-through, 24 Trio / Quad colour combinations). `Emojis.java` — emoji tabs.
+- `Converter.java` — converter options and all Gemini prompts (tidy, polish, tone, replies). `Themes.java` — 116 themes (20 see-through, 20 soft colour combinations). `Emojis.java` — emoji tabs.
 - `EmojiHints.java` — emoji for a typed word (`assets/emoji.txt` + `ALIAS` short forms / Banglish + word endings) and emoji search.
   `Gifs.java` / `GifProvider.java` — Giphy. `FontStyles.java` — Unicode fonts. `Calc.java` — sums typed in the text. `SmsCodeReceiver.java` — SMS codes.
 
@@ -299,10 +299,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   will come to the chat"): ⇄ → "Units and currency" with money in the text now shows a scrolling LIST instead of the result box (`Converter.moneyList`, `LANDS`):
   flag, currency name, country, and today's value for the last amount in the text (27 rows). A tap writes "= value" after her text ("10rs = $0.11") and returns to
   the keys. Rates are fetched first if missing ("Getting today's rates…"; a failure shows the usual ⚠ box with Try again). Text without money still gets the old result box.
-- Version 88 (Tara: "use colour palette with 3 combination, 4 combination, coloured combination"): 24 colourful themes at the end of the list (120 total): 12 "Trio …"
-  (background, letter keys and side keys in three different colours) and 12 "Quad …" (the number row in a fourth colour: a 7th value in the `Themes.HEX` row,
-  `Themes.numberRow`, `keyFill` in `charKey`). All light with dark letters. In the 🎨 grid their square shows the colours side by side (`Themes.combo`).
-  A picture preview was sent with the build (not before it): themes change nothing unless she picks one. Not tested on a phone.
+- Version 88 (Tara: "use colour palette with 3 combination, 4 combination, coloured combination"): 24 bright "Trio" / "Quad" themes were added without a preview and she
+  called them awful; removed in version 90 (see there). What stays from 88: a theme row in `Themes.HEX` may carry a 7th value = number row colour (`Themes.numberRow`,
+  `keyFill` in `charKey`), and `Themes.combo` marks the combination themes in the 🎨 grid.
 - Version 89 (Tara, by voice: "again check the auto correct, it's not working for all which I am typing; and while speaking it is sometimes giving a pause [a full stop]
   if I pause, not necessarily it is a proper pause"). Still no screenshot of the "Last word not corrected" line, and it is not known whether she installed 82+.
   - Auto-correct: a list of 231 real-life mistakes showed the gap: true misspellings were fixed, but chat SHORT FORMS she uses all the time were not (u, ur, r, hv, bt, nd,
@@ -312,6 +311,19 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   - Voice: every recogniser round (about 2 s of silence) ended with a full stop from `Spoken.punctuate`, also when she only paused to think. Now a round gets only ? or !
     (`punctuate(text, false)`); the full stop is owed (`stopDue`, `Spoken.wantsStop`: 3+ words, not ending on a joining word such as and / to / ar / aur) and is written
     only when she speaks again after 2 more seconds of silence (`newLead`) or presses Stop. The AI tidy still punctuates by meaning. Not tested on a phone.
+- Version 90 (Tara, with two screenshots: the soft "Mint" keyboard = "really beautiful", "Quad Festival" = "awful"; by voice: full stop when she stops in between,
+  repeated words stay, the engine writes a different word for what she says):
+  - Themes: the 24 Trio / Quad themes of version 88 are REMOVED (bright keys in clashing colours; never do that again). In their place 20 SOFT combinations in the Mint
+    style: soft background, WHITE keys, side keys in a second soft colour, one strong accent ("Mint & Peach" ... "Pistachio & Plum"); the last 8 ("Mint, Peach & Lemon" ...)
+    give the number row a pale third colour. 116 themes. A saved theme that no longer exists falls back to Mint, not black. Picture sent with the build.
+    Lesson: she judges colour by her Mint keyboard; send the picture BEFORE building colours.
+  - Voice full stop: now written by a timer (`writeStop`, `endSentence`): 1.5 s after a listening round ends with a whole sentence, i.e. about 3.5 s of silence; speaking
+    again sooner cancels it (`newLead`); Stop writes it at once. (Version 89 wrote it only when she spoke again, which she read as "after stopping it is giving the pause".)
+  - Repeats: `Spoken.dedupe` removes a group of 2-5 words said twice in a row in every voice mode, and a single repeated word on the English chip only (Bengali / Hindi
+    double words on purpose: aste aste); `Spoken.dropRepeat` drops the words she repeats after a pause. "very very", "no no" stay.
+  - AI tidy kept only a leading space of the spoken text; a leading full stop / other head is now kept as it is (`head` in `tidyApply`). Her dictated message showed
+    "stoppedAnd" and "removing.fter" (lost space / letter at a round boundary): cause NOT found, watch for it.
+  - Wrong words from the speech engine ("pause" → "cause", "pauE"): that is the phone's engine, not Bolchi; the AI fix (hold Speak) repairs some. Told her.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

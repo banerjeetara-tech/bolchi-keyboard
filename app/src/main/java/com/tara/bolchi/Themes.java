@@ -23,9 +23,10 @@ final class Themes {
             // see-through ("glass") themes: the colours carry an alpha value, so the app shows through the keyboard
             "Glass Clear", "Glass Rose", "Glass Peach", "Glass Lemon", "Glass Mint", "Glass Aqua", "Glass Sky", "Glass Lavender", "Glass Lilac", "Glass Blush",
             "Glass Sand", "Glass Coral", "Glass Sage", "Glass Pearl", "Glass Sunrise", "Glass Ocean", "Glass Smoke", "Glass Navy", "Glass Plum", "Glass Forest",
-            // colourful combinations: Trio = background + letter keys + side keys in three colours; Quad = the number row in a fourth colour
-            "Trio Candy", "Trio Citrus", "Trio Ocean", "Trio Sunset", "Trio Garden", "Trio Grape", "Trio Tropical", "Trio Berry", "Trio Sky", "Trio Peacock", "Trio Flamingo", "Trio Lemon Berry",
-            "Quad Rainbow", "Quad Fiesta", "Quad Festival", "Quad Carnival", "Quad Holi", "Quad Peacock", "Quad Sherbet", "Quad Bouquet", "Quad Beach", "Quad Mela", "Quad Orchid", "Quad Mango"};
+            // soft colour combinations in the style of "Mint" (white keys): background + side keys + accent in different colours;
+            // the last eight give the number row a soft colour of its own
+            "Mint & Peach", "Rose & Sage", "Lavender & Lemon", "Sky & Blush", "Peach & Teal", "Lilac & Mint", "Cream & Rose", "Seafoam & Coral", "Butter & Lavender", "Ice & Gold",
+            "Blush & Navy", "Pistachio & Plum", "Mint, Peach & Lemon", "Rose, Sky & Cream", "Lavender, Mint & Blush", "Sky, Lemon & Rose", "Peach, Lilac & Mint", "Seafoam, Butter & Coral", "Lilac, Sky & Lemon", "Cream, Sage & Rose"};
 
     /** The list of the earlier build (43 themes), only to keep the theme she already picked when the list changes. */
     static final String[] OLD = {
@@ -136,31 +137,27 @@ final class Themes {
             {"#380A1E46", "#6B0A1E46", "#9410285A", "#FFFFFF", "#C8D4EC", "#FF8A6C"},
             {"#383A1040", "#6B3A1040", "#944A1852", "#FFFFFF", "#E4CCE8", "#FFB48A"},
             {"#380C3220", "#6B0C3220", "#94124028", "#FFFFFF", "#CCE4D6", "#F0D060"},
-            // Trio (3 colours) and Quad (4 colours: the 7th value is the number row)
-            {"#FFF0F5", "#FFB3D1", "#8FE3F0", "#3A1030", "#8A5A78", "#E0408A"},
-            {"#FFF9E0", "#FFD54F", "#A5E88A", "#3A3000", "#8A7A3A", "#F08A00"},
-            {"#E8F7FF", "#8FD3FF", "#7FE8D0", "#06304A", "#4A7088", "#0A8AD0"},
-            {"#FFF1E6", "#FFB37A", "#FF8FB0", "#4A1E0C", "#8A5E4C", "#F0503C"},
-            {"#F2FBE8", "#B6E87A", "#FFC0D8", "#20380C", "#60784C", "#5AA81C"},
-            {"#F6EEFF", "#C9A8FF", "#FFD27A", "#2A1050", "#6A5890", "#7A3CE0"},
-            {"#E6FFF8", "#7FE8C8", "#FFB86A", "#08382C", "#48786C", "#0AA880"},
-            {"#FFEFF4", "#FF9FBA", "#B8A8FF", "#4A0C22", "#8A4C62", "#E02C64"},
-            {"#EEF6FF", "#A8CCFF", "#FFE27A", "#0C2850", "#4C6890", "#2C6CE0"},
-            {"#E8FBFB", "#7FDDE0", "#C8F07A", "#06383A", "#46787A", "#0A9AA0"},
-            {"#FFF0EC", "#FFA898", "#8FE0D0", "#4A140C", "#8A544C", "#F04C3C"},
-            {"#FFFBE0", "#FFE66A", "#FFA8C8", "#3A3200", "#7A7240", "#E04C8A"},
-            {"#FFF8EC", "#8FD8FF", "#B8F08A", "#2A2A2A", "#6A6A6A", "#F0503C", "#FFB3C8"},
-            {"#FFF4E0", "#FFD05A", "#FF9FB8", "#3A2000", "#7A6040", "#E0407A", "#8FE0E8"},
-            {"#FFEFF6", "#FFB0D0", "#FFD86A", "#3A1030", "#7A5070", "#E0408A", "#A8E8A0"},
-            {"#EEF4FF", "#A8C8FF", "#FFB88A", "#0C2450", "#4C6490", "#2C6CE0", "#F0A8FF"},
-            {"#F4FFE8", "#C0F08A", "#FFA8D0", "#20380C", "#60784C", "#E0408A", "#8FD0FF"},
-            {"#E6FBF8", "#7FE0D0", "#B8A8FF", "#06382C", "#46786C", "#0AA890", "#FFE06A"},
-            {"#FFF2EA", "#FFC0A0", "#B0E8C0", "#4A200C", "#8A604C", "#F06A3C", "#FFE88A"},
-            {"#FBEFFF", "#E0B0FF", "#A8E8B0", "#341050", "#745890", "#A040E0", "#FFB8B8"},
-            {"#EAFBFF", "#8FE0F0", "#FFE08A", "#06343A", "#46747A", "#0A9AB0", "#FFB0A0"},
-            {"#FFFAE0", "#FFE06A", "#8FE0C8", "#3A3000", "#7A7040", "#F08A00", "#FFA8C0"},
-            {"#F8EEFF", "#D0B0FF", "#FFB0D8", "#2C1050", "#6C5890", "#8A3CE0", "#A8E0FF"},
-            {"#FFF6DC", "#FFCF5A", "#A8E08A", "#3A2800", "#7A6840", "#F09000", "#FFA890"}};
+            // soft combinations (a 7th value is the number row)
+            {"#DDEFE6", "#FFFFFF", "#F9D9C4", "#16352A", "#4E7363", "#E0703C"},
+            {"#F8E1E8", "#FFFFFF", "#CFE0C4", "#4A1A2B", "#8A5466", "#5A8A3A"},
+            {"#E8E4F6", "#FFFFFF", "#F6EBB0", "#2A2350", "#6A6290", "#5B4BC4"},
+            {"#DDECF8", "#FFFFFF", "#F6CFD8", "#12304A", "#54708A", "#D0486E"},
+            {"#FBE6D8", "#FFFFFF", "#BDE3DD", "#4A2412", "#8A6452", "#128A7C"},
+            {"#EFE1F4", "#FFFFFF", "#C6E8D6", "#3A1848", "#7A5888", "#1F9A6A"},
+            {"#F6F0E2", "#FFFFFF", "#F2CAD4", "#3A3020", "#7A7060", "#C2416B"},
+            {"#DDF3EF", "#FFFFFF", "#FBD0C6", "#0C3B35", "#477A72", "#E8553C"},
+            {"#FBF3D0", "#FFFFFF", "#D9D0F0", "#3A3210", "#7A7250", "#6A52C8"},
+            {"#E2EEF4", "#FFFFFF", "#F2E0B0", "#14303C", "#54707C", "#C8962A"},
+            {"#F9E4E4", "#FFFFFF", "#CBD6EE", "#3C1820", "#7C5860", "#2A4C9A"},
+            {"#E6F2D5", "#FFFFFF", "#E6CCE8", "#233A12", "#5F7A45", "#8A3C92"},
+            {"#DDEFE6", "#FFFFFF", "#F9D9C4", "#16352A", "#4E7363", "#0F7A5A", "#FBF2C8"},
+            {"#F8E1E8", "#FFFFFF", "#CFE2F4", "#4A1A2B", "#8A5466", "#C2416B", "#FBF3DC"},
+            {"#E8E4F6", "#FFFFFF", "#C8E8D8", "#2A2350", "#6A6290", "#5B4BC4", "#FBE0E6"},
+            {"#DDECF8", "#FFFFFF", "#F6EBB0", "#12304A", "#54708A", "#2F6FD0", "#FBDDE4"},
+            {"#FBE6D8", "#FFFFFF", "#E2CFEE", "#4A2412", "#8A6452", "#E0703C", "#D6F0E2"},
+            {"#DDF3EF", "#FFFFFF", "#F8EDB8", "#0C3B35", "#477A72", "#17A592", "#FBD9D0"},
+            {"#EFE1F4", "#FFFFFF", "#CDE2F6", "#3A1848", "#7A5888", "#9A48B8", "#FBF2C8"},
+            {"#F6F0E2", "#FFFFFF", "#D0E0C2", "#3A3020", "#7A7060", "#5A7D3A", "#F8DCE2"}};
 
     static final int BG = 0, KEY = 1, FN = 2, INK = 3, MUTED = 4, ACCENT = 5;
 
@@ -180,8 +177,8 @@ final class Themes {
         return Color.parseColor(HEX[theme].length > 6 ? HEX[theme][6] : HEX[theme][KEY]);
     }
 
-    /** True for the colourful Trio / Quad themes (the palette shows all their colours on the square). */
-    static boolean combo(int theme) { return theme >= 0 && theme < NAMES.length && (NAMES[theme].startsWith("Trio ") || NAMES[theme].startsWith("Quad ")); }
+    /** True for the soft colour combinations at the end of the list (the palette shows their colours side by side on the square). */
+    static boolean combo(int theme) { int first = indexOf("Mint & Peach"); return first >= 0 && theme >= first && theme < NAMES.length; }
 
     static int count() { return NAMES.length; }
 

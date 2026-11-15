@@ -93,6 +93,58 @@ public final class Spoken {
      * Ends a spoken stretch the way it sounds: a question gets "?", a cheer gets "!", a full sentence gets a full stop
      * (the Bengali / Hindi danda in those scripts). Short bits of one or two words are left open.
      */
+    /** Words that are said twice on purpose. */
+    private static final java.util.Set<String> TWICE_OK = new java.util.HashSet<>(Arrays.asList(
+            "very", "so", "no", "bye", "ha", "had", "that", "really", "many", "long", "far", "too", "ok", "okay", "yes", "na", "hi", "bla", "blah", "knock", "more", "again"));
+
+    /**
+     * Takes out what was said twice in a row: a repeated group of two to five words ("I have I have stopped" becomes "I have stopped"),
+     * and, when singleWords is true (English), a repeated single word ("the the"). Bengali and Hindi double words on purpose
+     * ("aste aste", "choto choto"), so single words are left alone there.
+     */
+    public static String dedupe(String text, boolean singleWords) {
+        if (text == null) return "";
+        List<String> tok = new ArrayList<>(Arrays.asList(text.trim().split("\\s+")));
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            for (int n = 5; n >= 1 && !changed; n--) {
+                if (n == 1 && !singleWords) break;
+                for (int i = 0; i + 2 * n <= tok.size(); i++) {
+                    boolean same = true;
+                    for (int k = 0; k < n && same; k++) same = norm(tok.get(i + k)).equals(norm(tok.get(i + n + k))) && !norm(tok.get(i + k)).isEmpty();
+                    if (!same) continue;
+                    if (n == 1 && (TWICE_OK.contains(norm(tok.get(i))) || norm(tok.get(i)).matches("\\d+"))) continue;
+                    for (int k = 0; k < n; k++) tok.remove(i);          // the first copy goes, the second (with its punctuation) stays
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        StringBuilder b = new StringBuilder();
+        for (String t : tok) { if (b.length() > 0) b.append(' '); b.append(t); }
+        return b.toString();
+    }
+
+    /**
+     * She paused and then said the last words again: the new stretch starts with the words the text already ends with.
+     * Returns the new stretch without that repeat (two or more words always, one word only when singleWords).
+     */
+    public static String dropRepeat(String before, String said, boolean singleWords) {
+        if (before == null || said == null) return said;
+        String[] b = before.trim().split("\\s+"), s = said.trim().split("\\s+");
+        for (int n = Math.min(5, Math.min(b.length, s.length - 1)); n >= 1; n--) {
+            if (n == 1 && (!singleWords || TWICE_OK.contains(norm(s[0])))) break;
+            boolean same = true;
+            for (int k = 0; k < n && same; k++) same = !norm(s[k]).isEmpty() && norm(s[k]).equals(norm(b[b.length - n + k]));
+            if (!same) continue;
+            StringBuilder o = new StringBuilder();
+            for (int k = n; k < s.length; k++) { if (o.length() > 0) o.append(' '); o.append(s[k]); }
+            return o.toString();
+        }
+        return said;
+    }
+
     public static String punctuate(String text) { return punctuate(text, true); }
 
     /** Words a sentence does not end on: a pause after one of these is a pause to think, not the end. */
