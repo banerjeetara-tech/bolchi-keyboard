@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 82 = build-95** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 83 = build-97** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -268,6 +268,14 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (`Words.knownSlip`, the `FIXED` table) are swapped even right after Banglish. (3) A left-out letter cost more than a neighbour key, so salry → salty, managr → manage,
   staus → stays; `slip` miss cost 0.8 → 0.62 (local list: 111/113 typos, was 106; Banglish sample unchanged). (4) The Bolchi app now shows under "Installed version":
   "Auto-correct: ON/OFF" and "Last word not corrected: word → fix: reason" (pref `fixWhy`). If she reports it again, ask for a screenshot of that line FIRST.
+- Version 83 (Tara, one message: "reply with ai is not working under emoticon", "typing of emoticon is not working", and name picks; nothing tested on a phone):
+  - Phone book names: tapping a name chip no longer writes at once. The row then shows the choices for that person (`pickContact` → `writeContact`): the one name she
+    was typing (bold), the full name, and the full name with each phone number (`contactNums`, read from the phone book into memory only, max 3 per person). A person
+    with a one-word name and no number is still written at once. Her words "it will directly go to the recipient" were read as "write it into the message"; ask if she meant more.
+  - AI replies (💬 tab): no fault found by reading. The tab hid the real reason behind "Could not reach the AI"; it now tries twice, shows the real message
+    (key, limit, error type), shows which copied text it is answering, and a ⚠ note is no longer typed into the box when tapped. Ask for a screenshot of the ⚠ line.
+  - Emoji search (🔍 tab): no fault found (`EmojiHints.search` works on a PC); only the hint text changed. NOT fixed: ask what she sees after tapping 🔍
+    (does the "🔍 type a word" chip appear above the keys?) or whether she meant emoji suggestions while typing a word.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

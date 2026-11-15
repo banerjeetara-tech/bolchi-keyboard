@@ -868,14 +868,48 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         return !before.isEmpty() && ".!?\n".indexOf(before.charAt(before.length() - 1)) < 0;
     }
 
-    /** Puts only the name she was typing (e.g. "Rituparna" from "Emami Rituparna") in place of the typed letters. */
+    /**
+     * A phone book name was tapped: the row now offers what to write for that person: only the name she was typing ("Rituparna"),
+     * the full name ("Emami Rituparna"), and the full name with the phone number. One tap on a choice writes it.
+     */
     private void pickContact(String name) {
+        String w = word.toString();
+        String one = name;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("[A-Za-z]+").matcher(name);
+        while (m.find()) { if (m.group().toLowerCase().startsWith(w.toLowerCase())) { one = m.group(); break; } }
+        final List<String> choices = new ArrayList<>();
+        choices.add(one);
+        if (!name.equals(one)) choices.add(name);
+        List<String> nums = contactNums.get(name);
+        if (nums != null) for (String n : nums) if (choices.size() < 5) choices.add(name + " " + n);
+        if (choices.size() == 1 || contactBox == null) { writeContact(one); return; }
+        contactBox.removeAllViews();
+        for (int i = 0; i < choices.size(); i++) {
+            final String c = choices.get(i);
+            TextView t = new TextView(this);
+            t.setText(c);
+            t.setTextColor(cInk);
+            t.setTextSize(15);
+            if (i == 0) t.setTypeface(Typeface.DEFAULT_BOLD);
+            t.setGravity(Gravity.CENTER);
+            t.setSingleLine(true);
+            t.setPadding(dp(14), 0, dp(14), 0);
+            t.setBackground(box(i == 0 ? cFn : cKey, 12));
+            t.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { tick(v); writeContact(c); }
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
+            lp.setMargins(0, 0, dp(4), 0);
+            contactBox.addView(t, lp);
+        }
+        contactScroll.scrollTo(0, 0);
+    }
+
+    /** Writes the chosen name (or name and number) in place of the letters she typed. */
+    private void writeContact(String pick) {
         InputConnection ic = getCurrentInputConnection();
         String w = word.toString();
         if (ic != null && !w.isEmpty() && wordIsThere(ic, w)) {
-            String pick = name;
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile("[A-Za-z]+").matcher(name);
-            while (m.find()) { if (m.group().toLowerCase().startsWith(w.toLowerCase())) { pick = m.group(); break; } }
             ic.beginBatchEdit();
             ic.deleteSurroundingText(shown(w).length(), 0);
             ic.commitText(shown(pick + " "), 1);
@@ -1424,6 +1458,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private LinearLayout smsRow;   // the code read from SMS; separate so Android's updates never wipe it
     private SharedPreferences.OnSharedPreferenceChangeListener smsWatch;
     private String curApp = "";   // the app whose box is open now
+    private volatile java.util.HashMap<String, List<String>> contactNums = new java.util.HashMap<>();   // phone book name -> numbers, memory only
     private HorizontalScrollView contactScroll;   // full phone book names for the word being typed
     private LinearLayout contactBox;
     private boolean fixPrompt;                                  // the corrected word is only offered, the text was not changed
@@ -1672,6 +1707,30 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 while (c != null && c.moveToNext()) { String n = c.getString(0); if (n != null) names.add(n); }
                 Words.setContacts(names);
                 contactsLoadedAt = System.currentTimeMillis();
+                // phone numbers per name, kept in memory only (never saved or sent): offered when she picks a name
+                Cursor nc = null;
+                try {
+                    java.util.HashMap<String, List<String>> nm = new java.util.HashMap<>();
+                    nc = getContentResolver().query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                            new String[]{ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER}, null, null, null);
+                    while (nc != null && nc.moveToNext()) {
+                        String n = nc.getString(0), num = nc.getString(1);
+                        if (n == null || num == null) continue;
+                        n = n.trim(); num = num.trim();
+                        if (num.isEmpty()) continue;
+                        List<String> l = nm.get(n);
+                        if (l == null) { l = new ArrayList<>(); nm.put(n, l); }
+                        String digits = num.replaceAll("[^0-9]", "");
+                        boolean dup = false;
+                        for (String o : l) { String od = o.replaceAll("[^0-9]", ""); if (od.endsWith(digits) || digits.endsWith(od)) dup = true; }
+                        if (!dup && l.size() < 3) l.add(num);
+                    }
+                    contactNums = nm;
+                } catch (Throwable ignored) {
+                    // no numbers: the names still work
+                } finally {
+                    if (nc != null) try { nc.close(); } catch (Throwable ignored) { }
+                }
                 Cursor pc = null;
                 try {
                     List<String> mine = new ArrayList<>();
@@ -2473,7 +2532,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         gifFor = "";
         gifBox.removeAllViews();
         TextView q = new TextView(this);
-        q.setText("\uD83D\uDD0D " + (emoQuery.length() == 0 ? "type a word" : emoQuery.toString()) + "\u258F");
+        q.setText("\uD83D\uDD0D " + (emoQuery.length() == 0 ? "type a word, e.g. love" : emoQuery.toString()) + "\u258F");
         q.setTextColor(emoQuery.length() == 0 ? cMuted : cInk);
         q.setTextSize(16);
         q.setGravity(Gravity.CENTER);
@@ -2573,6 +2632,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         t.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 tick(v);
+                if (text.startsWith("\u26A0") || text.startsWith("Writing replies")) return;      // a note, not a message to send
                 try { commit(text); page = PAGE_ABC; buildKeysSoon(); } catch (Exception ex) { saveProblem(ex); }
             }
         });
@@ -2666,7 +2726,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         aiReplies = new ArrayList<>();
         if (key.isEmpty()) { aiReplies.add("\u26A0 Save an AI key in the Bolchi app first"); buildKeysSoon(); return; }
         if (got.isEmpty()) { aiReplies.add("\u26A0 Copy the message you received first, then tap again"); buildKeysSoon(); return; }
-        aiReplies.add("Writing replies\u2026");
+        aiReplies.add("Writing replies to: \u201C" + (got.length() > 40 ? got.substring(0, 40) + "\u2026" : got).replace('\n', ' ') + "\u201D");
         buildKeysSoon();
         final String msg = got.length() > 1500 ? got.substring(0, 1500) : got;
         new Thread(new Runnable() { @Override public void run() {
@@ -2677,8 +2737,24 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                     if (!l.isEmpty() && out.size() < 3) out.add(l);
                 }
                 if (out.isEmpty()) out.add("\u26A0 No reply came back. Tap again");
-            } catch (Throwable t) {
-                out.add("\u26A0 Could not reach the AI. Check the internet and tap again");
+            } catch (Throwable first) {
+                Throwable t = first;
+                if (!(first instanceof Converter.UserMessage)) {
+                    // a slow first connection is the usual reason: try once more before giving up
+                    try {
+                        for (String line : Converter.replies(msg, key).split("\n")) {
+                            String l = line.trim().replaceFirst("^[-*\\d.)\\s]+", "");
+                            if (!l.isEmpty() && out.size() < 3) out.add(l);
+                        }
+                        t = null;
+                    } catch (Throwable second) { t = second; }
+                }
+                if (t != null) {
+                    saveProblem(t);
+                    out.clear();
+                    out.add("\u26A0 " + (t instanceof Converter.UserMessage ? t.getMessage()
+                            : "Could not reach the AI (" + t.getClass().getSimpleName() + "). Check the internet and tap again"));
+                } else if (out.isEmpty()) out.add("\u26A0 No reply came back. Tap again");
             }
             handler.post(new Runnable() { @Override public void run() {
                 aiReplies = out;
