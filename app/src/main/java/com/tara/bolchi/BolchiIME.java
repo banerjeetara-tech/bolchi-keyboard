@@ -120,6 +120,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private boolean plainBox;           // search, address, email, password boxes: real letters only
 
     /** The font stays on in every app (Tara), but never in boxes that need real letters (search, folder names, emails...). */
+    /** A box whose hint says it is for finding or picking something (Outlook "Search folders", "Find", "Filter"...) needs real letters. */
+    private static boolean searchHint(CharSequence hint) {
+        if (hint == null) return false;
+        String h = hint.toString().toLowerCase();
+        return h.contains("search") || h.contains("find") || h.contains("folder") || h.contains("filter")
+                || h.contains("look up") || h.contains("lookup") || h.contains("go to");
+    }
+
     private boolean fontOn() { return typeStyle >= 0 && typeStyle != 20 && !plainBox; }
 
     private int typeStyle = -1;   // a font chosen in the converter: new English typing comes out in it (-1 = normal)
@@ -2280,7 +2288,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         plainField = !text || var == EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS || var == EditorInfo.TYPE_TEXT_VARIATION_URI;
         int act = info.imeOptions & EditorInfo.IME_MASK_ACTION;
         plainBox = plainField || noFix || var == EditorInfo.TYPE_TEXT_VARIATION_FILTER
-                || act == EditorInfo.IME_ACTION_SEARCH || act == EditorInfo.IME_ACTION_GO;
+                || act == EditorInfo.IME_ACTION_SEARCH || act == EditorInfo.IME_ACTION_GO
+                || searchHint(info.hintText);
         token.setLength(0);
         if (keysBox == null) return;
         capsLock = false;
