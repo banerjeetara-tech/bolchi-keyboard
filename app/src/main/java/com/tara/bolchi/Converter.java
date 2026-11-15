@@ -256,11 +256,12 @@ final class Converter {
 
     // ---------- units and currency ----------
     private static final Pattern AMOUNT = Pattern.compile(
-            "(?i)(₹|rs\\.?|inr|usd|\\$|€|£)?\\s*(\\d+(?:,\\d+)*(?:\\.\\d+)?)\\s*(k(?![a-z])|lakhs?|lacs?|crores?|cr(?![a-z]))?\\s*"
+            "(?i)(₹|rs\\.?|inr|usd|\\$|€|£|¥|৳|₩|฿)?\\s*(\\d+(?:,\\d+)*(?:\\.\\d+)?)\\s*(k(?![a-z])|lakhs?|lacs?|crores?|cr(?![a-z]))?\\s*"
                     + "(kgs?|kilos?|kilograms?|lbs?|pounds?|grams?|gms?|g|oz|ounces?|"
                     + "kms?|kilometers?|kilometres?|miles?|mi|meters?|metres?|m|ft|feet|foot|cms?|inch(?:es)?|"
                     + "litres?|liters?|l|ml|gallons?|gal|°?c|°?f|celsius|fahrenheit|degrees?|"
-                    + "inr|rupees?|rs\\.?|/-|usd|dollars?|eur|euros?|gbp|aed|dirhams?)?(?![A-Za-z])");
+                    + "inr|rupees?|rs\\.?|/-|usd|dollars?|eur|euros?|gbp|aed|dirhams?|"
+                    + "sgd|aud|cad|jpy|yen|cny|yuan|chf|francs?|sar|riyals?|qar|kwd|dinars?|omr|bhd|bdt|taka|npr|lkr|pkr|thb|baht|myr|ringgit|hkd|nzd|zar|krw|idr|rub|rubles?)?(?![A-Za-z])");
 
     /** The number as written: 1,500 and 1,00,000 are thousands; 5,5 is five and a half; k / lakh / crore multiply. */
     private static double amount(String num, String mult) {
@@ -312,7 +313,7 @@ final class Converter {
         return currencyOf(g(m, 1), g(m, 4)) != null || (g(m, 1).isEmpty() && g(m, 4).isEmpty() && (mult.startsWith("la") || mult.startsWith("cr")));
     }
 
-    /** The typed amount in other money, with signs: rupees give $ € £; anything else gives ₹ first. Null when it is not money or a rate is missing. */
+    /** The typed amount in every other currency the keyboard knows, with signs (rupees first when she typed foreign money). Null when it is not money or a rate is missing. */
     static String[] money(String token, JSONObject rates) {
         Matcher m = AMOUNT.matcher(FontStyles.plain(token));
         if (rates == null || !m.matches()) return null;
@@ -322,14 +323,13 @@ final class Converter {
         try { v = amount(m.group(2), g(m, 3)); } catch (Exception e) { return null; }
         double from = cur.equals("USD") ? 1 : rates.optDouble(cur, 0);
         if (from <= 0) return null;
-        String[] to = cur.equals("INR") ? new String[]{"USD", "EUR", "GBP"} : cur.equals("USD") ? new String[]{"INR", "EUR", "GBP"}
-                : new String[]{"INR", "USD", cur.equals("EUR") ? "GBP" : "EUR"};
-        String[] out = new String[3];
-        for (int i = 0; i < 3; i++) {
-            double t = to[i].equals("USD") ? 1 : rates.optDouble(to[i], 0);
-            out[i] = t <= 0 ? "" : sign(to[i]) + n(v / from * t);
+        java.util.List<String> l = new java.util.ArrayList<>();
+        for (String c : CURRENCIES) {
+            if (c.equals(cur)) continue;
+            double t = c.equals("USD") ? 1 : rates.optDouble(c, 0);
+            if (t > 0) l.add(sign(c) + n(v / from * t));
         }
-        return out[0].isEmpty() ? null : out;
+        return l.isEmpty() ? null : l.toArray(new String[0]);
     }
 
     /** The rates if they are already here (no waiting); null when they still have to be fetched. */
@@ -337,16 +337,33 @@ final class Converter {
         return ratesKept != null && System.currentTimeMillis() - ratesAt < 6 * 3600 * 1000L ? ratesKept : null;
     }
 
+    /** Every currency the keyboard knows, in the order they are offered. */
+    static final String[] CURRENCIES = {"INR", "USD", "EUR", "GBP", "AED", "SGD", "AUD", "CAD", "JPY", "CNY", "CHF", "SAR", "QAR", "KWD", "OMR", "BHD",
+            "BDT", "NPR", "LKR", "PKR", "THB", "MYR", "HKD", "NZD", "ZAR", "KRW", "IDR", "RUB"};
+
     private static String currencyOf(String sym, String unit) {
-        if (unit.equals("usd") || unit.startsWith("dollar")) return "USD";
-        if (unit.equals("eur") || unit.startsWith("euro")) return "EUR";
-        if (unit.equals("gbp")) return "GBP";
-        if (unit.equals("aed") || unit.startsWith("dirham")) return "AED";
-        if (sym.equals("₹") || sym.startsWith("rs") || sym.equals("inr") || unit.equals("inr") || unit.startsWith("rupee") || unit.startsWith("rs") || unit.equals("/-")) return "INR";
+        if (unit.startsWith("dollar")) return "USD";
+        if (unit.startsWith("euro")) return "EUR";
+        if (unit.startsWith("dirham")) return "AED";
+        if (unit.equals("yen")) return "JPY";
+        if (unit.equals("yuan")) return "CNY";
+        if (unit.startsWith("franc")) return "CHF";
+        if (unit.startsWith("riyal")) return "SAR";
+        if (unit.startsWith("dinar")) return "KWD";
+        if (unit.equals("taka")) return "BDT";
+        if (unit.equals("baht")) return "THB";
+        if (unit.equals("ringgit")) return "MYR";
+        if (unit.startsWith("ruble")) return "RUB";
+        if (unit.startsWith("rupee") || unit.startsWith("rs") || unit.equals("/-")) return "INR";
+        if (unit.length() == 3) for (String c : CURRENCIES) if (c.equalsIgnoreCase(unit)) return c;
+        if (sym.equals("₹") || sym.startsWith("rs") || sym.equals("inr")) return "INR";
         if (sym.equals("$") || sym.equals("usd")) return "USD";
-        if (sym.equals("€") || unit.equals("eur") || unit.startsWith("euro")) return "EUR";
-        if (sym.equals("£") || unit.equals("gbp")) return "GBP";
-        if (unit.equals("aed") || unit.startsWith("dirham")) return "AED";
+        if (sym.equals("€")) return "EUR";
+        if (sym.equals("£")) return "GBP";
+        if (sym.equals("¥")) return "JPY";
+        if (sym.equals("৳")) return "BDT";
+        if (sym.equals("₩")) return "KRW";
+        if (sym.equals("฿")) return "THB";
         return null;
     }
 
@@ -358,6 +375,8 @@ final class Converter {
     private static String sign(String cur) {
         switch (cur) {
             case "INR": return "₹"; case "USD": return "$"; case "EUR": return "€"; case "GBP": return "£";
+            case "JPY": return "¥"; case "CNY": return "CN¥"; case "BDT": return "৳"; case "KRW": return "₩"; case "THB": return "฿"; case "RUB": return "₽";
+            case "AUD": return "A$"; case "CAD": return "C$"; case "SGD": return "S$"; case "HKD": return "HK$"; case "NZD": return "NZ$";
             default: return cur + " ";
         }
     }
@@ -366,12 +385,18 @@ final class Converter {
         String cur = currencyOf(sym, unit);
         if (cur != null) {
             if (rates == null) return null;
-            String to = cur.equals("INR") ? "USD" : "INR";
             double from = cur.equals("USD") ? 1 : rates.optDouble(cur, 0);
-            double target = to.equals("USD") ? 1 : rates.optDouble(to, 0);
-            if (from <= 0 || target <= 0) return null;
-            double r = v / from * target;
-            return sign(cur) + n(v) + " = about " + sign(to) + n(r);
+            if (from <= 0) return null;
+            // rupees are shown in the four she is most likely to need; any other money is shown in rupees
+            StringBuilder b = new StringBuilder(sign(cur) + n(v) + " = about ");
+            int k = 0;
+            for (String to : cur.equals("INR") ? new String[]{"USD", "EUR", "GBP", "AED"} : new String[]{"INR"}) {
+                double target = to.equals("USD") ? 1 : rates.optDouble(to, 0);
+                if (target <= 0) continue;
+                if (k++ > 0) b.append(" / ");
+                b.append(sign(to)).append(n(v / from * target));
+            }
+            return k == 0 ? null : b.toString();
         }
         if (unit.matches("kgs?|kilos?|kilograms?")) return n(v) + " kg = " + n(v * 2.20462) + " lb";
         if (unit.matches("lbs?|pounds?")) return n(v) + " lb = " + n(v / 2.20462) + " kg";
@@ -411,7 +436,7 @@ final class Converter {
                     JSONObject low = j.optJSONObject("usd");        // third service: {"usd": {"inr": 88.1, ...}}
                     if (low == null) continue;
                     r = new JSONObject();
-                    for (String k : new String[]{"inr", "eur", "gbp", "aed"}) r.put(k.toUpperCase(Locale.ROOT), low.optDouble(k, 0));
+                    for (String k : CURRENCIES) r.put(k, low.optDouble(k.toLowerCase(Locale.ROOT), 0));
                 }
                 if (r.optDouble("INR", 0) <= 0) continue;
                 ratesKept = r;

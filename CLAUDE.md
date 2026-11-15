@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 85 = build-102** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 86 = build-104** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -290,6 +290,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Forest; needed over dark apps, and shown in the preview, although she asked for no more dark themes: remove them if she objects). They are ordinary `Themes.HEX`
   rows written as #AARRGGBB (`Themes.glass`). NOT tested on a phone: what shows through is decided by the app (many show a plain colour behind the keyboard), and
   it is not known whether Samsung's keyboard window lets the app show through at all. Ask her for a screenshot.
+- Version 86 (Tara: "have you add all currency?"): 28 currencies (`Converter.CURRENCIES`: INR USD EUR GBP AED SGD AUD CAD JPY CNY CHF SAR QAR KWD OMR BHD BDT NPR LKR PKR
+  THB MYR HKD NZD ZAR KRW IDR RUB; codes, names like yen / taka / riyal, signs ¥ ৳ ₩ ฿). The money row is now a sideways-scrolling chip row in the place of the word row
+  (it reuses `contactBox` / `contactScroll`; `pickMoney`): every other currency with its sign, ₹ first for foreign money, $ first for rupees. The Units tab shows rupees as
+  $ / € / £ / AED and foreign money as ₹. "try" (Turkish lira) is left out because it is an English word. She also restated the three name choices (only name, name with
+  surname, full name with number): that is what version 83 does (a second phone number adds a fourth chip).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

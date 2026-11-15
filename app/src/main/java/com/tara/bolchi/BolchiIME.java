@@ -1043,14 +1043,32 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (!plainField && !uriBox && token.length() >= 2 && Converter.isMoney(token.toString())) {
             String[] mv = Converter.money(token.toString(), Converter.ratesNow());
             if (mv == null) fetchRatesSoon();
-            else {
-                v[1] = mv[0]; v[0] = mv[1]; v[2] = mv[2];
+            else if (contactScroll != null) {
+                // every currency as a chip in a row that scrolls sideways, in the place of the word row (same height, the keys do not move)
                 slotMoney = true;
-                bold = true;
                 sugKeepsTyped = false;
-                for (int i = 0; i < 3; i++) slotFix[i] = slotUndo[i] = slotCalc[i] = slotDate[i] = slotEmoji[i] = slotNext[i] = false;
-                if (contactScroll != null) contactScroll.setVisibility(View.GONE);
-                sugRow.setVisibility(View.VISIBLE);
+                contactBox.removeAllViews();
+                for (int i = 0; i < mv.length; i++) {
+                    final String c = mv[i];
+                    TextView t = new TextView(this);
+                    t.setText(c);
+                    t.setTextColor(cInk);
+                    t.setTextSize(16);
+                    if (i == 0) t.setTypeface(Typeface.DEFAULT_BOLD);
+                    t.setGravity(Gravity.CENTER);
+                    t.setSingleLine(true);
+                    t.setPadding(dp(14), 0, dp(14), 0);
+                    t.setBackground(box(i == 0 ? cFn : cKey, 12));
+                    t.setOnClickListener(new View.OnClickListener() {
+                        @Override public void onClick(View v) { tick(v); pickMoney(c); }
+                    });
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
+                    lp.setMargins(0, 0, dp(4), 0);
+                    contactBox.addView(t, lp);
+                }
+                if (!token.toString().equals(moneyFor)) { moneyFor = token.toString(); contactScroll.scrollTo(0, 0); }
+                contactScroll.setVisibility(View.VISIBLE);
+                sugRow.setVisibility(View.GONE);
             }
         }
         for (int i = 0; i < 3; i++) {
@@ -1116,22 +1134,6 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
-        if (slotMoney) {
-            // "10rs" becomes the amount she tapped, e.g. "$0.11"
-            if (val.isEmpty() || ic == null) return;
-            String typed = shown(token.toString());
-            CharSequence b = ic.getTextBeforeCursor(typed.length(), 0);
-            ic.beginBatchEdit();
-            if (b != null && b.toString().equals(typed)) ic.deleteSurroundingText(typed.length(), 0);
-            else ic.commitText(" ", 1);
-            ic.commitText(val + " ", 1);
-            ic.endBatchEdit();
-            token.setLength(0);
-            numTyped.setLength(0);
-            resetWord();
-            paintSugs();
-            return;
-        }
         if (slotUndo[i]) {
             if (ic != null && deletedBuf.length() > 0) ic.commitText(deletedBuf.toString(), 1);
             deletedBuf.setLength(0);
@@ -1508,6 +1510,25 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String[] myNumbers = new String[0];
     private volatile String[] meNumbers = new String[0];
     private boolean calcHasEq;                                 // the sum in the text already ends with "="
+    private String moneyFor = "";
+
+    /** "10rs" becomes the amount she tapped, e.g. "$0.11". */
+    private void pickMoney(String val) {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null || val.isEmpty()) return;
+        String typed = shown(token.toString());
+        CharSequence b = ic.getTextBeforeCursor(typed.length(), 0);
+        ic.beginBatchEdit();
+        if (b != null && b.toString().equals(typed)) ic.deleteSurroundingText(typed.length(), 0);
+        else ic.commitText(" ", 1);
+        ic.commitText(val + " ", 1);
+        ic.endBatchEdit();
+        token.setLength(0);
+        numTyped.setLength(0);
+        resetWord();
+        paintSugs();
+    }
+
     private boolean slotMoney;                                // the word row holds a typed amount of money in other currencies
     private long ratesAskedAt;
 
