@@ -285,6 +285,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   amount in other money (`Converter.money`, `slotMoney`): rupees → $ (bold, middle) € £; anything else → ₹ (middle) first. A tap REPLACES the typed amount with the tapped
   one (her word was "convert"; the calculator appends instead, so ask if she wanted "10rs = $0.11"). Rates come in the background (`fetchRatesSoon`, at most one try a
   minute, kept 6 hours), so the first time the row appears a moment late and needs internet. Not tested on a phone.
+- Asked 15 Nov 2026, NOT built: "add transparent keyboard under colour palette". A picture preview was sent (A = clear light glass, B = smoked dark glass, keys
+  half see-through over the chat); waiting for her choice. Told her: what shows behind the keyboard is decided by the app (many apps resize and show a plain colour).
+  To build: a theme entry in `Themes` with alpha colours and a transparent `root` background; check the word row / GIF row backgrounds too.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
