@@ -389,7 +389,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         cMuted = Themes.color(theme, Themes.MUTED);
         cAcc = Themes.color(theme, Themes.ACCENT);
         cOnAcc = Themes.onAccent(theme);
+        keyFill = cKey;
     }
+    private int keyFill;      // the colour the next letter / number keys are made in
 
     /** Key face drawn inset, so the touch area covers the gaps between keys too. */
     private Drawable keyFace(int fill) {
@@ -737,7 +739,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         } else {
             if (wordsOn() || numberStrip() || (layout == 0 && page != PAGE_ABC && !noFix && !plainField)) buildSugRow();
             LinearLayout nums = row();
+            keyFill = Themes.numberRow(theme);          // a four-colour theme gives the number row its own colour
             for (String k : NUMBERS.split(" ")) nums.addView(charKey(k));
+            keyFill = cKey;
             keysBox.addView(nums);
         }
 
@@ -2109,10 +2113,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private TextView charKey(final String ch) {
-        final TextView t = makeKey(ch, 1f, cKey, cInk, 26);
+        final int fill = keyFill;
+        final TextView t = makeKey(ch, 1f, fill, cInk, 26);
         final boolean letter = page == PAGE_ABC && ch.length() == 1 && Character.isLetter(ch.charAt(0));
         if (letter) letterKeys.add(t);
-        onPress(t, cKey, new Runnable() { @Override public void run() {
+        onPress(t, fill, new Runnable() { @Override public void run() {
             String out = t.getText().toString();
             if (".".equals(ch) || ",".equals(ch) || "?".equals(ch) || "!".equals(ch)) typeMark(out);
             else commit(out);
@@ -3123,6 +3128,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 sw.setTextColor(Themes.color(idx, Themes.INK));
                 GradientDrawable g = new GradientDrawable();
                 g.setColor(Themes.color(idx, Themes.BG));
+                if (Themes.combo(idx)) {
+                    // a colourful combination: the square shows its colours side by side
+                    int nr = Themes.numberRow(idx), k = Themes.color(idx, Themes.KEY), f = Themes.color(idx, Themes.FN);
+                    g.setOrientation(GradientDrawable.Orientation.LEFT_RIGHT);
+                    g.setColors(nr == k ? new int[]{k, k, f, f} : new int[]{nr, nr, k, k, f, f});
+                }
                 g.setCornerRadius(dp(10));
                 g.setStroke(dp(cur ? 4 : 3), cur ? Themes.color(idx, Themes.INK) : Themes.color(idx, Themes.ACCENT));
                 sw.setBackground(g);

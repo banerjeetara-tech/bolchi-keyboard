@@ -22,7 +22,10 @@ final class Themes {
             "Watermelon", "Terracotta Cream", "Plum Blossom", "Morning Mist",
             // see-through ("glass") themes: the colours carry an alpha value, so the app shows through the keyboard
             "Glass Clear", "Glass Rose", "Glass Peach", "Glass Lemon", "Glass Mint", "Glass Aqua", "Glass Sky", "Glass Lavender", "Glass Lilac", "Glass Blush",
-            "Glass Sand", "Glass Coral", "Glass Sage", "Glass Pearl", "Glass Sunrise", "Glass Ocean", "Glass Smoke", "Glass Navy", "Glass Plum", "Glass Forest"};
+            "Glass Sand", "Glass Coral", "Glass Sage", "Glass Pearl", "Glass Sunrise", "Glass Ocean", "Glass Smoke", "Glass Navy", "Glass Plum", "Glass Forest",
+            // colourful combinations: Trio = background + letter keys + side keys in three colours; Quad = the number row in a fourth colour
+            "Trio Candy", "Trio Citrus", "Trio Ocean", "Trio Sunset", "Trio Garden", "Trio Grape", "Trio Tropical", "Trio Berry", "Trio Sky", "Trio Peacock", "Trio Flamingo", "Trio Lemon Berry",
+            "Quad Rainbow", "Quad Fiesta", "Quad Festival", "Quad Carnival", "Quad Holi", "Quad Peacock", "Quad Sherbet", "Quad Bouquet", "Quad Beach", "Quad Mela", "Quad Orchid", "Quad Mango"};
 
     /** The list of the earlier build (43 themes), only to keep the theme she already picked when the list changes. */
     static final String[] OLD = {
@@ -132,7 +135,32 @@ final class Themes {
             {"#38000000", "#6B000000", "#941A1A1A", "#FFFFFF", "#D0D0D0", "#FFC83C"},
             {"#380A1E46", "#6B0A1E46", "#9410285A", "#FFFFFF", "#C8D4EC", "#FF8A6C"},
             {"#383A1040", "#6B3A1040", "#944A1852", "#FFFFFF", "#E4CCE8", "#FFB48A"},
-            {"#380C3220", "#6B0C3220", "#94124028", "#FFFFFF", "#CCE4D6", "#F0D060"}};
+            {"#380C3220", "#6B0C3220", "#94124028", "#FFFFFF", "#CCE4D6", "#F0D060"},
+            // Trio (3 colours) and Quad (4 colours: the 7th value is the number row)
+            {"#FFF0F5", "#FFB3D1", "#8FE3F0", "#3A1030", "#8A5A78", "#E0408A"},
+            {"#FFF9E0", "#FFD54F", "#A5E88A", "#3A3000", "#8A7A3A", "#F08A00"},
+            {"#E8F7FF", "#8FD3FF", "#7FE8D0", "#06304A", "#4A7088", "#0A8AD0"},
+            {"#FFF1E6", "#FFB37A", "#FF8FB0", "#4A1E0C", "#8A5E4C", "#F0503C"},
+            {"#F2FBE8", "#B6E87A", "#FFC0D8", "#20380C", "#60784C", "#5AA81C"},
+            {"#F6EEFF", "#C9A8FF", "#FFD27A", "#2A1050", "#6A5890", "#7A3CE0"},
+            {"#E6FFF8", "#7FE8C8", "#FFB86A", "#08382C", "#48786C", "#0AA880"},
+            {"#FFEFF4", "#FF9FBA", "#B8A8FF", "#4A0C22", "#8A4C62", "#E02C64"},
+            {"#EEF6FF", "#A8CCFF", "#FFE27A", "#0C2850", "#4C6890", "#2C6CE0"},
+            {"#E8FBFB", "#7FDDE0", "#C8F07A", "#06383A", "#46787A", "#0A9AA0"},
+            {"#FFF0EC", "#FFA898", "#8FE0D0", "#4A140C", "#8A544C", "#F04C3C"},
+            {"#FFFBE0", "#FFE66A", "#FFA8C8", "#3A3200", "#7A7240", "#E04C8A"},
+            {"#FFF8EC", "#8FD8FF", "#B8F08A", "#2A2A2A", "#6A6A6A", "#F0503C", "#FFB3C8"},
+            {"#FFF4E0", "#FFD05A", "#FF9FB8", "#3A2000", "#7A6040", "#E0407A", "#8FE0E8"},
+            {"#FFEFF6", "#FFB0D0", "#FFD86A", "#3A1030", "#7A5070", "#E0408A", "#A8E8A0"},
+            {"#EEF4FF", "#A8C8FF", "#FFB88A", "#0C2450", "#4C6490", "#2C6CE0", "#F0A8FF"},
+            {"#F4FFE8", "#C0F08A", "#FFA8D0", "#20380C", "#60784C", "#E0408A", "#8FD0FF"},
+            {"#E6FBF8", "#7FE0D0", "#B8A8FF", "#06382C", "#46786C", "#0AA890", "#FFE06A"},
+            {"#FFF2EA", "#FFC0A0", "#B0E8C0", "#4A200C", "#8A604C", "#F06A3C", "#FFE88A"},
+            {"#FBEFFF", "#E0B0FF", "#A8E8B0", "#341050", "#745890", "#A040E0", "#FFB8B8"},
+            {"#EAFBFF", "#8FE0F0", "#FFE08A", "#06343A", "#46747A", "#0A9AB0", "#FFB0A0"},
+            {"#FFFAE0", "#FFE06A", "#8FE0C8", "#3A3000", "#7A7040", "#F08A00", "#FFA8C0"},
+            {"#F8EEFF", "#D0B0FF", "#FFB0D8", "#2C1050", "#6C5890", "#8A3CE0", "#A8E0FF"},
+            {"#FFF6DC", "#FFCF5A", "#A8E08A", "#3A2800", "#7A6840", "#F09000", "#FFA890"}};
 
     static final int BG = 0, KEY = 1, FN = 2, INK = 3, MUTED = 4, ACCENT = 5;
 
@@ -145,6 +173,15 @@ final class Themes {
 
     /** True for a see-through theme (its background colour is not solid). */
     static boolean glass(int theme) { return theme >= 0 && theme < HEX.length && HEX[theme][BG].length() == 9; }
+
+    /** The colour of the number row: its own colour in a four-colour theme, else the ordinary key colour. */
+    static int numberRow(int theme) {
+        if (theme < 0 || theme >= HEX.length) theme = 0;
+        return Color.parseColor(HEX[theme].length > 6 ? HEX[theme][6] : HEX[theme][KEY]);
+    }
+
+    /** True for the colourful Trio / Quad themes (the palette shows all their colours on the square). */
+    static boolean combo(int theme) { return theme >= 0 && theme < NAMES.length && (NAMES[theme].startsWith("Trio ") || NAMES[theme].startsWith("Quad ")); }
 
     static int count() { return NAMES.length; }
 

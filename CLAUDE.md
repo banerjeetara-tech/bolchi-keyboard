@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 87 = build-106** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 88 = build-108** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -25,7 +25,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - `Words.java` — English suggestions + auto-correct (word list in `app/src/main/assets/words.txt`, Banglish/Hinglish words protected).
   `Spoken.java` — voice self-correction ("five no sorry six" → "six", "scratch that").
   `Swipe.java` — gesture typing decoder.
-- `Converter.java` — converter options and all Gemini prompts (tidy, polish, tone, replies). `Themes.java` — 96 themes (20 see-through). `Emojis.java` — emoji tabs.
+- `Converter.java` — converter options and all Gemini prompts (tidy, polish, tone, replies). `Themes.java` — 120 themes (20 see-through, 24 Trio / Quad colour combinations). `Emojis.java` — emoji tabs.
 - `EmojiHints.java` — emoji for a typed word (`assets/emoji.txt` + `ALIAS` short forms / Banglish + word endings) and emoji search.
   `Gifs.java` / `GifProvider.java` — Giphy. `FontStyles.java` — Unicode fonts. `Calc.java` — sums typed in the text. `SmsCodeReceiver.java` — SMS codes.
 
@@ -299,6 +299,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   will come to the chat"): ⇄ → "Units and currency" with money in the text now shows a scrolling LIST instead of the result box (`Converter.moneyList`, `LANDS`):
   flag, currency name, country, and today's value for the last amount in the text (27 rows). A tap writes "= value" after her text ("10rs = $0.11") and returns to
   the keys. Rates are fetched first if missing ("Getting today's rates…"; a failure shows the usual ⚠ box with Try again). Text without money still gets the old result box.
+- Version 88 (Tara: "use colour palette with 3 combination, 4 combination, coloured combination"): 24 colourful themes at the end of the list (120 total): 12 "Trio …"
+  (background, letter keys and side keys in three different colours) and 12 "Quad …" (the number row in a fourth colour: a 7th value in the `Themes.HEX` row,
+  `Themes.numberRow`, `keyFill` in `charKey`). All light with dark letters. In the 🎨 grid their square shows the colours side by side (`Themes.combo`).
+  A picture preview was sent with the build (not before it): themes change nothing unless she picks one. Not tested on a phone.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
