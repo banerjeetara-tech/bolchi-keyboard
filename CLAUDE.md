@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 88 = build-108** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 89 = build-110** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -303,6 +303,15 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (background, letter keys and side keys in three different colours) and 12 "Quad …" (the number row in a fourth colour: a 7th value in the `Themes.HEX` row,
   `Themes.numberRow`, `keyFill` in `charKey`). All light with dark letters. In the 🎨 grid their square shows the colours side by side (`Themes.combo`).
   A picture preview was sent with the build (not before it): themes change nothing unless she picks one. Not tested on a phone.
+- Version 89 (Tara, by voice: "again check the auto correct, it's not working for all which I am typing; and while speaking it is sometimes giving a pause [a full stop]
+  if I pause, not necessarily it is a proper pause"). Still no screenshot of the "Last word not corrected" line, and it is not known whether she installed 82+.
+  - Auto-correct: a list of 231 real-life mistakes showed the gap: true misspellings were fixed, but chat SHORT FORMS she uses all the time were not (u, ur, r, hv, bt, nd,
+    dnt, cnt, gud, mrng, tym, offc, mtg, rprt, amt, posb ...). About 60 of them are now in `FIXED` (217/231 fixed, was 157). They are also listed in `Words.SHORT`:
+    right after Banglish / Hinglish they are only offered, because "r", "bt", "k" are words there. Misspelt days / months get their capital (wensday → Wednesday).
+    If she dislikes "u" becoming "you", remove the entries from `FIXED`.
+  - Voice: every recogniser round (about 2 s of silence) ended with a full stop from `Spoken.punctuate`, also when she only paused to think. Now a round gets only ? or !
+    (`punctuate(text, false)`); the full stop is owed (`stopDue`, `Spoken.wantsStop`: 3+ words, not ending on a joining word such as and / to / ar / aur) and is written
+    only when she speaks again after 2 more seconds of silence (`newLead`) or presses Stop. The AI tidy still punctuates by meaning. Not tested on a phone.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

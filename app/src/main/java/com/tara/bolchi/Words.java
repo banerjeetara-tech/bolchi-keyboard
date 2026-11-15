@@ -327,7 +327,12 @@ public final class Words {
                 "isnt", "isn't", "arent", "aren't", "wasnt", "wasn't", "werent", "weren't", "havent", "haven't",
                 "hasnt", "hasn't", "couldnt", "couldn't", "wouldnt", "wouldn't", "shouldnt", "shouldn't",
                 "thats", "that's", "whats", "what's", "youre", "you're", "theyre", "they're", "lets", "let's",
-                "teh", "the", "wil", "will", "adn", "and", "taht", "that", "thier", "their", "recieve", "receive",
+                "teh", "the", "wil", "will",
+                // chat short forms (see SHORT below)
+                "wat", "what", "gud", "good", "gd", "good", "tonite", "tonight", "nite", "night", "mrng", "morning", "evng", "evening", "cuz", "because", "dnt", "don't", "cnt", "can't", "thn", "then", "whr", "where", "hw", "how", "nw", "now", "hv", "have", "hd", "had", "bt", "but", "nd", "and", "luv", "love", "sry", "sorry",
+                "wlcm", "welcome", "bday", "birthday", "hpy", "happy", "offc", "office", "mtg", "meeting", "mtng", "meeting", "dcmnt", "document", "rprt", "report", "amt", "amount", "acnt", "account", "nmbr", "number", "adrs", "address", "tym", "time", "yr", "year", "wk", "week", "hrs", "hours", "gng", "going", "cmng", "coming", "dng", "doing", "gt", "get",
+                "gv", "give", "u", "you", "ur", "your", "r", "are", "fr", "for", "ws", "was", "hs", "has", "bn", "been", "cm", "come", "okk", "ok", "fourty", "forty", "harrass", "harass", "supercede", "supersede", "tounge", "tongue", "sended", "sent", "posb", "possible", "psbl", "possible", "pbm", "problem", "prblm", "problem",
+                "thanku", "thank you", "adn", "and", "taht", "that", "thier", "their", "recieve", "receive",
                 "youll", "you'll", "youve", "you've", "youd", "you'd", "theyll", "they'll", "theyve", "they've",
                 "weve", "we've", "hes", "he's", "shes", "she's", "heres", "here's", "theres", "there's",
                 "wheres", "where's", "whos", "who's", "hows", "how's", "itll", "it'll", "thatll", "that'll",
@@ -513,9 +518,14 @@ public final class Words {
         return DESI.contains(l) || (r == null && looksBanglish(l));
     }
 
+    /** Chat short forms ("u", "hv", "bt"). They are written out in English text, but right after Banglish / Hinglish they are only offered: "r", "k", "bt" are words there too. */
+    private static final Set<String> SHORT = new HashSet<>(Arrays.asList(("wat gud gd tonite nite mrng evng cuz dnt cnt thn whr hw nw hv hd bt nd luv sry wlcm bday hpy offc mtg mtng dcmnt rprt amt acnt nmbr adrs tym yr wk hrs gng cmng dng gt gv u ur r fr ws hs bn cm okk posb psbl pbm prblm").split(" ")));
+
     /** True for a spelling from the table of known English slips ("recieve", "teh", "dont"): always safe to put right. */
     public static boolean knownSlip(String typed) {
-        return typed != null && FIXED.containsKey(typed.toLowerCase(Locale.ROOT));
+        if (typed == null) return false;
+        String l = typed.toLowerCase(Locale.ROOT);
+        return FIXED.containsKey(l) && !SHORT.contains(l);
     }
 
     /** True when the keyboard may swap the word in by itself: a known slip, or a word that is in no dictionary. A rare real word is only offered. */
@@ -724,7 +734,9 @@ public final class Words {
             if (score < bestScore) { bestScore = score; best = c; }
         }
         if (best == null && own0 == null) best = split(w);
-        return best == null ? null : matchCase(typed, best);
+        if (best == null) return null;
+        String proper = typed.equals(w) ? PROPER.get(best) : null;          // "wensday" -> Wednesday, with its capital
+        return proper != null ? proper : matchCase(typed, best);
     }
 
     /** Two everyday words typed without the space between them ("thankyou", "alot", "iam"). */

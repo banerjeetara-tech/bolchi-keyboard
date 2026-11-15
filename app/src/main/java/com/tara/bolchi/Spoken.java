@@ -93,7 +93,26 @@ public final class Spoken {
      * Ends a spoken stretch the way it sounds: a question gets "?", a cheer gets "!", a full sentence gets a full stop
      * (the Bengali / Hindi danda in those scripts). Short bits of one or two words are left open.
      */
-    public static String punctuate(String text) {
+    public static String punctuate(String text) { return punctuate(text, true); }
+
+    /** Words a sentence does not end on: a pause after one of these is a pause to think, not the end. */
+    private static final java.util.Set<String> OPEN = new java.util.HashSet<>(java.util.Arrays.asList((
+            "and but or so to the a an of in on at for with from by because that which who if when then than as is are was were am be will would can could should "
+            + "my your his her our their this these those i we you he she they it not very also just about into "
+            + "ar ebong kintu je ki ke er te theke jonno karon tai jodi tokhon amar tomar tar amader "
+            + "aur lekin ya ki ka ke ko se me par liye kyunki agar toh to mera tumhara uska").split(" ")));
+
+    /** True when a stretch of speech looks like a finished sentence that should get a full stop (3+ words, no mark yet, not ending on a joining word). */
+    public static boolean wantsStop(String text) {
+        if (text == null) return false;
+        String t = text.trim();
+        if (t.isEmpty() || ".?!,;:।".indexOf(t.charAt(t.length() - 1)) >= 0) return false;
+        String[] w = norm(t).split("\\s+");
+        return w.length >= 3 && !OPEN.contains(w[w.length - 1]);
+    }
+
+    /** stop = false: only ? and ! are added; the full stop is left to the caller, who knows how long the pause really was. */
+    public static String punctuate(String text, boolean stop) {
         if (text == null) return "";
         String t = text.trim();
         if (t.isEmpty()) return text;
@@ -106,7 +125,7 @@ public final class Spoken {
         for (int i = 1; i < w.length && !ask; i++) ask = ASKS_ANY.contains(w[i]);
         if (ask) return t + "?";
         if (CHEERS.contains(w[0]) || (w.length >= 2 && w[0].equals("happy"))) return t + "!";
-        if (w.length < 3) return text;
+        if (w.length < 3 || !stop) return text;
         boolean script = last >= 'ऀ' && last <= '৿';
         return t + (script ? "।" : ".");
     }

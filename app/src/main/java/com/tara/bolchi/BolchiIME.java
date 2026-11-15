@@ -3327,7 +3327,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             InputConnection ic = getCurrentInputConnection();
             if (ic != null) ic.finishComposingText();
             if (composing) spokenAll.append(lastPartial);
+            else if (stopDue && ic != null) {
+                // Stop pressed: the last sentence gets its full stop now
+                CharSequence b = ic.getTextBeforeCursor(1, 0);
+                char c = b == null || b.length() == 0 ? ' ' : b.charAt(0);
+                if (Character.isLetterOrDigit(c)) {
+                    String dot = c >= '\u0900' && c <= '\u09FF' ? "\u0964" : ".";
+                    ic.commitText(dot, 1);
+                    spokenAll.append(dot);
+                }
+            }
         }
+        stopDue = false;
         composing = false;
         lastPartial = "";
         paintMic();
@@ -3404,6 +3415,22 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     @Override public void onEvent(int eventType, Bundle params) { }
 
     /** A space before new speech unless we're at the start or already after a space. */
+    private boolean stopDue;      // the last spoken stretch looks like a whole sentence but has no full stop yet
+    private long roundEndAt;
+
+    /** What goes before a new spoken stretch: a space, and first the full stop the stretch before it was still owed when the silence was long. */
+    private String newLead() {
+        String l = lead();
+        boolean due = stopDue && !l.isEmpty() && System.currentTimeMillis() - roundEndAt > 2000;
+        stopDue = false;
+        if (!due) return l;
+        InputConnection ic = getCurrentInputConnection();
+        CharSequence b = ic == null ? null : ic.getTextBeforeCursor(1, 0);
+        char c = b == null || b.length() == 0 ? ' ' : b.charAt(0);
+        if (".?!,;:\u0964".indexOf(c) >= 0) return l;
+        return (c >= '\u0900' && c <= '\u09FF' ? "\u0964" : ".") + l;
+    }
+
     private String lead() {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return "";
@@ -3420,7 +3447,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (heard.isEmpty()) return;
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
-        if (!composing) { roundLead = lead(); composing = true; }
+        if (!composing) { roundLead = newLead(); composing = true; }
         lastPartial = roundLead + convert(heard);
         ic.setComposingText(lastPartial, 1);
     }
@@ -3434,8 +3461,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) {
             if (!heard.isEmpty()) {
-                if (!composing) roundLead = lead();
-                String said = Spoken.punctuate(convert(heard));     // ? ! or a full stop, from how the sentence is built
+                if (!composing) roundLead = newLead();
+                // ? or ! from how the sentence is built. A full stop is NOT added at every pause (she often pauses to think in the middle of a sentence):
+                // it comes only when she stays silent for long before speaking again, or presses Stop.
+                String said = Spoken.punctuate(convert(heard), false);
+                stopDue = Spoken.wantsStop(said);
+                roundEndAt = System.currentTimeMillis();
                 ic.setComposingText(roundLead + said, 1);
                 spokenAll.append(roundLead).append(said);
             }
