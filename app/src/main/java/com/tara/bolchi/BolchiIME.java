@@ -3148,9 +3148,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 g.setColor(Themes.color(idx, Themes.BG));
                 if (Themes.combo(idx)) {
                     // a colourful combination: the square shows its colours side by side
-                    int bg0 = Themes.color(idx, Themes.BG), f = Themes.color(idx, Themes.FN), nr = Themes.numberRow(idx);
+                    // each colour is a hard-edged stripe (two equal stops per colour)
+                    int[] sw2 = Themes.swatch(idx);
+                    if (sw2.length == 1) sw2 = new int[]{sw2[0], sw2[0]};
+                    int[] stops = new int[sw2.length * 2];
+                    for (int k = 0; k < sw2.length; k++) { stops[2 * k] = sw2[k]; stops[2 * k + 1] = sw2[k]; }
                     g.setOrientation(GradientDrawable.Orientation.LEFT_RIGHT);
-                    g.setColors(nr == Themes.color(idx, Themes.KEY) ? new int[]{bg0, bg0, f, f} : new int[]{nr, nr, bg0, bg0, f, f});
+                    g.setColors(stops);
                 }
                 g.setCornerRadius(dp(10));
                 g.setStroke(dp(cur ? 4 : 3), cur ? Themes.color(idx, Themes.INK) : Themes.color(idx, Themes.ACCENT));

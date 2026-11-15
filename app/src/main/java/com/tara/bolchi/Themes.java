@@ -212,6 +212,20 @@ final class Themes {
     /** True for the soft colour combinations at the end of the list (the palette shows their colours side by side on the square). */
     static boolean combo(int theme) { int first = indexOf("Mint & Peach"); return first >= 0 && theme >= first && theme < NAMES.length; }
 
+    /** The solid colours of a theme, each once, for its palette square (see-through colours are shown solid so the square is visible). */
+    static int[] swatch(int theme) {
+        int[] all = {color(theme, BG), color(theme, KEY), color(theme, FN), numberRow(theme)};
+        int[] out = new int[all.length];
+        int n = 0;
+        for (int c : all) {
+            int solid = 0xFF000000 | (c & 0x00FFFFFF);
+            boolean seen = false;
+            for (int k = 0; k < n; k++) if (out[k] == solid) seen = true;
+            if (!seen) out[n++] = solid;
+        }
+        return java.util.Arrays.copyOf(out, n);
+    }
+
     static int count() { return NAMES.length; }
 
     static int indexOf(String name) {
