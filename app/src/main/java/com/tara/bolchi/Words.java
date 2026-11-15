@@ -370,7 +370,7 @@ public final class Words {
         // "ill", "id", "lets" are real words too: leave them alone
         FIXED.remove("ill"); FIXED.remove("id"); FIXED.remove("lets");
         // real words or Hindi words: leave them alone
-        for (String x : new String[]{"hes", "fro", "si", "ti", "fo", "ot", "wat", "hav", "coz", "form", "meeting", "alright", "defiantly"}) FIXED.remove(x);
+        for (String x : new String[]{"hes", "fro", "si", "ti", "fo", "ot", "form", "meeting", "alright", "defiantly"}) FIXED.remove(x);
     }
 
     private static volatile int[] masks = new int[0];
@@ -519,7 +519,7 @@ public final class Words {
     }
 
     /** Chat short forms ("u", "hv", "bt"). They are written out in English text, but right after Banglish / Hinglish they are only offered: "r", "k", "bt" are words there too. */
-    private static final Set<String> SHORT = new HashSet<>(Arrays.asList(("wat gud gd tonite nite mrng evng cuz dnt cnt thn whr hw nw hv hd bt nd luv sry wlcm bday hpy offc mtg mtng dcmnt rprt amt acnt nmbr adrs tym yr wk hrs gng cmng dng gt gv u ur r fr ws hs bn cm okk posb psbl pbm prblm").split(" ")));
+    private static final Set<String> SHORT = new HashSet<>(Arrays.asList(("hav coz wht abt becoz wat gud gd tonite nite mrng evng cuz dnt cnt thn whr hw nw hv hd bt nd luv sry wlcm bday hpy offc mtg mtng dcmnt rprt amt acnt nmbr adrs tym yr wk hrs gng cmng dng gt gv u ur r fr ws hs bn cm okk posb psbl pbm prblm").split(" ")));
 
     /** True for a spelling from the table of known English slips ("recieve", "teh", "dont"): always safe to put right. */
     public static boolean knownSlip(String typed) {

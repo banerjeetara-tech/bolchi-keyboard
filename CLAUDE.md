@@ -327,6 +327,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 91 (Tara: "in Bengali typing it's unable to pick English words"): on the ab→বাং / ab→हिं rows (`paintCands`) English words for the typed letters now stand
   right after the first Bangla / Hindi word: the word itself when it is in the dictionary, else its corrected spelling (`Words.fix`), plus the likeliest longer word
   (`Words.dictCompletions`); the row is capped at 6 + the raw letters. Space still takes the FIRST (Bangla / Hindi) word. Not shown for Banglish words (`Words.isDesi`).
+  Also in 91: "wat", "hav", "coz" are corrected again (an old line had taken them out of `FIXED`; they are in `Words.SHORT` now, so after Banglish they are only offered).
   If she meant that space should write the English word by itself, ask first: on the Bangla tab "office" is normally wanted as অফিস.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
