@@ -1128,12 +1128,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             }
             if (repairAutoWord != null) {
                 TextView skip = new TextView(this);
-                skip.setText("\u2715");
-                skip.setTextColor(cMuted);
-                skip.setTextSize(18);
+                skip.setText("\u2713 keep");
+                skip.setTextColor(cInk);
+                skip.setTextSize(15);
                 skip.setGravity(Gravity.CENTER);
                 skip.setPadding(dp(14), 0, dp(14), 0);
-                skip.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { tick(v); nextSuspect(); } });
+                skip.setBackground(box(cKey, 12));
+                skip.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { tick(v); keepSuspect(); } });
                 contactBox.addView(skip, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)));
             }
             contactScroll.scrollTo(0, 0);
@@ -1646,6 +1647,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     // ---------- the phone's other guesses for each spoken word ("phone" / "font") ----------
     private long lastVoiceAt;
+    private String roundTail = "";
     private static final class Heard { String[] words; List<List<String>> alts = new ArrayList<>(); }
     private final List<Heard> heardRecent = new ArrayList<>();
 
@@ -1739,6 +1741,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         } });
     }
 
+    /** "keep": this word is right (Bengali, a name ...): it is remembered as hers and never pointed at again. */
+    private void keepSuspect() {
+        if (repairAutoWord != null) { try { keep(repairAutoWord); flashSpace("Remembered \u201C" + repairAutoWord + "\u201D"); } catch (Throwable ignored) { } }
+        nextSuspect();
+    }
+
     private void nextSuspect() {
         if (!suspectWords.isEmpty()) { suspectWords.remove(0); suspectChoices.remove(0); }
         showSuspect();
@@ -1754,6 +1762,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     /** Replaces the doubtful word wherever it stands in the text before the cursor, then puts the cursor back where it was. */
     private void applyRepairAt(String word, String eng) {
+        learnVoiceFix(word, eng);
         InputConnection ic = getCurrentInputConnection();
         if (ic != null && eng != null && !eng.isEmpty()) {
             try {
@@ -1820,6 +1829,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (repairAutoWord != null) { applyRepairAt(repairAutoWord, eng); return; }
         InputConnection ic = getCurrentInputConnection();
         if (ic == null || eng == null || eng.isEmpty()) return;
+        try {
+            CharSequence tb = ic.getTextBeforeCursor(repairPre, 0), ta = ic.getTextAfterCursor(repairSuf, 0);
+            learnVoiceFix((tb == null ? "" : tb.toString()) + (ta == null ? "" : ta.toString()), eng);
+        } catch (Throwable ignored) { /* not remembered */ }
         ic.beginBatchEdit();
         ic.deleteSurroundingText(repairPre, repairSuf);
         ic.commitText(eng, 1);
@@ -2377,8 +2390,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 candRow.addView(t);
             }
             if (repairAutoWord != null) {
-                TextView skip = makeKey("\u2715", 0.5f, cKey, cMuted, 18);
-                onPress(skip, cKey, new Runnable() { @Override public void run() { nextSuspect(); } });
+                TextView skip = makeKey("\u2713 keep", 0.9f, cKey, cInk, 14);
+                onPress(skip, cKey, new Runnable() { @Override public void run() { keepSuspect(); } });
                 candRow.addView(skip);
             }
             return;
@@ -3568,9 +3581,61 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private String convert(String heard) {
-        if (mode == MODE_BN) return voiceScript[0] ? heard : Translit.toBanglish(heard);
-        if (mode == MODE_HI) return voiceScript[1] ? heard : HindiTranslit.toHinglish(heard);
-        return heard;
+        String out;
+        if (mode == MODE_BN) out = voiceScript[0] ? heard : Translit.toBanglish(heard);
+        else if (mode == MODE_HI) out = voiceScript[1] ? heard : HindiTranslit.toHinglish(heard);
+        else out = heard;
+        return applyVoiceFix(out);
+    }
+
+    // ---------- memory of her corrections: a word she repaired once is repaired by itself next time ----------
+    private java.util.HashMap<String, String> voiceFix;
+
+    private java.util.HashMap<String, String> voiceFixMap() {
+        if (voiceFix == null) {
+            voiceFix = new java.util.HashMap<>();
+            for (String line : prefs().getString("voiceFix", "").split("\n")) {
+                int e = line.indexOf('=');
+                if (e > 0 && e < line.length() - 1) voiceFix.put(line.substring(0, e), line.substring(e + 1));
+            }
+        }
+        return voiceFix;
+    }
+
+    /** Remembers "wrong -> right" (latest 300). */
+    private void learnVoiceFix(String wrong, String right) {
+        try {
+            String w = bare(wrong), r = right == null ? "" : right.trim();
+            if (w.length() < 2 || r.isEmpty() || w.equalsIgnoreCase(r)) return;
+            java.util.HashMap<String, String> m = voiceFixMap();
+            m.remove(w);
+            m.put(w, r);
+            StringBuilder b = new StringBuilder();
+            int skip = Math.max(0, m.size() - 300);
+            for (java.util.Map.Entry<String, String> e : m.entrySet()) { if (skip-- > 0) continue; b.append(e.getKey()).append('=').append(e.getValue()).append('\n'); }
+            prefs().edit().putString("voiceFix", b.toString()).apply();
+        } catch (Throwable ignored) { /* a help only */ }
+    }
+
+    private String applyVoiceFix(String text) {
+        if (text == null || text.isEmpty()) return text;
+        java.util.HashMap<String, String> m = voiceFixMap();
+        if (m.isEmpty()) return text;
+        String[] tok = text.split(" ", -1);
+        boolean any = false;
+        for (int i = 0; i < tok.length; i++) {
+            String w = bare(tok[i]);
+            String r = w.isEmpty() ? null : m.get(w);
+            if (r == null) continue;
+            int at = tok[i].toLowerCase(java.util.Locale.ROOT).indexOf(w);
+            if (at < 0) continue;
+            tok[i] = tok[i].substring(0, at) + Words.matchCase(tok[i].substring(at, at + w.length()), r) + tok[i].substring(at + w.length());
+            any = true;
+        }
+        if (!any) return text;
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < tok.length; i++) { if (i > 0) b.append(' '); b.append(tok[i]); }
+        return b.toString();
     }
 
     private void startListening() {
@@ -3796,15 +3861,23 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private boolean autoDot;      // the timer wrote a full stop by itself: it is taken away again if she carries on speaking soon
     private long autoDotAt;
 
+    /** Writes the mark that fits the sentence just spoken (? for a question, ! for a cheer, a full stop otherwise), judged on the WHOLE sentence since the last mark. */
     private boolean endSentence() {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return false;
-        CharSequence b = ic.getTextBeforeCursor(1, 0);
-        char c = b == null || b.length() == 0 ? ' ' : b.charAt(0);
-        if (!Character.isLetterOrDigit(c)) return false;
-        String dot = c >= '\u0900' && c <= '\u09FF' ? "\u0964" : ".";
-        ic.commitText(dot, 1);
-        spokenAll.append(dot);
+        CharSequence b = ic.getTextBeforeCursor(240, 0);
+        if (b == null || b.length() == 0) return false;
+        String t = b.toString();
+        if (!Character.isLetterOrDigit(t.charAt(t.length() - 1))) return false;
+        int from = 0;
+        for (int i = t.length() - 1; i >= 0; i--) {
+            char c = t.charAt(i);
+            if (c == '.' || c == '?' || c == '!' || c == '\u0964' || c == '\n') { from = i + 1; break; }
+        }
+        String mark = Spoken.markFor(t.substring(from));
+        if (mark.isEmpty()) return false;
+        ic.commitText(mark, 1);
+        spokenAll.append(mark);
         return true;
     }
 
@@ -3816,10 +3889,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             // she carries on speaking: the full stop the timer wrote was only a pause to think, so it goes again
             InputConnection ic = getCurrentInputConnection();
             CharSequence b = ic == null ? null : ic.getTextBeforeCursor(1, 0);
-            if (b != null && b.length() == 1 && (b.charAt(0) == '.' || b.charAt(0) == '\u0964')) {
+            if (b != null && b.length() == 1 && ".?!\u0964".indexOf(b.charAt(0)) >= 0) {
                 ic.deleteSurroundingText(1, 0);
                 int n = spokenAll.length();
-                if (n > 0 && (spokenAll.charAt(n - 1) == '.' || spokenAll.charAt(n - 1) == '\u0964')) spokenAll.setLength(n - 1);
+                if (n > 0 && ".?!\u0964".indexOf(spokenAll.charAt(n - 1)) >= 0) spokenAll.setLength(n - 1);
             }
         }
         autoDot = false;
@@ -3842,8 +3915,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (heard.isEmpty()) return;
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
-        if (!composing) { roundLead = newLead(); composing = true; }
-        lastPartial = roundLead + convert(Spoken.dedupe(heard, mode == MODE_EN));
+        if (!composing) {
+            roundLead = newLead();
+            composing = true;
+            CharSequence tb = ic.getTextBeforeCursor(80, 0);
+            roundTail = tb == null ? "" : tb.toString();           // what stood before this sentence began
+        }
+        String hp = Spoken.dedupe(heard, mode == MODE_EN);
+        String cutp = Spoken.dropRepeat(roundTail, hp, mode == MODE_EN);
+        if (!cutp.isEmpty()) hp = cutp;                            // she pauses and says the last words again: not shown twice, not even while speaking
+        lastPartial = roundLead + convert(hp);
         lastVoiceAt = System.currentTimeMillis();
         ic.setComposingText(lastPartial, 1);
     }
@@ -3859,15 +3940,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (ic != null) {
             if (!heard.isEmpty()) {
                 if (!composing) roundLead = newLead();
-                // she paused and then repeated her last words: they are not written a second time
-                CharSequence tail = ic.getTextBeforeCursor(60, 0);
-                if (tail != null && !composing) {
-                    String cut = Spoken.dropRepeat(tail.toString(), heard, mode == MODE_EN);
-                    if (!cut.isEmpty()) heard = cut;
-                }
+                // she paused and then repeated her last words: they are not written a second time.
+                // (Version 90-104 skipped this whenever the sentence had already started to appear on screen: that was the "kota hoy Kota hoy" doubling.)
+                String tailStr;
+                if (composing) tailStr = roundTail;
+                else { CharSequence tail = ic.getTextBeforeCursor(80, 0); tailStr = tail == null ? "" : tail.toString(); }
+                String cut = Spoken.dropRepeat(tailStr, heard, mode == MODE_EN);
+                if (!cut.isEmpty()) heard = cut;
                 // ? or ! from how the sentence is built. A full stop is NOT added at every pause (she often pauses to think in the middle of a sentence):
                 // it comes only when she stays silent for long before speaking again, or presses Stop.
-                String said = Spoken.punctuate(convert(heard), false);
+                String said = convert(heard);       // no mark at a pause: it may only be a breath in the middle of a sentence (see endSentence)
                 rememberAlternatives(results, said);
                 findSuspects(said);
                 lastVoiceAt = System.currentTimeMillis();

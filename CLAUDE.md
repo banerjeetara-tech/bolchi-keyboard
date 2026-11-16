@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 104 = build-140** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 105 = build-142** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -410,6 +410,16 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   - Duplicates: version 90's `Spoken.dedupe` removed a single doubled word on the English chip ONLY, so "ami ami", "tumi tumi" stayed on Bangla / Hindi. Now single doubles go in every mode except
     intended ones (`keepDouble`: English very / no / bye..., Bengali / Hindi `REDUP` list and words ending -te such as "dekhte dekhte"); also applied to the live (partial) text. She gave no example:
     ask for the exact text before and after if it still doubles (a pause between the two copies, punctuation, or the AI fix may be involved).
+- Version 105 (Tara with a WhatsApp screenshot: "Duto theke half khele kota hoy Kota hoy beauty?" = a repeat after a pause; "there should be an option where I reject some Bengali words, it should be
+  stored in memory"; "after every pause [a full stop] is given, instead of finding the tone and giving accordingly"):
+  - ROOT CAUSE of the doubled phrase: `onResults` skipped `Spoken.dropRepeat` whenever `composing` was true (the new sentence had already begun to show through partial results), i.e. almost
+    always. Now the text before the sentence is captured when its first partial arrives (`roundTail`) and used for both the live text and the final one.
+  - Punctuation by meaning: no mark is written at a pause any more. Marks come only from `endSentence` (5 s of silence, or Stop): `Spoken.markFor` judges the WHOLE sentence since the last mark
+    (? for question words, ! for cheers, full stop / danda for 3+ words not ending on a joining word). A mark written by the timer is removed again if she speaks within 15 s (`newLead`,
+    now also for ? and !). Tone of voice cannot be heard; only the words decide. The AI tidy (if on) still punctuates by meaning on its own.
+  - Memory: (a) a word she repairs (tap row or the automatic row) is stored as wrong → right in pref `voiceFix` (latest 300) and replaced by itself in later dictation (`applyVoiceFix` inside
+    `convert`); (b) the "✓ keep" chip on the automatic row (it was ✕) says the word is right: `keep(word)`, never pointed at again. Her wording was unclear ("defeating" = rejecting / deleting?):
+    ask if she meant that deleting a word should teach the keyboard (not built).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

@@ -81,7 +81,7 @@ public final class Spoken {
             + "কেন কোথায় কোথায় কখন কেমন কি কী কে কত "
             + "क्या क्यों कैसे कब कहाँ कहां कौन कितना").split(" ")));
     private static final java.util.Set<String> ASKS_ANY = new java.util.HashSet<>(Arrays.asList((
-            "keno kothay kokhon kemon kobe kivabe kibhabe koto kyun kyu kyon kaise kaisa kaisi kab kahan kaun kitna kitne kitni "
+            "keno kothay kokhon kemon kobe kivabe kibhabe koto kota kyun kyu kyon kaise kaisa kaisi kab kahan kaun kitna kitne kitni "
             + "\u0995\u09C7\u09A8 \u0995\u09CB\u09A5\u09BE\u09DF \u0995\u09CB\u09A5\u09BE\u09AF\u09BC \u0995\u0996\u09A8 \u0995\u09C7\u09AE\u09A8 \u0995\u09A4 "
             + "\u0915\u094D\u092F\u093E \u0915\u094D\u092F\u094B\u0902 \u0915\u0948\u0938\u0947 \u0915\u092C \u0915\u0939\u093E\u0901 \u0915\u0939\u093E\u0902 \u0915\u094C\u0928 \u0915\u093F\u0924\u0928\u093E").split(" ")));
     private static final java.util.Set<String> ASK_ENDS = new java.util.HashSet<>(Arrays.asList(
@@ -171,6 +171,17 @@ public final class Spoken {
         if (t.isEmpty() || ".?!,;:।".indexOf(t.charAt(t.length() - 1)) >= 0) return false;
         String[] w = norm(t).split("\\s+");
         return w.length >= 3 && !OPEN.contains(w[w.length - 1]);
+    }
+
+    /** The mark a finished sentence gets by its meaning: "?" for a question, "!" for a cheer, a full stop (danda in script) for a plain statement, "" when it is too short or unfinished. */
+    public static String markFor(String sentence) {
+        if (sentence == null) return "";
+        String t = sentence.trim();
+        if (t.isEmpty()) return "";
+        String r = punctuate(t, true);
+        String mark = r.length() > t.length() ? r.substring(t.length()) : "";
+        if ((mark.equals(".") || mark.equals("\u0964")) && !wantsStop(t)) return "";      // "I will send the report and" is not finished
+        return mark;
     }
 
     /** stop = false: only ? and ! are added; the full stop is left to the caller, who knows how long the pause really was. */
