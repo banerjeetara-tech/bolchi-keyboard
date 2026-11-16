@@ -99,7 +99,7 @@ public final class Spoken {
 
     /** Bengali / Hindi words that are doubled on purpose ("aste aste", "dhire dhire", "choto choto", "baar baar"): the second copy is a real word, not a stutter. */
     private static final java.util.Set<String> REDUP = new java.util.HashSet<>(Arrays.asList((
-            "aste dhire choto boro jore mone hate bar roj onek thoda baar jaldi bahut".split(" ")));
+            "aste dhire choto boro jore mone hate bar roj onek thoda baar jaldi bahut").split(" ")));
 
     /** True when a single word said twice should stay: an intended double in English, or a Bengali / Hindi double. */
     private static boolean keepDouble(String w, boolean english) {
