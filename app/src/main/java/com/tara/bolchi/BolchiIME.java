@@ -1100,8 +1100,17 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         // the cursor stands in a word with other possible words (the phone's other guesses, English words that sound alike): a row of choices, one tap repairs it
         slotRepair[0] = slotRepair[1] = slotRepair[2] = false;
-        if (w.isEmpty() && !repairList.isEmpty() && v[0].isEmpty() && v[1].isEmpty() && v[2].isEmpty() && !plainField && contactScroll != null) {
+        if (w.isEmpty() && !repairList.isEmpty() && (repairAutoWord != null || (v[0].isEmpty() && v[1].isEmpty() && v[2].isEmpty())) && !plainField && contactScroll != null) {
             contactBox.removeAllViews();
+            if (repairAutoWord != null) {
+                TextView lab = new TextView(this);
+                lab.setText(repairAutoWord + " ?");
+                lab.setTextColor(cMuted);
+                lab.setTextSize(15);
+                lab.setGravity(Gravity.CENTER);
+                lab.setPadding(dp(8), 0, dp(10), 0);
+                contactBox.addView(lab, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)));
+            }
             for (final String c : repairList) {
                 TextView t = new TextView(this);
                 t.setText(c);
@@ -1116,6 +1125,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
                 lp.setMargins(0, 0, dp(4), 0);
                 contactBox.addView(t, lp);
+            }
+            if (repairAutoWord != null) {
+                TextView skip = new TextView(this);
+                skip.setText("\u2715");
+                skip.setTextColor(cMuted);
+                skip.setTextSize(18);
+                skip.setGravity(Gravity.CENTER);
+                skip.setPadding(dp(14), 0, dp(14), 0);
+                skip.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { tick(v); nextSuspect(); } });
+                contactBox.addView(skip, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)));
             }
             contactScroll.scrollTo(0, 0);
             contactScroll.setVisibility(View.VISIBLE);
@@ -1485,6 +1504,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             paintCands();
         } else if (!repairList.isEmpty() && !jumped) {
             repairList = new ArrayList<>();          // she goes on typing: the offer is gone
+            repairAutoWord = null;
+            suspectWords.clear();
+            suspectChoices.clear();
             if (sugRow != null) paintSugs();
             paintCands();
         }
@@ -1673,6 +1695,91 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         return out;
     }
 
+    // ---------- after speaking: the keyboard itself points at a doubtful English word and offers the right ones ----------
+    private final List<String> suspectWords = new ArrayList<>();
+    private final List<List<String>> suspectChoices = new ArrayList<>();
+    private String repairAutoWord;        // set while the row shows choices for a doubtful word of the dictation (no tap into the text needed)
+
+    /** Looks through the sentence just written for English-sounding words that are no English word, and queues them with the choices. */
+    private void findSuspects(String said) {
+        try {
+            suspectWords.clear();
+            suspectChoices.clear();
+            if (!Words.ready || said == null) return;
+            for (String tok : said.trim().split("\\s+")) {
+                String w = bare(tok);
+                if (w.length() < 4 || !w.matches("[a-z']+") || suspectWords.contains(w)) continue;
+                if (Words.inDictionary(w) || Words.known(w) || Words.isDesi(w)) continue;
+                List<String> c = new ArrayList<>();
+                for (String e : heardAlternatives(w)) if (Words.inDictionary(e) && !c.contains(e)) c.add(e);
+                for (String e : Words.englishFor(w, 4)) {
+                    char a = Character.toLowerCase(e.charAt(0)), b = w.charAt(0);
+                    boolean sameStart = a == b || (a == 'c' && b == 'k') || (a == 'k' && b == 'c') || (a == 'f' && b == 'p');
+                    if (sameStart && !c.contains(e.toLowerCase()) && !e.equalsIgnoreCase(w)) c.add(e);
+                }
+                if (c.isEmpty()) continue;
+                suspectWords.add(w);
+                suspectChoices.add(c.size() > 6 ? new ArrayList<>(c.subList(0, 6)) : c);
+                if (suspectWords.size() >= 4) break;
+            }
+            showSuspect();
+        } catch (Throwable ignored) { /* a help only */ }
+    }
+
+    /** Puts the first queued doubtful word in the row (or clears the row when none is left). */
+    private void showSuspect() {
+        if (suspectWords.isEmpty()) {
+            if (repairAutoWord != null) { repairAutoWord = null; repairList = new ArrayList<>(); }
+        } else {
+            repairAutoWord = suspectWords.get(0);
+            repairList = new ArrayList<>(suspectChoices.get(0));
+        }
+        handler.post(new Runnable() { @Override public void run() {
+            try { paintSugs(); paintCands(); } catch (Exception ex) { saveProblem(ex); }
+        } });
+    }
+
+    private void nextSuspect() {
+        if (!suspectWords.isEmpty()) { suspectWords.remove(0); suspectChoices.remove(0); }
+        showSuspect();
+    }
+
+    private static int lastWordAt(String text, String word) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?<![A-Za-z'])" + java.util.regex.Pattern.quote(word) + "(?![A-Za-z'])",
+                java.util.regex.Pattern.CASE_INSENSITIVE).matcher(text);
+        int at = -1;
+        while (m.find()) at = m.start();
+        return at;
+    }
+
+    /** Replaces the doubtful word wherever it stands in the text before the cursor, then puts the cursor back where it was. */
+    private void applyRepairAt(String word, String eng) {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic != null && eng != null && !eng.isEmpty()) {
+            try {
+                android.view.inputmethod.ExtractedText et = ic.getExtractedText(new ExtractedTextRequest(), 0);
+                if (et != null && et.text != null) {
+                    String t = et.text.toString();
+                    int cur = Math.min(t.length(), et.selectionStart);
+                    int idx = lastWordAt(t.substring(0, cur), word);
+                    if (idx >= 0) {
+                        String was = t.substring(idx, idx + word.length());
+                        String put = Words.matchCase(was, eng);
+                        int abs = et.startOffset + idx;
+                        int back = et.startOffset + cur + put.length() - word.length();
+                        ic.beginBatchEdit();
+                        ic.setSelection(abs, abs + word.length());
+                        ic.commitText(put, 1);
+                        ic.setSelection(back, back);
+                        ic.endBatchEdit();
+                        spokenAll.setLength(0);          // the text was changed by hand: the AI fix leaves it alone
+                    }
+                }
+            } catch (Throwable ex) { saveProblem(ex); }
+        }
+        nextSuspect();
+    }
+
     // ---------- tap a word to repair it: the English word an English-sounding spelling was meant to be ("myanejment" -> "management") ----------
     private List<String> repairList = new ArrayList<>();
     private int repairPre, repairSuf;
@@ -1680,6 +1787,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     /** Looks at the word the cursor stands in (after she tapped into the text or finished speaking) and finds English words it may have been meant to be. */
     private void computeRepair() {
+        if (repairAutoWord != null) return;          // the keyboard is already showing choices for a word of the dictation
         repairList = new ArrayList<>();
         try {
             // (while the microphone is on, a tap right after a sentence is still part of the dictation: wait a moment)
@@ -1709,6 +1817,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     /** One tap: the word under the cursor becomes the English word. */
     private void applyRepair(String eng) {
+        if (repairAutoWord != null) { applyRepairAt(repairAutoWord, eng); return; }
         InputConnection ic = getCurrentInputConnection();
         if (ic == null || eng == null || eng.isEmpty()) return;
         ic.beginBatchEdit();
@@ -2256,7 +2365,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         candRow.removeAllViews();
         if (phon.length() == 0 && !repairList.isEmpty()) {
             TextView lab = new TextView(this);
-            lab.setText("English?");
+            lab.setText(repairAutoWord != null ? repairAutoWord + " ?" : "English?");
             lab.setTextColor(cMuted);
             lab.setTextSize(13);
             lab.setGravity(Gravity.CENTER);
@@ -2266,6 +2375,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 t.setTypeface(Typeface.DEFAULT_BOLD);
                 onPress(t, cFn, new Runnable() { @Override public void run() { applyRepair(c); } });
                 candRow.addView(t);
+            }
+            if (repairAutoWord != null) {
+                TextView skip = makeKey("\u2715", 0.5f, cKey, cMuted, 18);
+                onPress(skip, cKey, new Runnable() { @Override public void run() { nextSuspect(); } });
+                candRow.addView(skip);
             }
             return;
         }
@@ -3729,7 +3843,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
         if (!composing) { roundLead = newLead(); composing = true; }
-        lastPartial = roundLead + convert(heard);
+        lastPartial = roundLead + convert(Spoken.dedupe(heard, mode == MODE_EN));
         lastVoiceAt = System.currentTimeMillis();
         ic.setComposingText(lastPartial, 1);
     }
@@ -3755,6 +3869,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 // it comes only when she stays silent for long before speaking again, or presses Stop.
                 String said = Spoken.punctuate(convert(heard), false);
                 rememberAlternatives(results, said);
+                findSuspects(said);
                 lastVoiceAt = System.currentTimeMillis();
                 stopDue = Spoken.wantsStop(said);
                 roundEndAt = System.currentTimeMillis();

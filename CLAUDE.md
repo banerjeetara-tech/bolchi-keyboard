@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 103 = build-137** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 104 = build-139** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -401,6 +401,15 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   only) and offered for ANY tapped word, then the sound-alike English words for non-English ones. (3) Only 3 choices fitted; the EN keys now show up to 8 as a scrolling chip row in the
   word-row place (reuses `contactBox`), the Bangla / Hindi row shows 4. Limits: "app" has only 2 consonant sounds, so `Words.englishFor` still cannot find it ("opose" gives
   oppose); the guess list is the engine's, it may not contain the right word; no guesses once the AI tidy has rewritten the sentence. Not tested on a phone.
+- Version 104 (Tara: "could not understand how to use this [tap a word] while speaking Bengali with English words in between; correct the same"; and "duplication of the word is still coming"):
+  - She could not find / use the tap-to-repair, so the keyboard now POINTS at the word itself: after each spoken sentence `findSuspects` looks for Latin words that are no English word, not hers,
+    not Banglish, 4+ letters, with choices (the engine's other guesses that are dictionary words, then `Words.englishFor` whose first letter fits), and the word-row place (EN keys) /
+    candidate row (Bangla / Hindi keys) shows "opose ?  oppose  opposed … ✕". One tap replaces that word wherever it stands (`applyRepairAt`: ExtractedText + setSelection, cursor put
+    back; it needs an editor that supports it), ✕ or a pick moves to the next doubtful word (`nextSuspect`, up to 4 per sentence). `repairAutoWord` != null marks this mode; typing clears it.
+    The tap-into-text repair of 101 / 103 stays. Not tested on a phone; if the replacement fails in some app the word just stays (`saveProblem` on exceptions).
+  - Duplicates: version 90's `Spoken.dedupe` removed a single doubled word on the English chip ONLY, so "ami ami", "tumi tumi" stayed on Bangla / Hindi. Now single doubles go in every mode except
+    intended ones (`keepDouble`: English very / no / bye..., Bengali / Hindi `REDUP` list and words ending -te such as "dekhte dekhte"); also applied to the live (partial) text. She gave no example:
+    ask for the exact text before and after if it still doubles (a pause between the two copies, punctuation, or the AI fix may be involved).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

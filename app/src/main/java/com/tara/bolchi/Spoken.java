@@ -97,6 +97,17 @@ public final class Spoken {
     private static final java.util.Set<String> TWICE_OK = new java.util.HashSet<>(Arrays.asList(
             "very", "so", "no", "bye", "ha", "had", "that", "really", "many", "long", "far", "too", "ok", "okay", "yes", "na", "hi", "bla", "blah", "knock", "more", "again"));
 
+    /** Bengali / Hindi words that are doubled on purpose ("aste aste", "dhire dhire", "choto choto", "baar baar"): the second copy is a real word, not a stutter. */
+    private static final java.util.Set<String> REDUP = new java.util.HashSet<>(Arrays.asList((
+            "aste dhire choto boro jore mone hate bar roj onek thoda baar jaldi bahut".split(" ")));
+
+    /** True when a single word said twice should stay: an intended double in English, or a Bengali / Hindi double. */
+    private static boolean keepDouble(String w, boolean english) {
+        if (TWICE_OK.contains(w) || w.matches("\\d+")) return true;
+        if (english) return false;
+        return REDUP.contains(w) || (w.length() >= 5 && w.endsWith("te"));      // "dekhte dekhte", "bolte bolte": two continuing actions
+    }
+
     /**
      * Takes out what was said twice in a row: a repeated group of two to five words ("I have I have stopped" becomes "I have stopped"),
      * and, when singleWords is true (English), a repeated single word ("the the"). Bengali and Hindi double words on purpose
@@ -109,12 +120,11 @@ public final class Spoken {
         while (changed) {
             changed = false;
             for (int n = 5; n >= 1 && !changed; n--) {
-                if (n == 1 && !singleWords) break;
                 for (int i = 0; i + 2 * n <= tok.size(); i++) {
                     boolean same = true;
                     for (int k = 0; k < n && same; k++) same = norm(tok.get(i + k)).equals(norm(tok.get(i + n + k))) && !norm(tok.get(i + k)).isEmpty();
                     if (!same) continue;
-                    if (n == 1 && (TWICE_OK.contains(norm(tok.get(i))) || norm(tok.get(i)).matches("\\d+"))) continue;
+                    if (n == 1 && keepDouble(norm(tok.get(i)), singleWords)) continue;
                     for (int k = 0; k < n; k++) tok.remove(i);          // the first copy goes, the second (with its punctuation) stays
                     changed = true;
                     break;
@@ -134,7 +144,7 @@ public final class Spoken {
         if (before == null || said == null) return said;
         String[] b = before.trim().split("\\s+"), s = said.trim().split("\\s+");
         for (int n = Math.min(5, Math.min(b.length, s.length - 1)); n >= 1; n--) {
-            if (n == 1 && (!singleWords || TWICE_OK.contains(norm(s[0])))) break;
+            if (n == 1 && keepDouble(norm(s[0]), singleWords)) break;
             boolean same = true;
             for (int k = 0; k < n && same; k++) same = !norm(s[k]).isEmpty() && norm(s[k]).equals(norm(b[b.length - n + k]));
             if (!same) continue;
