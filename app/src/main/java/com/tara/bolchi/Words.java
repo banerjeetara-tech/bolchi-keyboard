@@ -432,7 +432,7 @@ public final class Words {
         } else {
             w = w.replace("bh", "V").replace("ph", "F").replace("sh", "X").replace("ch", "C");
         }
-        StringBuilder k = new StringBuilder(), f = new StringBuilder();
+        StringBuilder k = new StringBuilder(), f = new StringBuilder(), q = new StringBuilder();     // q: the first vowel letter after each sound
         int n = w.length();
         for (int i = 0; i < n; i++) {
             char c = w.charAt(i);
@@ -452,9 +452,12 @@ public final class Words {
                 default: break;                                   // w, h and anything else carry no sound here
             }
             if (vowel) {
-                if (k.length() == 0) { k.append('a'); f.append('-'); }
+                // in Banglish "ai" is the English long i ("fail" = file), "iu" is u ("iunit" = unit), "ou" is o
+                char vq = english ? c : c == 'a' && next == 'i' ? 'i' : c == 'i' && next == 'u' ? 'u' : c;
+                if (k.length() == 0) { k.append('a'); f.append('-'); q.append(vq); }
                 else {
                     int at = f.length() - 1;
+                    if (q.charAt(at) == '-') q.setCharAt(at, vq);
                     char was = f.charAt(at);
                     char now = c == 'o' && !english ? (was == 'v' ? 'v' : 'o') : 'v';
                     if (k.length() == 1 && k.charAt(0) == 'a') now = '-';       // still the leading vowel
@@ -462,27 +465,86 @@ public final class Words {
                 }
             } else if (o != 0) {
                 if (k.length() > 0 && k.charAt(k.length() - 1) == o && f.charAt(f.length() - 1) == '-') continue;     // a doubled letter
-                k.append(o); f.append('-');
+                k.append(o); f.append('-'); q.append('-');
             }
         }
         // a last o in Banglish is a spoken vowel, not a breath
         if (!english && f.length() > 0 && f.charAt(f.length() - 1) == 'o') f.setCharAt(f.length() - 1, 'v');
-        return new String[]{k.toString(), f.toString()};
+        return new String[]{k.toString(), f.toString(), q.toString()};
     }
 
     /**
      * The usual English word that sounds like these Banglish letters, or null. Only long words with a clear shape are matched
      * (6+ letters, 4+ consonant sounds, the vowels sitting in the same places), because short ones collide with real Bengali words.
      */
+    private static volatile HashMap<String, List<String>> SOUND_SHORT;
+
+    /** Which English vowel letters a Banglish vowel can stand for ("a" is never an English i, "i" never an a ...). */
+    private static boolean vowelFits(char bn, char en) {
+        switch (bn) {
+            case 'a': return en == 'a' || en == 'u' || en == 'o' || en == 'e';
+            case 'e': return en == 'e' || en == 'a';
+            case 'i': return en == 'i' || en == 'e' || en == 'y';
+            case 'o': return en == 'o' || en == 'a';
+            case 'u': return en == 'u' || en == 'o' || en == 'e';
+            default: return true;
+        }
+    }
+
+    /**
+     * Short words (4 or 5 Banglish letters: "topik", "print", "lebel"): only very usual English words, the same sounds, a vowel in exactly
+     * the same places and each vowel a fitting one. Stricter than the long-word match, because short Bengali words look like English ones.
+     */
+    private static String soundAlikeShort(String roman) {
+        HashMap<String, List<String>> m = SOUND_SHORT;
+        if (m == null) {
+            m = new HashMap<>();
+            String[] l = list;
+            for (int i = 0; i < l.length && i < 8000; i++) {
+                String w = l[i];
+                if (w.length() < 4 || w.length() > 7 || w.indexOf('\'') >= 0 || DESI.contains(w)) continue;
+                String k = shape(w, true)[0];
+                if (k.length() < 3) continue;
+                List<String> at = m.get(k);
+                if (at == null) { at = new ArrayList<>(2); m.put(k, at); }
+                if (at.size() < 6) at.add(w);
+            }
+            SOUND_SHORT = m;
+        }
+        String[] r = shape(roman, false);
+        if (r[0].length() < 3) return null;
+        List<String> hits = m.get(r[0]);
+        if (hits == null) return null;
+        for (String hit : hits) {
+            int d = hit.length() - roman.length();
+            if (d > 2 || d < -1) continue;
+            String[] e = shape(hit, true);
+            boolean ok = e[1].length() == r[1].length();
+            for (int i = 0; ok && i < e[1].length(); i++) {
+                boolean bv = r[1].charAt(i) != '-' || (i == 0 && r[0].charAt(0) == 'a'), ev = e[1].charAt(i) != '-' || (i == 0 && e[0].charAt(0) == 'a');
+                if (bv != ev) ok = false;
+                else if (bv && !(i == 0 && r[0].charAt(0) == 'a') && !vowelFits(r[2].charAt(i), e[2].charAt(i))) ok = false;      // (a leading vowel is too loosely written to compare)
+            }
+            if (ok) return hit;
+        }
+        return null;
+    }
+
     public static String soundAlike(String roman) {
-        if (!ready || roman == null || roman.length() < 6) return null;
+        if (!ready || roman == null || roman.length() < 4) return null;
+        if (roman.length() < 6) return soundAlikeShort(roman);
+        String longHit = soundAlikeLong(roman);
+        return longHit != null || roman.length() > 7 ? longHit : soundAlikeShort(roman);      // "tichar", "bhijit": six letters but only three sounds
+    }
+
+    private static String soundAlikeLong(String roman) {
         HashMap<String, List<String>> m = SOUND;
         if (m == null) {
             m = new HashMap<>();
             String[] l = list;
             for (int i = 0; i < l.length && i < 20000; i++) {
                 String w = l[i];
-                if (w.length() < 6 || w.indexOf('\'') >= 0 || DESI.contains(w)) continue;
+                if (w.length() < 5 || w.indexOf('\'') >= 0 || DESI.contains(w)) continue;
                 String k = shape(w, true)[0];
                 if (k.length() < 4) continue;
                 List<String> at = m.get(k);
@@ -501,15 +563,18 @@ public final class Words {
         for (String hit : hits) {
             int d = hit.length() - roman.length();
             if (d > 4 || d < -4) continue;
-            String ef = shape(hit, true)[1];
+            String[] es = shape(hit, true);
+            String ef = es[1];
             if (ef.length() != r[1].length()) continue;
-            int extra = 0;
+            int extra = 0, odd = 0;
             boolean ok = true;
             for (int i = 0; i < ef.length() && ok; i++) {
                 char b = r[1].charAt(i), e = ef.charAt(i);
                 if (b == 'v' && e == '-') ok = false;             // a clear vowel in the spoken word where English has none: another word
                 else if (b == '-' && e == 'v') extra++;           // English writes a vowel that is not spoken (management)
+                else if (b == 'v' && e == 'v' && !(i == 0 && r[0].charAt(0) == 'a') && !vowelFits(r[2].charAt(i), es[2].charAt(i))) odd++;   // "fanding" is funding, not finding
             }
+            if (odd > (roman.length() >= 9 ? 1 : 0)) ok = false;      // a long word may have one vowel written differently ("rikoyarment")
             if (!ok) continue;
             if (extra == 0) return hit;                           // the vowels sit in exactly the same places ("promotion", not "permission")
             if (extra == 1 && second == null) second = hit;

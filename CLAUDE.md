@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 97 = build-123** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 98 = build-125** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -359,6 +359,17 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
     fixes (কাটলেন → kathleen and ডাকলেন → decline were caught by the verb-ending rule). SHORT English words (under 6 letters) still need the explicit lists (`DICT` / `LOAN`)
     or the AI fix. Not tested on a phone; if a Bengali word turns English, add its pattern to `looksLoan`.
   - Lesson: she counts an issue as "not resolved" until it works on her phone; say plainly what is still limited instead of announcing a fix.
+- Version 98 (Tara: "potty it's taking porty, pause as pase ... matching English words should be English only"; "in GIF no text should go"):
+  - GIF: the box is now emptied COMPLETELY before the GIF is sent, whatever its length (`sendGif`). A text of more than 40 characters is kept (`gifHeld`) and offered
+    back as "↶ My text" in the left word slot: at once, and once more when the box of the same app opens again within 5 minutes (not in a box whose hint says "caption").
+  - Short English words in Bengali speech: `Words.soundAlikeShort` matches Banglish of 4-7 letters with 3+ consonant sounds against the 8000 most usual English words,
+    strictly (vowels in the same places and of a fitting kind, `vowelFits`): topic, print, level, model, total, hotel, focus, start, draft, credit, limit, target, visit,
+    teacher, problem ... The long match checks vowel kind too now (funding, not finding). `Translit.NATIVE_ONLY` also holds ত and দ (English t / d are always ট / ড).
+    PC test: 55 of 55 long and about 52 of 60 short samples right; the Bengali samples unchanged. Words with only TWO consonant sounds (potty, pause, file, call) can
+    not be matched safely: they need the explicit list (`DICT` / `LOAN`; potty and pause added) or the AI fix.
+  - "porty" for potty, "pase" for pause: that is the phone's speech engine HEARING another word; no table repairs it. Trial for that: a button in the Bolchi app,
+    "Mixed Bengali + English listening" (pref `langSwitch`, OFF by default): on Android 14+ `beginRound` adds `EXTRA_ENABLE_LANGUAGE_SWITCH` (balanced) with the chip's
+    language + en-IN. Not known whether her Samsung engine supports it; if Bengali gets worse she turns it off there.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

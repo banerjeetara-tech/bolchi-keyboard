@@ -203,6 +203,19 @@ public class SetupActivity extends Activity {
             }
         });
         col.addView(testBtn);
+
+        // trial: let the phone's speech engine switch between Bengali / Hindi and English inside one sentence (Android 14+, not every engine can)
+        final TextView mixBtn = button(prefs.getBoolean("langSwitch", false) ? "Mixed Bengali + English listening: ON (tap to turn off)"
+                : "Mixed Bengali + English listening: OFF (tap to try)");
+        mixBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                boolean on = !prefs.getBoolean("langSwitch", false);
+                prefs.edit().putBoolean("langSwitch", on).apply();
+                mixBtn.setText(on ? "Mixed Bengali + English listening: ON (tap to turn off)" : "Mixed Bengali + English listening: OFF (tap to try)");
+                Toast.makeText(SetupActivity.this, on ? "On. If Bengali gets worse, turn it off here" : "Off", Toast.LENGTH_LONG).show();
+            }
+        });
+        col.addView(mixBtn);
         col.addView(testOut);
 
         // GIF suggestions (Giphy free key)

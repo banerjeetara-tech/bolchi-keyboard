@@ -1015,7 +1015,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             for (int k = 0; k < nums.size() && k < 3; k++) { v[order[k]] = nums.get(k); slotNum[order[k]] = true; ownSlot[order[k]] = true; }
         }
         // backspace just removed a stretch of text: the left place offers to put it back
-        if (deletedBuf.length() >= 4 && !plainField) { v[0] = "\u21B6 Undo"; slotUndo[0] = true; ownSlot[0] = true; slotFix[0] = false; sugKeepsTyped = false; }
+        if (deletedBuf.length() >= 4 && !plainField) { v[0] = gifHeld != null && deletedBuf.toString().equals(gifHeld) ? "\u21B6 My text" : "\u21B6 Undo"; slotUndo[0] = true; ownSlot[0] = true; slotFix[0] = false; sugKeepsTyped = false; }
         // "today", "tomorrow", "now", "date", "time": offer the real date or time
         if (!plainField && !sugKeepsTyped && w.length() >= 3) {
             String dt = dateFor(w.toLowerCase());
@@ -1144,6 +1144,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
         if (slotUndo[i]) {
+            gifHeld = null;
             if (ic != null && deletedBuf.length() > 0) ic.commitText(deletedBuf.toString(), 1);
             deletedBuf.setLength(0);
             fixShownTyped = fixShownDone = null;
@@ -1735,20 +1736,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (ic == null) return;
                 boolean ok = false;
                 EditorInfo ei = getCurrentInputEditorInfo();
-                // The words she typed to find this GIF must not be sent along as text under it (WhatsApp turns the text in the box into the caption).
-                // A short text (up to 40 characters, e.g. "good morning") is the search itself: all of it comes out.
-                // In a longer message only the word the GIFs were found for comes out, when it stands right before the cursor.
+                // NO text may go along with a GIF (Tara; WhatsApp turns whatever is in the box into the caption): the box is emptied first.
+                // A real message (more than 40 characters) is not lost: it is kept and offered back in the word row ("\u21B6 My text"), one tap.
+                String held = null;
                 try {
-                    CharSequence tb = ic.getTextBeforeCursor(60, 0), ta = ic.getTextAfterCursor(3, 0);
-                    String before = tb == null ? "" : tb.toString();
-                    boolean endOfText = ta == null || ta.length() == 0;
-                    if (endOfText && before.length() <= 40 && !before.trim().isEmpty() && before.indexOf('\n') < 0) {
-                        ic.deleteSurroundingText(before.length(), 0);
-                    } else if (!gifWord.isEmpty()) {
-                        String t = before.replaceAll("\\s+$", "");
-                        int cut = before.length() - t.length();
-                        String sw = shown(gifWord);
-                        if (t.toLowerCase().endsWith(sw.toLowerCase())) ic.deleteSurroundingText(sw.length() + cut, 0);
+                    CharSequence tb = ic.getTextBeforeCursor(4000, 0), ta = ic.getTextAfterCursor(4000, 0);
+                    String before = tb == null ? "" : tb.toString(), after = ta == null ? "" : ta.toString();
+                    if (!(before + after).trim().isEmpty()) {
+                        ic.finishComposingText();
+                        ic.deleteSurroundingText(before.length(), after.length());
+                        if ((before + after).trim().length() > 40) held = before + after;
                     }
                     token.setLength(0);
                     lastWord = "";
@@ -1770,10 +1767,21 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                     flashSpace("This app takes links: GIF link sent");
                 }
                 word.setLength(0);
+                deletedBuf.setLength(0);
+                if (held != null) {
+                    deletedBuf.append(held);
+                    gifHeld = held;
+                    gifHeldAt = System.currentTimeMillis();
+                    gifHeldApp = curApp;
+                }
                 paintSugs();
             } });
         } }).start();
     }
+
+    private String gifHeld;          // the message that stood in the box when a GIF was sent: offered back once, in the same app
+    private long gifHeldAt;
+    private String gifHeldApp = "";
 
     private long contactsLoadedAt;
     private long gifWarmAt;
@@ -3076,6 +3084,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         lastWord = "";
         justEnded = "";
         deletedBuf.setLength(0);
+        // a message that was taken out of the box when a GIF was sent is offered back here, once, in the same app
+        // (not in the "Add a caption" box of the GIF preview: there it would go along with the GIF after all)
+        if (gifHeld != null) {
+            String hint = info == null || info.hintText == null ? "" : info.hintText.toString().toLowerCase();
+            if (System.currentTimeMillis() - gifHeldAt > 5 * 60 * 1000L || !curApp.equals(gifHeldApp)) gifHeld = null;
+            else if (!hint.contains("caption")) deletedBuf.append(gifHeld);
+        }
         emoSearch = false;
         emoQuery.setLength(0);
         fixShownTyped = fixShownDone = null;
@@ -3332,6 +3347,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L);
             i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L);
             i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 15000L);
+            // Trial, off unless she switches it on in the Bolchi app: Android 14+ can let the engine change between Bengali / Hindi and English
+            // inside one sentence. Engines that do not know this simply ignore it.
+            if (Build.VERSION.SDK_INT >= 34 && mode != MODE_EN && prefs().getBoolean("langSwitch", false)) {
+                i.putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_SWITCH, RecognizerIntent.LANGUAGE_SWITCH_BALANCED);
+                i.putStringArrayListExtra(RecognizerIntent.EXTRA_LANGUAGE_SWITCH_ALLOWED_LANGUAGES,
+                        new ArrayList<>(java.util.Arrays.asList(lang, "en-IN")));
+            }
             recognizer.startListening(i);
         } catch (Exception e) {
             retryLater();

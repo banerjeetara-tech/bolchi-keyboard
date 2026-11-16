@@ -67,7 +67,7 @@ public final class Translit {
             "ফান","fun","মুভি","movie","গেম","game","মিউজিক","music","নিউজ","news","চ্যানেল","channel","টিভি","TV","এসি","AC","লাইট","light","সুইচ","switch","চার্জ","charge","চার্জার","charger","ব্যাটারি","battery","ক্যামেরা","camera",
             "পিকচার","picture","ইমেজ","image","পজ","pause","পস","pause","স্পেস","space","ফন্ট","font","থিম","theme","ইমোজি","emoji","স্টিকার","sticker","কনভার্ট","convert","কনভার্টার","converter","কারেন্সি","currency","ডলার","dollar","সাজেশন","suggestion",
             "প্রেডিকশন","prediction","ট্রান্সপারেন্ট","transparent","কম্বিনেশন","combination","ভয়েস","voice","টেক্সট","text","মেনশন","mention","সাবসিডিয়ারি","subsidiary","কনট্যাক্ট","contact","কন্টাক্ট","contact","অ্যাড্রেস","address","অ্যাটাচ","attach","অ্যাটাচমেন্ট","attachment","ড্রাফট","draft","সাবজেক্ট","subject",
-            "সিগনেচার","signature","ডায়মন্ড","diamond","উইথড্র","withdraw","ভাউচার","voucher","রিভিউ","review","পেরোল","payroll","টেবিল","table","অপরচুনিটি","opportunity","ইনক্রিমেন্ট","increment","ফরওয়ার্ডিং","forwarding","অফিস","office","মিটিং","meeting","ফোন","phone","ক্লাস","class","স্কুল","school","কলেজ","college","রিপোর্ট","report","মেসেজ","message","কল","call","টাইম","time","মেইল","mail","ইমেইল","email","ফাইল","file",
+            "সিগনেচার","signature","পটি","potty","পজ","pause","পস","pause","পোজ","pause","কেটলি","kettle","ডায়মন্ড","diamond","উইথড্র","withdraw","ভাউচার","voucher","রিভিউ","review","পেরোল","payroll","টেবিল","table","অপরচুনিটি","opportunity","ইনক্রিমেন্ট","increment","ফরওয়ার্ডিং","forwarding","অফিস","office","মিটিং","meeting","ফোন","phone","ক্লাস","class","স্কুল","school","কলেজ","college","রিপোর্ট","report","মেসেজ","message","কল","call","টাইম","time","মেইল","mail","ইমেইল","email","ফাইল","file",
             "লিংক","link","গ্রুপ","group","ভিডিও","video","ফটো","photo","ট্রেন","train","টিকিট","ticket","লাঞ্চ","lunch","ডিনার","dinner","পার্টি","party","প্ল্যান","plan","প্রবলেম","problem","টেনশন","tension","ব্যাংক","bank","ব্যাঙ্ক","bank",
             "মোবাইল","mobile","নাম্বার","number","নম্বর","number","পেমেন্ট","payment","অ্যাপ","app","ডকুমেন্ট","document","অর্ডার","order","ডেলিভারি","delivery","হসপিটাল","hospital","সিনেমা","cinema","বুকিং","booking","লোকেশন","location","আপডেট","update"
         };
@@ -234,7 +234,9 @@ public final class Translit {
                 if (w.length() > end[0].length() + 3 && w.endsWith(end[0])) {
                     String stem = w.substring(0, w.length() - end[0].length());
                     if (!looksLoan(stem)) continue;               // "দরজাটা": the ট is only the ending, the word before it is Bengali
-                    en = Words.soundAlike(plain(stem));
+                    String sr = plain(stem);
+                    if (sr.length() < 6) continue;                // a short word with an ending is too easily a Bengali verb form ("মিটলে")
+                    en = Words.soundAlike(sr);
                     if (en != null) return en + " " + end[1];
                 }
             }
@@ -254,7 +256,7 @@ public final class Translit {
     }
 
     /** Letters and signs that English words written in Bengali never use: a word with one of them is a Bengali word. */
-    private static final String NATIVE_ONLY = "খঘঝঠঢথধছণষৎঋঃঁঞঈঊঐঔৃ";
+    private static final String NATIVE_ONLY = "খঘঝঠঢথধছণষৎঋঃঁঞঈঊঐঔৃতদ";      // English t and d are always written ট and ড, never ত and দ
 
     /**
      * True when a Bengali-script word looks like an English word written by sound: only the letters such words use, and at least one
