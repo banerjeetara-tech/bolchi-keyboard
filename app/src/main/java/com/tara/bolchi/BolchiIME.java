@@ -874,6 +874,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             return true;
         } });
         sugRow.addView(auto);
+        sugRow.addView(starKey());
         keysBox.addView(sugRow);
         paintSugs();
     }
@@ -2500,6 +2501,65 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private void paintCands() {
+        paintCands0();
+        if (candRow != null) candRow.addView(starKey());          // the save star is always there on the Bangla / Hindi row too
+    }
+
+    /** The always-visible "★" button: saves the word being typed, the word just spoken, or the word the cursor stands in. */
+    private TextView starKey() {
+        TextView star = makeKey("\u2605", 0.5f, cFn, cInk, 18);
+        star.setLayoutParams(new LinearLayout.LayoutParams(0, dp(layout == 1 || layout == 2 ? KEY_H + 4 : 40), 0.5f));
+        onPress(star, cFn, new Runnable() { @Override public void run() { saveCurrentWord(); } });
+        return star;
+    }
+
+    /** The word the cursor stands in or touches; right after a space it is the word before. Latin, Bengali or Hindi letters. Null when there is none. */
+    private String wordNearCursor() {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return null;
+        CharSequence tb = ic.getTextBeforeCursor(40, 0), ta = ic.getTextAfterCursor(40, 0);
+        String before = tb == null ? "" : tb.toString(), after = ta == null ? "" : ta.toString();
+        int pre = 0, suf = 0;
+        while (pre < before.length() && isWordChar(before.charAt(before.length() - 1 - pre))) pre++;
+        while (suf < after.length() && isWordChar(after.charAt(suf))) suf++;
+        if (pre + suf == 0) {
+            int end = before.length();
+            while (end > 0 && !isWordChar(before.charAt(end - 1))) end--;
+            int start = end;
+            while (start > 0 && isWordChar(before.charAt(start - 1))) start--;
+            if (end - start >= 2) return before.substring(start, end);
+            return null;
+        }
+        String w = before.substring(before.length() - pre) + after.substring(0, suf);
+        return w.length() >= 2 ? w : null;
+    }
+
+    private void saveCurrentWord() {
+        try {
+            String target = null;
+            if (layout == 1 || layout == 2) {
+                String letters = phon.toString();
+                if (letters.length() > 0) {
+                    // letters typed for a Bengali / Hindi word: save the word space would write for them
+                    String out = letters.equals(candFor) && !cands.isEmpty() ? cands.get(0) : letters;
+                    String mem = rememberedPick(letters);
+                    if (mem != null) out = mem;
+                    if (!out.equals(letters)) {
+                        rememberPickFor(layout, letters, out);
+                        Words.ensureUsed(letters, 3);
+                        flashSpace("Saved \u201C" + out + "\u201D");
+                        return;
+                    }
+                    target = letters;
+                }
+            } else if (word.length() > 0) target = word.toString();
+            if (target == null) target = wordNearCursor();
+            if (target == null) { flashSpace("Type or tap a word first, then \u2605"); return; }
+            saveWordToMemory(target);
+        } catch (Throwable t) { saveProblem(t); }
+    }
+
+    private void paintCands0() {
         if (candRow == null) return;
         candRow.removeAllViews();
         if (phon.length() == 0 && !repairList.isEmpty()) {

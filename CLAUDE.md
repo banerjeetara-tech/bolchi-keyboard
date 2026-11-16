@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 110 = build-152** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 111 = build-154** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -438,11 +438,12 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   her way (`personalEnglish` / `rememberedSpelling`) and they are offered first while typing; a Bengali / Hindi word is tied to the Latin letters of its sound (`Translit.toBanglish` /
   `HindiTranslit.toHinglish`, or the letters before "=" in a line "ami = আমি") in the same memory as her taps (`phonMem`, never overriding a pick she made) and also offered when the typed letters
   are only the START of its sound (`romanOfSaved`, `paintCands`). Script lines are no longer offered as raw text on the English keys. Not tested on a phone.
-- Version 110 (Tara: "typing Ma / ke / niye the save option is not coming; in some cases both typing and speaking the save option comes"): the "★ save" chip (tap a word in the text) was missing for
-  (1) words of 2 letters (`pre + suf < 3` returned), (2) every English dictionary word ("ma"), (3) every word in Bengali / Hindi SCRIPT, which is what the Bangla / Hindi keys write (`isWordChar` was
-  Latin only). Now any word of 2+ letters in Latin, Bengali or Devanagari letters gets the chip unless already saved (`Words.isSaved`, or the same word already stored for its letters). A script word is
-  stored for the Latin letters of its sound (`saveWordToMemory` → `rememberPickFor`, `Translit.toBanglish` / `HindiTranslit.toHinglish`) so typing those letters brings it first. On the Bangla / Hindi
-  row only the chip is shown, labelled with the word. Still NOT shown while merely typing a word (only after tapping into the text) and not on the full script layouts 3 / 4 (no candidate row there).
+- Version 110-111 (Tara: "typing Ma / ke / niye [in English letters] the save option comes sometimes, sometimes not; I want it to appear for English and Bengali, speaking and writing"): the "★ save" chip
+  only existed after TAPPING into a word of 3+ letters, so it was missing for short words, for English dictionary words, for Bengali / Hindi SCRIPT words (`isWordChar` was Latin only) and always while
+  typing or with the cursor at the end of a word. 110: the tap chip now covers 2+ letters, any language, script words stored for the Latin letters of their sound (`saveWordToMemory` → `rememberPickFor`).
+  111: a permanent "★" button (`starKey`, weight 0.5) in the word row beside "Auto" and at the end of the Bangla / Hindi candidate row (`paintCands` now wraps `paintCands0`): `saveCurrentWord` saves the
+  word being typed (EN keys), or the word space would write for the typed letters (Bangla / Hindi keys), or `wordNearCursor` (the word the cursor is in / the word before it, e.g. after speaking).
+  It reuses the earlier memory (`keep`, counts, `phonMem`). She disliked extra buttons before; this one she asked for. Not shown on full script layouts 3 / 4 (no word row). Not tested on a phone.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
