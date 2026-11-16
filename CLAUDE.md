@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 112 = build-155** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 113 = build-157** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -449,6 +449,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   match: repeats after a pause were removed only in English. Now the heard text is converted first (`convert`, then `dedupe`) in both `onPartialResults` and `onResults` and the converted words are
   compared (test: before "ami kal office jabo" + heard "কাল অফিস যাব তারপর বাড়ি আসব" → "tarpor bari asbo"). `dropRepeat` also looks back up to 8 words (was 5). Still not covered: a repeat that
   differs in one word, one the AI tidy creates, or one longer than 8 words. If it still doubles, ask for the exact text before / after again.
+- Version 113 (Tara: "keep the permanent button only"): the "★ save" chip in the tap-into-text row is removed (`computeRepair` adds no `SAVE_TOKEN` any more; a Bengali / Hindi script word gets no row at all).
+  Saving is ONLY the permanent ★ button (`starKey` / `saveCurrentWord`). `SAVE_TOKEN` handling in `applyRepair` / `paintCands` is dead code, left in place.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

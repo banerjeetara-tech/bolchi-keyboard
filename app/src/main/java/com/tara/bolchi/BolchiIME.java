@@ -1814,22 +1814,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (pre + suf < 2 || pre + suf > 24) return;
             String w = before.substring(before.length() - pre) + after.substring(0, suf);
             repairSaveWord = null;
-            if (hasBengali(w) || hasDevanagari(w)) {
-                // a word in Bengali / Hindi script (typed on the Bangla / Hindi keys): only "save" can be offered (unless it is saved already)
-                String letters = hasBengali(w) ? Translit.toBanglish(w) : HindiTranslit.toHinglish(w);
-                letters = letters == null ? "" : letters.trim().toLowerCase(java.util.Locale.ROOT);
-                if (letters.length() < 2 || w.equals(rememberedPick(letters))) return;
-                repairList = new ArrayList<>(java.util.Collections.singletonList(SAVE_TOKEN));
-                repairSaveWord = w;
-                repairPre = pre;
-                repairSuf = suf;
-                return;
-            }
+            if (hasBengali(w) || hasDevanagari(w)) return;     // a word in Bengali / Hindi script has no English choices (saving is the permanent star button)
             List<String> c = new ArrayList<>(heardAlternatives(w));          // what the phone heard instead ("font" for "phone")
             if (!Words.inDictionary(w) && !Words.known(w) && !Words.isDesi(w))
                 for (String e : Words.englishFor(w, 4)) if (!c.contains(e) && !e.equalsIgnoreCase(w)) c.add(e);
             if (c.size() > 7) c = new ArrayList<>(c.subList(0, 7));
-            if (!Words.isSaved(w)) { c.add(SAVE_TOKEN); repairSaveWord = w; }     // "★ save": this word goes into memory (any word, also a short or an English one)
             if (c.isEmpty()) return;
             repairList = c;
             repairPre = pre;
