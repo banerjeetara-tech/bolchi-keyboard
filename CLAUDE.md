@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 98 = build-125** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 99 = build-127** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -370,6 +370,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   - "porty" for potty, "pase" for pause: that is the phone's speech engine HEARING another word; no table repairs it. Trial for that: a button in the Bolchi app,
     "Mixed Bengali + English listening" (pref `langSwitch`, OFF by default): on Android 14+ `beginRound` adds `EXTRA_ENABLE_LANGUAGE_SWITCH` (balanced) with the chip's
     language + en-IN. Not known whether her Samsung engine supports it; if Bengali gets worse she turns it off there.
+- Version 99 (Tara: "whenever I press any key most of the time the letters in the line below come and it is difficult to type; I do not want to increase the key size"):
+  a thumb presses lower than it aims, so `KeyArea` now looks up the key a few dp ABOVE the raw touch (`keyUnderThumb`, pref `touchUp`, default 5 dp; keys keep their size).
+  Not applied in the bottom row, and a tap never moves from a typing row into the word row / Bangla candidate row (`sugRow`, `candRow`). The Bolchi app has a button
+  "Key touch point" (Normal / A little higher 5 / Higher 8 / Much higher 11 dp). The old hit test itself was consistent (`keyAt` = nearest key rectangle), so this is a guess
+  from her words: if she says the letter ABOVE comes now, lower it. Not tested on a phone; swipe typing uses the raw path and is unchanged.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

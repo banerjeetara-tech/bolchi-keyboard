@@ -212,7 +212,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 int id = ev.getPointerId(idx);
                 if (a == MotionEvent.ACTION_DOWN) heldKeys.clear();
                 if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_POINTER_DOWN) {
-                    View k = keyAt(ev.getX(idx), ev.getY(idx));
+                    View k = keyUnderThumb(ev.getX(idx), ev.getY(idx));
                     if (swId != -1) { swId = -1; swiping = false; invalidate(); }   // a second finger: plain typing
                     else if (a == MotionEvent.ACTION_DOWN && k != null && wordsOn() && !emoSearch && letterKeys.contains(k)) {
                         swId = id; swN = 0; swiping = false; swKeyW = k.getWidth();
@@ -321,6 +321,26 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         MotionEvent e = MotionEvent.obtain(from.getDownTime(), from.getEventTime(), action, 1f, 1f, 0);
         try { k.dispatchTouchEvent(e); } finally { e.recycle(); }
     }
+
+    /**
+     * A thumb presses lower than the spot it aims at, so a tap meant for a letter often lands in the row below. The tap is moved UP a little
+     * (the keys themselves stay the same size; the amount is set in the Bolchi app, pref `touchUp`, dp). The shift is not used in the bottom row,
+     * and never moves a tap from a typing row into the word row or the Bangla / Hindi candidate row (that would pick a word by accident).
+     */
+    private View keyUnderThumb(float x, float y) {
+        View plain = keyAt(x, y);
+        float lift = dp(touchUp());
+        if (lift <= 0 || keysBox == null || keysBox.getChildCount() == 0) return plain;
+        View lastRow = keysBox.getChildAt(keysBox.getChildCount() - 1);
+        if (y >= lastRow.getTop()) return plain;                     // the bottom row (space bar and its neighbours) is hit as it is
+        View lifted = keyAt(x, y - lift);
+        if (lifted == null) return plain;
+        if (plain != null && lifted.getParent() != plain.getParent()
+                && (lifted.getParent() == sugRow || lifted.getParent() == candRow)) return plain;
+        return lifted;
+    }
+
+    private int touchUp() { return prefs().getInt("touchUp", 5); }
 
     /** The key under the finger, or the closest one when the finger lands just beside a key. */
     private View keyAt(float x, float y) {

@@ -216,6 +216,23 @@ public class SetupActivity extends Activity {
             }
         });
         col.addView(mixBtn);
+
+        // where a tap lands: the thumb presses lower than it aims, so taps are moved up a little (the keys keep their size)
+        final String[] touchNames = {"Normal", "A little higher", "Higher", "Much higher"};
+        final int[] touchDp = {0, 5, 8, 11};
+        int cur = 1;
+        for (int i = 0; i < touchDp.length; i++) if (prefs.getInt("touchUp", 5) == touchDp[i]) cur = i;
+        final int[] pick = {cur};
+        final TextView touchBtn = button("Key touch point: " + touchNames[cur] + " (tap to change)");
+        touchBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                pick[0] = (pick[0] + 1) % touchDp.length;
+                prefs.edit().putInt("touchUp", touchDp[pick[0]]).apply();
+                touchBtn.setText("Key touch point: " + touchNames[pick[0]] + " (tap to change)");
+                Toast.makeText(SetupActivity.this, "Open the keyboard and type a few words. If the row BELOW still comes, choose Higher", Toast.LENGTH_LONG).show();
+            }
+        });
+        col.addView(touchBtn);
         col.addView(testOut);
 
         // GIF suggestions (Giphy free key)
