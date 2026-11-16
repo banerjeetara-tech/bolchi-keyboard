@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 102 = build-135** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 103 = build-137** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -394,6 +394,13 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
     added to `DESI` with ~35 more; test now 0 of 265, and 111/113 typos + 218/231 short forms unchanged. If a Banglish word turns English, add it to that DESI addition.
   - Touch: her measured bias is 6.4 dp LOWER (raw taps, independent of the setting) and she had the button on "Normal" (= no correction). Told her to tap it once ("A little higher", 5 dp)
     or to Auto (6.4 dp). Her AI key and Giphy key are visible in that screenshot: never repeat them.
+- Version 103 (Tara typed Banglish: "...phone change hocche ... opose e giye ... font er dorkar nei normal continue"; she wanted "font" not "phone" and "app" not "opose", and "not getting
+  any option to correct the word" — version 101's tap-to-repair showed nothing): three reasons found. (1) `computeRepair` returned while `listening`: the mic keeps listening until Stop, so
+  a tap during dictation never worked; now it waits only 1.5 s after the last voice text (`lastVoiceAt`) and while `composing`. (2) A real English word ("phone") was skipped; now the
+  phone's OTHER GUESSES are kept per spoken word (`EXTRA_MAX_RESULTS` 5, `rememberAlternatives`, `heardAlternatives`; only guesses with the same number of words, last 8 sentences, memory
+  only) and offered for ANY tapped word, then the sound-alike English words for non-English ones. (3) Only 3 choices fitted; the EN keys now show up to 8 as a scrolling chip row in the
+  word-row place (reuses `contactBox`), the Bangla / Hindi row shows 4. Limits: "app" has only 2 consonant sounds, so `Words.englishFor` still cannot find it ("opose" gives
+  oppose); the guess list is the engine's, it may not contain the right word; no guesses once the AI tidy has rewritten the sentence. Not tested on a phone.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

@@ -1098,12 +1098,28 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 }
             }
         }
-        // the cursor stands in a word that is no English word but sounds like one: offer the English words (a tap repairs it)
+        // the cursor stands in a word with other possible words (the phone's other guesses, English words that sound alike): a row of choices, one tap repairs it
         slotRepair[0] = slotRepair[1] = slotRepair[2] = false;
-        if (w.isEmpty() && !repairList.isEmpty() && v[0].isEmpty() && v[1].isEmpty() && v[2].isEmpty() && !plainField) {
-            int[] order = repairList.size() == 1 ? new int[]{1} : repairList.size() == 2 ? new int[]{1, 2} : new int[]{1, 0, 2};
-            for (int k = 0; k < order.length; k++) { v[order[k]] = repairList.get(k); slotRepair[order[k]] = true; ownSlot[order[k]] = true; }
-            bold = true;
+        if (w.isEmpty() && !repairList.isEmpty() && v[0].isEmpty() && v[1].isEmpty() && v[2].isEmpty() && !plainField && contactScroll != null) {
+            contactBox.removeAllViews();
+            for (final String c : repairList) {
+                TextView t = new TextView(this);
+                t.setText(c);
+                t.setTextColor(cInk);
+                t.setTextSize(17);
+                t.setTypeface(Typeface.DEFAULT_BOLD);
+                t.setGravity(Gravity.CENTER);
+                t.setSingleLine(true);
+                t.setPadding(dp(16), 0, dp(16), 0);
+                t.setBackground(box(cFn, 12));
+                t.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { tick(v); applyRepair(c); } });
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
+                lp.setMargins(0, 0, dp(4), 0);
+                contactBox.addView(t, lp);
+            }
+            contactScroll.scrollTo(0, 0);
+            contactScroll.setVisibility(View.VISIBLE);
+            sugRow.setVisibility(View.GONE);
         }
         // an amount of money typed in one piece ("10rs", "$20", "50usd"): the same amount in other money, with signs. Tap one to swap it in.
         slotMoney = false;
@@ -1606,6 +1622,57 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         paintSugs();
     }
 
+    // ---------- the phone's other guesses for each spoken word ("phone" / "font") ----------
+    private long lastVoiceAt;
+    private static final class Heard { String[] words; List<List<String>> alts = new ArrayList<>(); }
+    private final List<Heard> heardRecent = new ArrayList<>();
+
+    private static String bare(String t) { return t.replaceAll("^[^A-Za-z']+|[^A-Za-z']+$", "").toLowerCase(java.util.Locale.ROOT); }
+
+    /** Keeps, for every word of what was just written, the different words the speech engine thought of at the same place (only when the guesses have the same number of words). */
+    private void rememberAlternatives(Bundle results, String said) {
+        try {
+            ArrayList<String> l = results == null ? null : results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+            if (l == null || l.size() < 2 || said == null) return;
+            String[] base = said.trim().split("\\s+");
+            Heard h = new Heard();
+            h.words = new String[base.length];
+            for (int i = 0; i < base.length; i++) { h.words[i] = bare(base[i]); h.alts.add(new ArrayList<String>()); }
+            boolean any = false;
+            for (int k = 1; k < l.size(); k++) {
+                String alt = l.get(k);
+                if (alt == null) continue;
+                if (mode == MODE_EN) alt = Spoken.fix(alt);
+                alt = Spoken.dedupe(alt, mode == MODE_EN);
+                String[] t = convert(alt).trim().split("\\s+");
+                if (t.length != base.length) continue;
+                for (int i = 0; i < t.length; i++) {
+                    String w = bare(t[i]);
+                    if (w.length() < 2 || w.equals(h.words[i]) || h.alts.get(i).contains(w) || !w.matches("[a-z']+")) continue;
+                    h.alts.get(i).add(w);
+                    any = true;
+                }
+            }
+            if (!any) return;
+            heardRecent.add(h);
+            while (heardRecent.size() > 8) heardRecent.remove(0);
+        } catch (Throwable ignored) { /* the guesses are a help only */ }
+    }
+
+    /** The speech engine's other guesses for this word, newest sentence first. */
+    private List<String> heardAlternatives(String w) {
+        List<String> out = new ArrayList<>();
+        String l = w.toLowerCase(java.util.Locale.ROOT);
+        for (int r = heardRecent.size() - 1; r >= 0 && out.size() < 5; r--) {
+            Heard h = heardRecent.get(r);
+            for (int i = 0; i < h.words.length; i++) {
+                if (!h.words[i].equals(l)) continue;
+                for (String a : h.alts.get(i)) if (!out.contains(a)) out.add(a);
+            }
+        }
+        return out;
+    }
+
     // ---------- tap a word to repair it: the English word an English-sounding spelling was meant to be ("myanejment" -> "management") ----------
     private List<String> repairList = new ArrayList<>();
     private int repairPre, repairSuf;
@@ -1615,7 +1682,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void computeRepair() {
         repairList = new ArrayList<>();
         try {
-            if (!Words.ready || listening || word.length() > 0 || phon.length() > 0 || noFix || fontOn() || System.currentTimeMillis() - lastTypeAt < 700) return;
+            // (while the microphone is on, a tap right after a sentence is still part of the dictation: wait a moment)
+            if (!Words.ready || composing || (listening && System.currentTimeMillis() - lastVoiceAt < 1500)
+                    || word.length() > 0 || phon.length() > 0 || noFix || fontOn() || System.currentTimeMillis() - lastTypeAt < 700) return;
             InputConnection ic = getCurrentInputConnection();
             if (ic == null) return;
             CharSequence tb = ic.getTextBeforeCursor(30, 0), ta = ic.getTextAfterCursor(30, 0);
@@ -1625,9 +1694,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             while (suf < after.length() && isWordChar(after.charAt(suf))) suf++;
             if (pre + suf < 3 || pre + suf > 24) return;
             String w = before.substring(before.length() - pre) + after.substring(0, suf);
-            if (Words.inDictionary(w) || Words.known(w) || Words.isDesi(w)) return;
-            List<String> c = Words.englishFor(w, 3);
+            List<String> c = new ArrayList<>(heardAlternatives(w));          // what the phone heard instead ("font" for "phone")
+            if (!Words.inDictionary(w) && !Words.known(w) && !Words.isDesi(w))
+                for (String e : Words.englishFor(w, 4)) if (!c.contains(e) && !e.equalsIgnoreCase(w)) c.add(e);
             if (c.isEmpty()) return;
+            if (c.size() > 8) c = new ArrayList<>(c.subList(0, 8));
             repairList = c;
             repairPre = pre;
             repairSuf = suf;
@@ -2190,7 +2261,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             lab.setTextSize(13);
             lab.setGravity(Gravity.CENTER);
             candRow.addView(lab, new LinearLayout.LayoutParams(0, dp(KEY_H + 4), 0.8f));
-            for (final String c : repairList) {
+            for (final String c : repairList.size() > 4 ? repairList.subList(0, 4) : repairList) {
                 TextView t = makeKey(c, 1f, cFn, cInk, 20);
                 t.setTypeface(Typeface.DEFAULT_BOLD);
                 onPress(t, cFn, new Runnable() { @Override public void run() { applyRepair(c); } });
@@ -3467,7 +3538,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang);
             i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang);
             i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
-            i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+            i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);       // the other guesses are kept: a tap on a wrong word offers them
             i.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
             // a pause of about 2.5 s ends a stretch, so the AI fix arrives soon; listening restarts by itself
             i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L);
@@ -3659,6 +3730,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (ic == null) return;
         if (!composing) { roundLead = newLead(); composing = true; }
         lastPartial = roundLead + convert(heard);
+        lastVoiceAt = System.currentTimeMillis();
         ic.setComposingText(lastPartial, 1);
     }
 
@@ -3682,6 +3754,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 // ? or ! from how the sentence is built. A full stop is NOT added at every pause (she often pauses to think in the middle of a sentence):
                 // it comes only when she stays silent for long before speaking again, or presses Stop.
                 String said = Spoken.punctuate(convert(heard), false);
+                rememberAlternatives(results, said);
+                lastVoiceAt = System.currentTimeMillis();
                 stopDue = Spoken.wantsStop(said);
                 roundEndAt = System.currentTimeMillis();
                 handler.removeCallbacks(writeStop);
