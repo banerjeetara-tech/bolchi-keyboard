@@ -2355,7 +2355,46 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     // ---------- memory of the words she picks while typing Banglish letters: the same letters bring that word first, and space writes it ----------
     private java.util.HashMap<String, String> phonMem;
 
-    private String phonKey(String letters) { return layout + ":" + letters.toLowerCase(java.util.Locale.ROOT); }
+    private String phonKey(String letters) { return phonKeyFor(layout, letters); }
+
+    private static String phonKeyFor(int lay, String letters) { return lay + ":" + letters.toLowerCase(java.util.Locale.ROOT); }
+
+    private static boolean hasBengali(String t) { for (int i = 0; i < t.length(); i++) { char c = t.charAt(i); if (c >= '\u0980' && c <= '\u09FF') return true; } return false; }
+    private static boolean hasDevanagari(String t) { for (int i = 0; i < t.length(); i++) { char c = t.charAt(i); if (c >= '\u0900' && c <= '\u097F') return true; } return false; }
+
+    /**
+     * The words she saved by hand in the Bolchi app ("My words"): English words, Banglish words, Bengali / Hindi words in their own script, or "letters = বাংলা".
+     * Every Latin word counts as used often (so dictation writes it her way and it is offered first), and a Bengali / Hindi word is tied to the Latin letters of its sound
+     * (or to the letters she wrote before the "="), so typing those letters on the Bangla / Hindi keys brings the word first.
+     */
+    private void loadSavedWords(String all) {
+        try {
+            java.util.HashMap<String, String> mem = phonMemMap();
+            romanOfSaved.clear();
+            for (String line : all.split("\n")) {
+                String m = line.trim();
+                if (m.isEmpty()) continue;
+                String script = m, letters = null;
+                int eq = m.indexOf('=');
+                if (eq > 0 && eq < m.length() - 1) { letters = m.substring(0, eq).trim(); script = m.substring(eq + 1).trim(); }
+                boolean bn = hasBengali(script), hi = !bn && hasDevanagari(script);
+                if (bn || hi) {
+                    if (letters == null || letters.isEmpty()) letters = bn ? Translit.toBanglish(script) : HindiTranslit.toHinglish(script);
+                    letters = letters == null ? "" : letters.trim().toLowerCase(java.util.Locale.ROOT);
+                    if (letters.length() >= 2 && letters.matches("[a-z']+")) {
+                        String key = phonKeyFor(bn ? 1 : 2, letters);
+                        if (!mem.containsKey(key)) mem.put(key, script);
+                        romanOfSaved.put(script, letters);
+                        Words.ensureUsed(letters, 3);
+                    }
+                } else {
+                    for (String part : m.split("[^A-Za-z']+")) if (part.length() >= 3) Words.ensureUsed(part, 3);
+                }
+            }
+        } catch (Throwable ignored) { /* a help only */ }
+    }
+
+    private final java.util.HashMap<String, String> romanOfSaved = new java.util.HashMap<>();   // Bengali / Hindi saved word -> Latin letters of its sound
 
     private java.util.HashMap<String, String> phonMemMap() {
         if (phonMem == null) {
@@ -2470,6 +2509,17 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         List<String> show = new ArrayList<>(cands);
         String memPick = rememberedPick(phon.toString());
         if (memPick != null) { show.remove(memPick); show.add(0, memPick); }       // the word she picked for these letters before: first
+        if (phon.length() >= 2) {
+            // Bengali / Hindi words she saved by hand whose sound begins with the typed letters
+            String typedLower = phon.toString().toLowerCase(java.util.Locale.ROOT);
+            int put = 0;
+            for (java.util.Map.Entry<String, String> sw : romanOfSaved.entrySet()) {
+                if (put >= 2) break;
+                String word0 = sw.getKey();
+                boolean fits = layout == 2 ? hasDevanagari(word0) : hasBengali(word0);
+                if (fits && sw.getValue().startsWith(typedLower) && !show.contains(word0)) { show.add(Math.min(1, show.size()), word0); put++; }
+            }
+        }
         // her own saved names and words that start with what she typed (English letters)
         String lp = phon.toString().toLowerCase();
         int added = 0;
@@ -3501,10 +3551,15 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         for (String m : prefs().getString("myWords", "").split("\n")) {
             m = m.trim();
             if (m.isEmpty()) continue;
+            String right = m;
+            int eq0 = m.indexOf('=');
+            if (eq0 > 0 && eq0 < m.length() - 1) right = m.substring(eq0 + 1).trim();
+            if (hasBengali(right) || hasDevanagari(right)) continue;       // a Bengali / Hindi word: offered on the Bangla / Hindi keys (loadSavedWords)
             mine.add(m);
             for (String part : m.split("[^A-Za-z]+")) { Words.addOwn(part); Words.addKept(part); }   // her saved names are never flagged
         }
         myWords = mine.toArray(new String[0]);
+        loadSavedWords(prefs().getString("myWords", ""));
         List<String> nums = new ArrayList<>();
         for (String n : prefs().getString("myNumbers", "").split("\n")) { n = n.trim(); if (!n.isEmpty()) nums.add(n); }
         myNumbers = nums.toArray(new String[0]);

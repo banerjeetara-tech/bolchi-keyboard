@@ -296,10 +296,10 @@ public class SetupActivity extends Activity {
         col.addView(saveNum);
 
         // personal words: the keyboard offers them when their first letters are typed
-        col.addView(text("6. My words (email, name, address)", 17, INK));
-        col.addView(text("One on each line. Type the first 3 letters on the English keys and the keyboard will offer it.", 14, MUTED));
+        col.addView(text("6. My words (English and Bengali, names, email, address)", 17, INK));
+        col.addView(text("One on each line, as many as you like. English words, Bengali or Hindi words (in English letters or in Bengali script, for example \u0986\u09AE\u09BF) are all fine. Type the first letters and the keyboard offers it; when you speak, it writes the word your way. You can also write letters = word, for example: ami = \u0986\u09AE\u09BF", 14, MUTED));
         final EditText myBox = new EditText(this);
-        myBox.setHint("yourname@gmail.com");
+        myBox.setHint("yourname@gmail.com\nbeauty\n\u0986\u09AE\u09BF");
         myBox.setMinLines(3);
         myBox.setGravity(android.view.Gravity.TOP);
         myBox.setTextColor(INK);

@@ -148,6 +148,17 @@ public final class Words {
         return best;
     }
 
+    /** Makes sure the memory counts this word as used at least n times (idempotent: asking again does not add more). Used for the words she saves by hand. */
+    public static void ensureUsed(String w, int n) {
+        if (w == null) return;
+        String l = w.toLowerCase(Locale.ROOT);
+        if (l.length() < 2 || l.length() > 20) return;
+        synchronized (USE) {
+            Integer c = USE.get(l);
+            if (c == null || c < n) USE.put(l, n);
+        }
+    }
+
     /** True when she has already saved this word (kept it by hand) or used it 3+ times. */
     public static boolean isSaved(String w) {
         if (w == null) return false;

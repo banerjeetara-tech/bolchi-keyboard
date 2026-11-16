@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 108 = build-148** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 109 = build-150** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -433,6 +433,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   one with the same consonant sounds, a fitting vowel in the same places, length within 1 and at most 3 letters different; applied in `applyVoiceFix` (dictation) and first in `Words.englishFor`
   (tap row / automatic row). PC test: beauti / biuti / byuti / bauti → beauty, miting → meeting, salari → salary; bati, hati, bhalo, tumi, korchi unchanged. Only her own words, so a new word
   needs 2 uses first. Where "beauti" comes from is not known (the converter writes "biuti" for বিউটি).
+- Version 109 (Tara: "can I now save as many words in the app and it will remember" … "English and Bengali"): the Bolchi app's box 6 "My words" now takes English words, Banglish words and Bengali / Hindi
+  words in their own script, as many lines as she likes (`loadSavedWords`, called from `onStartInputView`). Latin words are made "used 3 times" (`Words.ensureUsed`, idempotent) so dictation writes them
+  her way (`personalEnglish` / `rememberedSpelling`) and they are offered first while typing; a Bengali / Hindi word is tied to the Latin letters of its sound (`Translit.toBanglish` /
+  `HindiTranslit.toHinglish`, or the letters before "=" in a line "ami = আমি") in the same memory as her taps (`phonMem`, never overriding a pick she made) and also offered when the typed letters
+  are only the START of its sound (`romanOfSaved`, `paintCands`). Script lines are no longer offered as raw text on the English keys. Not tested on a phone.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
