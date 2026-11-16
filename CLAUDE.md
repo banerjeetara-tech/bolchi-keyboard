@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 111 = build-153** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 112 = build-155** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -444,6 +444,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   111: a permanent "★" button (`starKey`, weight 0.5) in the word row beside "Auto" and at the end of the Bangla / Hindi candidate row (`paintCands` now wraps `paintCands0`): `saveCurrentWord` saves the
   word being typed (EN keys), or the word space would write for the typed letters (Bangla / Hindi keys), or `wordNearCursor` (the word the cursor is in / the word before it, e.g. after speaking).
   It reuses the earlier memory (`keep`, counts, `phonMem`). She disliked extra buttons before; this one she asked for. Not shown on full script layouts 3 / 4 (no word row). Not tested on a phone.
+- Version 112 (Tara: both stars now come [the tap chip and the permanent one]; "the duplicate words deleting is not coming in Bengali as well as English, check again"): ROOT CAUSE found with a PC test
+  that follows the real flow: on the Bangla / Hindi chips `dropRepeat` compared the RAW script the engine heard ("কাল অফিস যাব") with the Latin text on screen ("ami kal office jabo"), so it could never
+  match: repeats after a pause were removed only in English. Now the heard text is converted first (`convert`, then `dedupe`) in both `onPartialResults` and `onResults` and the converted words are
+  compared (test: before "ami kal office jabo" + heard "কাল অফিস যাব তারপর বাড়ি আসব" → "tarpor bari asbo"). `dropRepeat` also looks back up to 8 words (was 5). Still not covered: a repeat that
+  differs in one word, one the AI tidy creates, or one longer than 8 words. If it still doubles, ask for the exact text before / after again.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

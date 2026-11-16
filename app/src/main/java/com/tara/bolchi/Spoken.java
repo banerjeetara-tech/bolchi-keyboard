@@ -143,7 +143,7 @@ public final class Spoken {
     public static String dropRepeat(String before, String said, boolean singleWords) {
         if (before == null || said == null) return said;
         String[] b = before.trim().split("\\s+"), s = said.trim().split("\\s+");
-        for (int n = Math.min(5, Math.min(b.length, s.length - 1)); n >= 1; n--) {
+        for (int n = Math.min(8, Math.min(b.length, s.length - 1)); n >= 1; n--) {
             if (n == 1 && keepDouble(norm(s[0]), singleWords)) break;
             boolean same = true;
             for (int k = 0; k < n && same; k++) same = !norm(s[k]).isEmpty() && norm(s[k]).equals(norm(b[b.length - n + k]));

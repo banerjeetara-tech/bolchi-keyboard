@@ -4154,10 +4154,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             CharSequence tb = ic.getTextBeforeCursor(80, 0);
             roundTail = tb == null ? "" : tb.toString();           // what stood before this sentence began
         }
-        String hp = Spoken.dedupe(heard, mode == MODE_EN);
+        // compare what is ON SCREEN (Latin letters after conversion) with what is heard AFTER the same conversion: raw Bengali / Hindi script never equals the Latin text
+        // on screen, which is why a repeat after a pause was never removed on the Bangla / Hindi chips (only in English)
+        String hp = Spoken.dedupe(convert(Spoken.dedupe(heard, mode == MODE_EN)), mode == MODE_EN);
         String cutp = Spoken.dropRepeat(roundTail, hp, mode == MODE_EN);
         if (!cutp.isEmpty()) hp = cutp;                            // she pauses and says the last words again: not shown twice, not even while speaking
-        lastPartial = roundLead + convert(hp);
+        lastPartial = roundLead + hp;
         lastVoiceAt = System.currentTimeMillis();
         ic.setComposingText(lastPartial, 1);
     }
@@ -4178,11 +4180,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 String tailStr;
                 if (composing) tailStr = roundTail;
                 else { CharSequence tail = ic.getTextBeforeCursor(80, 0); tailStr = tail == null ? "" : tail.toString(); }
-                String cut = Spoken.dropRepeat(tailStr, heard, mode == MODE_EN);
-                if (!cut.isEmpty()) heard = cut;
+                String convHeard = Spoken.dedupe(convert(heard), mode == MODE_EN);      // converted FIRST: Bengali script cannot be compared with the Latin text on screen
+                String cut = Spoken.dropRepeat(tailStr, convHeard, mode == MODE_EN);
+                if (!cut.isEmpty()) convHeard = cut;
                 // ? or ! from how the sentence is built. A full stop is NOT added at every pause (she often pauses to think in the middle of a sentence):
                 // it comes only when she stays silent for long before speaking again, or presses Stop.
-                String said = convert(heard);
+                String said = convHeard;
                 learnFromSpeech(said);              // no mark at a pause: it may only be a breath in the middle of a sentence (see endSentence)
                 rememberAlternatives(results, said);
                 findSuspects(said);
