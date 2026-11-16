@@ -160,7 +160,7 @@ public final class Spoken {
     /** Words a sentence does not end on: a pause after one of these is a pause to think, not the end. */
     private static final java.util.Set<String> OPEN = new java.util.HashSet<>(java.util.Arrays.asList((
             "and but or so to the a an of in on at for with from by because that which who if when then than as is are was were am be will would can could should "
-            + "my your his her our their this these those i we you he she they it not very also just about into "
+            + "my your his her our their not very also just into "
             + "ar ebong kintu je ki ke er te theke jonno karon tai jodi tokhon amar tomar tar amader "
             + "aur lekin ya ki ka ke ko se me par liye kyunki agar toh to mera tumhara uska").split(" ")));
 
