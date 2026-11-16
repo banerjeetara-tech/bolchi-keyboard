@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 100 = build-131** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 101 = build-134** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -380,6 +380,12 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   hit, from the key's middle, running average in prefs `touchBias` / `touchN`) and by default (pref `touchUp` = -1, "Auto") lifts taps by that measured amount, 0-14 dp
   (5 dp until 30 taps are known). The Bolchi app shows "Measured on N taps: they land on average X dp LOWER / HIGHER than the middle of the key" and the button has the
   fixed steps as before. Ask her for that line first: a bias near 0 with wrong rows means the taps are simply spread wide (then the problem is not an offset).
+- Version 101 (Tara, her own words: "if I speak in Bengali or Hindi and any English word [comes out wrong, it should be detected and] can be corrected later on with a single key for any English word";
+  she could not say what she wanted from the converter, so this is MY reading: ask her to confirm): tap a word in the text (or finish speaking, then tap) and the cursor stands in
+  a Latin-letter word that is not English, not in her words / phone book, not Banglish (`computeRepair`): the word row (EN keys, `slotRepair`) or the Bangla / Hindi candidate row
+  (label "English?", `paintCands`) offers up to 3 English words that sound like it (`Words.englishFor`: a typo fix, then every word with the same consonant sounds, vowels not compared);
+  one tap replaces the whole word (`applyRepair`). Works on any word, so it also repairs what the automatic matcher missed. Not for font mode, passwords, while speaking, or
+  within 0.7 s of typing. Words with two consonant sounds only (potty, pause) cannot be matched: "porty" gives party / part / pretty. Not tested on a phone.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

@@ -1098,6 +1098,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 }
             }
         }
+        // the cursor stands in a word that is no English word but sounds like one: offer the English words (a tap repairs it)
+        slotRepair[0] = slotRepair[1] = slotRepair[2] = false;
+        if (w.isEmpty() && !repairList.isEmpty() && v[0].isEmpty() && v[1].isEmpty() && v[2].isEmpty() && !plainField) {
+            int[] order = repairList.size() == 1 ? new int[]{1} : repairList.size() == 2 ? new int[]{1, 2} : new int[]{1, 0, 2};
+            for (int k = 0; k < order.length; k++) { v[order[k]] = repairList.get(k); slotRepair[order[k]] = true; ownSlot[order[k]] = true; }
+            bold = true;
+        }
         // an amount of money typed in one piece ("10rs", "$20", "50usd"): the same amount in other money, with signs. Tap one to swap it in.
         slotMoney = false;
         if (!plainField && !uriBox && token.length() >= 2 && Converter.isMoney(token.toString())) {
@@ -1194,6 +1201,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
+        if (slotRepair[i] && !val.isEmpty()) { applyRepair(val); return; }
         if (slotUndo[i]) {
             gifHeld = null;
             if (ic != null && deletedBuf.length() > 0) ic.commitText(deletedBuf.toString(), 1);
@@ -1452,9 +1460,17 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (jumped) { token.setLength(0); lastWord = ""; if (numTyped.length() > 0) { numTyped.setLength(0); paintSugs(); } }
         if (word.length() > 0 && jumped) {
             word.setLength(0);
+            computeRepair();
             paintSugs();
-        } else if (jumped && newSelStart == newSelEnd && sugRow != null) {
-            paintSugs();        // text was pasted or the cursor moved: a sum before the cursor gets its answer
+            paintCands();
+        } else if (jumped && newSelStart == newSelEnd) {
+            computeRepair();
+            if (sugRow != null) paintSugs();        // text was pasted or the cursor moved: a sum before the cursor gets its answer
+            paintCands();
+        } else if (!repairList.isEmpty() && !jumped) {
+            repairList = new ArrayList<>();          // she goes on typing: the offer is gone
+            if (sugRow != null) paintSugs();
+            paintCands();
         }
     }
 
@@ -1588,6 +1604,50 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         numTyped.setLength(0);
         resetWord();
         paintSugs();
+    }
+
+    // ---------- tap a word to repair it: the English word an English-sounding spelling was meant to be ("myanejment" -> "management") ----------
+    private List<String> repairList = new ArrayList<>();
+    private int repairPre, repairSuf;
+    private final boolean[] slotRepair = new boolean[3];
+
+    /** Looks at the word the cursor stands in (after she tapped into the text or finished speaking) and finds English words it may have been meant to be. */
+    private void computeRepair() {
+        repairList = new ArrayList<>();
+        try {
+            if (!Words.ready || listening || word.length() > 0 || phon.length() > 0 || noFix || fontOn() || System.currentTimeMillis() - lastTypeAt < 700) return;
+            InputConnection ic = getCurrentInputConnection();
+            if (ic == null) return;
+            CharSequence tb = ic.getTextBeforeCursor(30, 0), ta = ic.getTextAfterCursor(30, 0);
+            String before = tb == null ? "" : tb.toString(), after = ta == null ? "" : ta.toString();
+            int pre = 0, suf = 0;
+            while (pre < before.length() && isWordChar(before.charAt(before.length() - 1 - pre))) pre++;
+            while (suf < after.length() && isWordChar(after.charAt(suf))) suf++;
+            if (pre + suf < 3 || pre + suf > 24) return;
+            String w = before.substring(before.length() - pre) + after.substring(0, suf);
+            if (Words.inDictionary(w) || Words.known(w) || Words.isDesi(w)) return;
+            List<String> c = Words.englishFor(w, 3);
+            if (c.isEmpty()) return;
+            repairList = c;
+            repairPre = pre;
+            repairSuf = suf;
+        } catch (Throwable ignored) { repairList = new ArrayList<>(); }
+    }
+
+    private static boolean isWordChar(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '\''; }
+
+    /** One tap: the word under the cursor becomes the English word. */
+    private void applyRepair(String eng) {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null || eng == null || eng.isEmpty()) return;
+        ic.beginBatchEdit();
+        ic.deleteSurroundingText(repairPre, repairSuf);
+        ic.commitText(eng, 1);
+        ic.endBatchEdit();
+        repairList = new ArrayList<>();
+        word.setLength(0);
+        paintSugs();
+        paintCands();
     }
 
     private boolean slotMoney;                                // the word row holds a typed amount of money in other currencies
@@ -2123,6 +2183,21 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void paintCands() {
         if (candRow == null) return;
         candRow.removeAllViews();
+        if (phon.length() == 0 && !repairList.isEmpty()) {
+            TextView lab = new TextView(this);
+            lab.setText("English?");
+            lab.setTextColor(cMuted);
+            lab.setTextSize(13);
+            lab.setGravity(Gravity.CENTER);
+            candRow.addView(lab, new LinearLayout.LayoutParams(0, dp(KEY_H + 4), 0.8f));
+            for (final String c : repairList) {
+                TextView t = makeKey(c, 1f, cFn, cInk, 20);
+                t.setTypeface(Typeface.DEFAULT_BOLD);
+                onPress(t, cFn, new Runnable() { @Override public void run() { applyRepair(c); } });
+                candRow.addView(t);
+            }
+            return;
+        }
         if (phon.length() == 0) {
             TextView hint = new TextView(this);
             hint.setText(layout == 2 ? "Type in English letters: main \u2192 \u092e\u0948\u0902" : "Type in English letters: ami \u2192 \u0986\u09ae\u09bf");

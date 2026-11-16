@@ -495,7 +495,7 @@ public final class Words {
      * Short words (4 or 5 Banglish letters: "topik", "print", "lebel"): only very usual English words, the same sounds, a vowel in exactly
      * the same places and each vowel a fitting one. Stricter than the long-word match, because short Bengali words look like English ones.
      */
-    private static String soundAlikeShort(String roman) {
+    private static HashMap<String, List<String>> shortMap() {
         HashMap<String, List<String>> m = SOUND_SHORT;
         if (m == null) {
             m = new HashMap<>();
@@ -511,6 +511,53 @@ public final class Words {
             }
             SOUND_SHORT = m;
         }
+        return m;
+    }
+
+    private static HashMap<String, List<String>> longMap() {
+        HashMap<String, List<String>> m = SOUND;
+        if (m == null) {
+            m = new HashMap<>();
+            String[] l = list;
+            for (int i = 0; i < l.length && i < 20000; i++) {
+                String w = l[i];
+                if (w.length() < 5 || w.indexOf('\'') >= 0 || DESI.contains(w)) continue;
+                String k = shape(w, true)[0];
+                if (k.length() < 4) continue;
+                List<String> at = m.get(k);
+                if (at == null) { at = new ArrayList<>(2); m.put(k, at); }
+                if (at.size() < 4) at.add(w);                     // most usual first
+            }
+            SOUND = m;
+        }
+        return m;
+    }
+
+    /**
+     * For a word she can tap and repair: English words that sound like these Banglish letters, nearest first (a typo fix, then every word with the
+     * same consonant sounds; the vowels are not compared, because she chose to repair this word herself). Empty when nothing fits.
+     */
+    public static List<String> englishFor(String roman, int max) {
+        List<String> out = new ArrayList<>();
+        if (!ready || roman == null || roman.length() < 3) return out;
+        String l = roman.toLowerCase(Locale.ROOT);
+        String fx = fix(roman);
+        if (fx != null) out.add(fx);
+        String k = shape(l, false)[0];
+        List<String> a = k.length() >= 4 ? longMap().get(k) : null, b = k.length() >= 3 ? shortMap().get(k) : null;
+        for (List<String> src : new List[]{a, b}) {
+            if (src == null) continue;
+            for (String w : src) {
+                if (Math.abs(w.length() - l.length()) > 4) continue;
+                String m = matchCase(roman, w);
+                if (!out.contains(m)) out.add(m);
+            }
+        }
+        return out.size() > max ? new ArrayList<>(out.subList(0, max)) : out;
+    }
+
+    private static String soundAlikeShort(String roman) {
+        HashMap<String, List<String>> m = shortMap();
         String[] r = shape(roman, false);
         if (r[0].length() < 3) return null;
         List<String> hits = m.get(r[0]);
@@ -538,21 +585,7 @@ public final class Words {
     }
 
     private static String soundAlikeLong(String roman) {
-        HashMap<String, List<String>> m = SOUND;
-        if (m == null) {
-            m = new HashMap<>();
-            String[] l = list;
-            for (int i = 0; i < l.length && i < 20000; i++) {
-                String w = l[i];
-                if (w.length() < 5 || w.indexOf('\'') >= 0 || DESI.contains(w)) continue;
-                String k = shape(w, true)[0];
-                if (k.length() < 4) continue;
-                List<String> at = m.get(k);
-                if (at == null) { at = new ArrayList<>(2); m.put(k, at); }
-                if (at.size() < 4) at.add(w);                     // most usual first
-            }
-            SOUND = m;
-        }
+        HashMap<String, List<String>> m = longMap();
         int half = roman.length() / 2;
         if (roman.length() % 2 == 0 && roman.substring(0, half).equals(roman.substring(half))) return null;      // "tuktuk": Bengali doubles words
         String[] r = shape(roman, false);
