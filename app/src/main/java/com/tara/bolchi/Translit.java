@@ -52,7 +52,7 @@ public final class Translit {
             "টুমরো","tomorrow","উইক","week","মান্থ","month","ইয়ার","year","মিনিট","minute","আওয়ার","hour","সেকেন্ড","second","ব্রেক","break","লিভ","leave","হলিডে","holiday","জুম","Zoom","টিমস","Teams","গুগল","Google","ইউটিউব","YouTube",
             "ফেসবুক","Facebook","ইনস্টাগ্রাম","Instagram","মেসেঞ্জার","Messenger","চ্যাট","chat","রিপ্লাই","reply","ফরওয়ার্ড","forward","ডিলিট","delete","সেভ","save","এডিট","edit","ওপেন","open","ক্লোজ","close","স্টার্ট","start","স্টপ","stop","ট্রাই","try",
             "টেস্ট","test","রেজাল্ট","result","নোট","note","নোটস","notes","লিস্ট","list","ফর্ম","form","ফরম্যাট","format","কোড","code","ওটিপি","OTP","কার্ড","card","ক্যাশ","cash","লোন","loan","রিচার্জ","recharge","ব্যালেন্স","balance",
-            "ট্রান্সফার","transfer","রিফান্ড","refund","ডিসকাউন্ট","discount","অফার","offer","প্রাইস","price","রেট","rate","কস্ট","cost","টোটাল","total","পার্সেন্ট","percent","কোম্পানি","company","বস","boss","কলিগ","colleague","স্টাফ","staff","এইচআর","HR",
+            "ট্রান্সফার","transfer","রিফান্ড","refund","ডিসকাউন্ট","discount","অফার","offer","প্রাইস","price","রেট","rate","কস্ট","cost","টোটাল","total","পার্সেন্ট","percent","কোম্পানি","company","কলিগ","colleague","স্টাফ","staff","এইচআর","HR",
             "ইন্টারভিউ","interview","জব","job","ডিউটি","duty","শিফট","shift","ট্রেনিং","training","ডিপার্টমেন্ট","department","ব্রাঞ্চ","branch","ডিরেক্টর","director","ট্যাক্সি","taxi","ক্যাব","cab","বাস","bus","মেট্রো","metro","ফ্লাইট","flight","এয়ারপোর্ট","airport",
             "স্টেশন","station","হোটেল","hotel","রুম","room","ফ্ল্যাট","flat","গেট","gate","লিফট","lift","পার্কিং","parking","ট্রাফিক","traffic","জ্যাম","jam","মার্কেট","market","শপিং","shopping","রেস্টুরেন্ট","restaurant","কফি","coffee","ব্রেকফাস্ট","breakfast",
             "কেক","cake","পিৎজা","pizza","বার্গার","burger","চকলেট","chocolate","মেডিসিন","medicine","ডক্টর","doctor","নার্স","nurse","ফিভার","fever","জিম","gym","ড্রেস","dress","শার্ট","shirt","কালার","colour","ডিজাইন","design","সাইজ","size",
@@ -60,14 +60,14 @@ public final class Translit {
             "ডেফিনিটলি","definitely","এক্স্যাক্টলি","exactly","অবভিয়াসলি","obviously","সিরিয়াসলি","seriously","মেবি","maybe","অলরেডি","already","অলওয়েজ","always","এগেইন","again","জাস্ট","just","অনলি","only","ভেরি","very","বাট","but","অ্যান্ড","and","বিকজ","because",
             "লাইক","like","থিংক","think","ফিল","feel","ওয়েট","wait","হেল্প","help","ইউজ","use","নিড","need","ডিসকাস","discuss","ডিসিশন","decision","ডিসাইড","decide","চেঞ্জ","change","অ্যাড","add","রিমুভ","remove","ফিক্স","fix",
             "ওয়ার্ক","work","ওয়ার্কিং","working","ইম্পর্ট্যান্ট","important","আর্জেন্ট","urgent","সিরিয়াস","serious","ইজি","easy","ডিফিকাল্ট","difficult","সিম্পল","simple","পসিবল","possible","ইম্পসিবল","impossible","ডিফারেন্ট","different","সেম","same","নিউ","new","ওল্ড","old",
-            "নেক্সট","next","লাস্ট","last","ফার্স্ট","first","ফাইনাল","final","এক্সট্রা","extra","ফুল","full","হাফ","half","পার্ট","part","পয়েন্ট","point","টপিক","topic","আইডিয়া","idea","ইনফরমেশন","information","ডিটেলস","details","ডিটেইলস","details",
+            "নেক্সট","next","লাস্ট","last","ফার্স্ট","first","ফাইনাল","final","এক্সট্রা","extra","হাফ","half","পার্ট","part","পয়েন্ট","point","টপিক","topic","আইডিয়া","idea","ইনফরমেশন","information","ডিটেলস","details","ডিটেইলস","details",
             "এক্সাম্পল","example","কোয়েশ্চেন","question","আনসার","answer","রিজন","reason","মিসটেক","mistake","চান্স","chance","রিস্ক","risk","সেফ","safe","সিকিউরিটি","security","কোয়ালিটি","quality","লেভেল","level","টাইপ","type","টাইপিং","typing","স্পিকিং","speaking",
             "ইংলিশ","English","ইংরেজি","English","বেঙ্গলি","Bengali","হিন্দি","Hindi","ল্যাঙ্গুয়েজ","language","ওয়ার্ড","word","সেন্টেন্স","sentence","কারেকশন","correction","অটো","auto","কারেক্ট","correct","রাইট","right","লেফট","left","ডাউন","down","ব্যাক","back",
-            "ফ্রন্ট","front","সাইড","side","সেন্টার","center","ফ্যামিলি","family","ফ্রেন্ড","friend","ফ্রেন্ডস","friends","আঙ্কেল","uncle","আন্টি","aunty","হাজব্যান্ড","husband","ওয়াইফ","wife","বেবি","baby","লাইফ","life","লাভ","love","মিস","miss",
+            "ফ্রন্ট","front","সাইড","side","সেন্টার","center","ফ্যামিলি","family","ফ্রেন্ড","friend","ফ্রেন্ডস","friends","আঙ্কেল","uncle","আন্টি","aunty","হাজব্যান্ড","husband","ওয়াইফ","wife","বেবি","baby","লাইফ","life","মিস","miss",
             "ফান","fun","মুভি","movie","গেম","game","মিউজিক","music","নিউজ","news","চ্যানেল","channel","টিভি","TV","এসি","AC","লাইট","light","সুইচ","switch","চার্জ","charge","চার্জার","charger","ব্যাটারি","battery","ক্যামেরা","camera",
             "পিকচার","picture","ইমেজ","image","পজ","pause","পস","pause","স্পেস","space","ফন্ট","font","থিম","theme","ইমোজি","emoji","স্টিকার","sticker","কনভার্ট","convert","কনভার্টার","converter","কারেন্সি","currency","ডলার","dollar","সাজেশন","suggestion",
             "প্রেডিকশন","prediction","ট্রান্সপারেন্ট","transparent","কম্বিনেশন","combination","ভয়েস","voice","টেক্সট","text","মেনশন","mention","সাবসিডিয়ারি","subsidiary","কনট্যাক্ট","contact","কন্টাক্ট","contact","অ্যাড্রেস","address","অ্যাটাচ","attach","অ্যাটাচমেন্ট","attachment","ড্রাফট","draft","সাবজেক্ট","subject",
-            "সিগনেচার","signature","অফিস","office","মিটিং","meeting","ফোন","phone","ক্লাস","class","স্কুল","school","কলেজ","college","রিপোর্ট","report","মেসেজ","message","কল","call","টাইম","time","মেইল","mail","ইমেইল","email","ফাইল","file",
+            "সিগনেচার","signature","ডায়মন্ড","diamond","উইথড্র","withdraw","ভাউচার","voucher","রিভিউ","review","পেরোল","payroll","টেবিল","table","অপরচুনিটি","opportunity","ইনক্রিমেন্ট","increment","ফরওয়ার্ডিং","forwarding","অফিস","office","মিটিং","meeting","ফোন","phone","ক্লাস","class","স্কুল","school","কলেজ","college","রিপোর্ট","report","মেসেজ","message","কল","call","টাইম","time","মেইল","mail","ইমেইল","email","ফাইল","file",
             "লিংক","link","গ্রুপ","group","ভিডিও","video","ফটো","photo","ট্রেন","train","টিকিট","ticket","লাঞ্চ","lunch","ডিনার","dinner","পার্টি","party","প্ল্যান","plan","প্রবলেম","problem","টেনশন","tension","ব্যাংক","bank","ব্যাঙ্ক","bank",
             "মোবাইল","mobile","নাম্বার","number","নম্বর","number","পেমেন্ট","payment","অ্যাপ","app","ডকুমেন্ট","document","অর্ডার","order","ডেলিভারি","delivery","হসপিটাল","hospital","সিনেমা","cinema","বুকিং","booking","লোকেশন","location","আপডেট","update"
         };
@@ -226,11 +226,55 @@ public final class Translit {
                 if (LOAN.contains(stem)) return DICT.get(stem) + " " + en[1];
             }
         }
+        // an English word the speech engine wrote in Bengali letters ("ম্যানেজমেন্ট"): give its real English spelling when the sound matches one clearly
+        if (looksLoan(w)) {
+            String en = Words.soundAlike(plain(w));
+            if (en != null) return en;
+            for (String[] end : ENDS) {
+                if (w.length() > end[0].length() + 3 && w.endsWith(end[0])) {
+                    String stem = w.substring(0, w.length() - end[0].length());
+                    if (!looksLoan(stem)) continue;               // "দরজাটা": the ট is only the ending, the word before it is Bengali
+                    en = Words.soundAlike(plain(stem));
+                    if (en != null) return en + " " + end[1];
+                }
+            }
+        }
         w = w.replace("অ্যা", "আ").replace("এ্যা", "আ");
         List<U> u = parse(w);
         if (u.isEmpty()) return "";
         resolve(u);
         if (w.endsWith("ছিল")) u.get(u.size() - 1).v = "o";
+        StringBuilder out = new StringBuilder();
+        for (U x : u) {
+            if (x.isC) out.append(x.r);
+            out.append(x.v);
+            if (x.mods.indexOf('ং') >= 0) out.append("ng");
+        }
+        return out.toString();
+    }
+
+    /** Letters and signs that English words written in Bengali never use: a word with one of them is a Bengali word. */
+    private static final String NATIVE_ONLY = "খঘঝঠঢথধছণষৎঋঃঁঞঈঊঐঔৃ";
+
+    /**
+     * True when a Bengali-script word looks like an English word written by sound: only the letters such words use, and at least one
+     * tell-tale of them (ট, ড, ফ, the "্যা" vowel, a "শন" ending, "ক্স").
+     */
+    private static boolean looksLoan(String w) {
+        if (w.length() < 4) return false;
+        // Bengali verb forms ("কাটলেন", "ডাকবেন", "টানলাম") are never English words
+        for (String v : new String[]{"লেন", "বেন", "তেন", "লাম", "ছেন", "ছিল"}) if (w.endsWith(v)) return false;
+        if (w.indexOf('\u09DC') >= 0 || w.indexOf('\u09DD') >= 0 || w.indexOf('\u09BC') >= 0) return false;      // ড় ঢ় and the dot below: Bengali words
+        for (int i = 0; i < w.length(); i++) if (NATIVE_ONLY.indexOf(w.charAt(i)) >= 0) return false;
+        return w.indexOf('ট') >= 0 || w.indexOf('ড') >= 0 || w.indexOf('ফ') >= 0 || w.contains("্যা") || w.endsWith("শন") || w.contains("ক্স") || w.contains("ন্স");
+    }
+
+    /** The word by the ordinary letter rules (no word list). */
+    private static String plain(String w) {
+        w = w.replace("অ্যা", "আ").replace("এ্যা", "আ");
+        List<U> u = parse(w);
+        if (u.isEmpty()) return "";
+        resolve(u);
         StringBuilder out = new StringBuilder();
         for (U x : u) {
             if (x.isC) out.append(x.r);

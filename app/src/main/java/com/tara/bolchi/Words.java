@@ -409,6 +409,115 @@ public final class Words {
         return false;
     }
 
+    // ---------- English words written down by sound (the Bengali speech engine writes "myanejment" for "management") ----------
+    private static volatile HashMap<String, List<String>> SOUND;
+
+    /**
+     * Sound shape of a word: [0] its consonant sounds in order (a leading vowel is "a"), [1] for each of them what follows:
+     * 'v' a vowel, 'o' only the letter o (in Banglish that is often just the breath between two consonants), '-' nothing.
+     * english = true reads English spelling by rough rules; false reads Banglish letters as the Bengali converter writes them.
+     */
+    static String[] shape(String word, boolean english) {
+        String w = word.toLowerCase(Locale.ROOT);
+        if (english) {
+            // a silent last e: it still makes the c or g before it soft ("conference", "manage"), then it goes
+            if (w.length() > 3 && w.endsWith("e") && "aeiouy".indexOf(w.charAt(w.length() - 2)) < 0) {
+                char p2 = w.charAt(w.length() - 2);
+                w = w.substring(0, w.length() - 2) + (p2 == 'c' ? "S" : p2 == 'g' ? "S" : String.valueOf(p2));
+            }
+            w = w.replace("ssion", "Xon").replace("gge", "je").replace("tion", "Xon").replace("sion", "Xon").replace("cian", "Xon").replace("ture", "Cer").replace("sch", "SK").replace("chn", "KN")
+                    .replace("chr", "KR").replace("ph", "F").replace("gh", "").replace("ck", "K").replace("ch", "C").replace("sh", "X").replace("th", "T")
+                    .replace("dg", "S").replace("qu", "K").replace("x", "KS");
+            if (w.startsWith("kn") || w.startsWith("wr")) w = w.substring(1);
+        } else {
+            w = w.replace("bh", "V").replace("ph", "F").replace("sh", "X").replace("ch", "C");
+        }
+        StringBuilder k = new StringBuilder(), f = new StringBuilder();
+        int n = w.length();
+        for (int i = 0; i < n; i++) {
+            char c = w.charAt(i);
+            char next = i + 1 < n ? w.charAt(i + 1) : ' ';
+            char o = 0;
+            boolean vowel = false;
+            if (c >= 'A' && c <= 'Z') o = c;
+            else switch (c) {
+                case 'a': case 'e': case 'i': case 'o': case 'u': case 'y': vowel = true; break;
+                case 'c': o = !english ? 'K' : next == 'e' || next == 'i' || next == 'y' ? 'S' : 'K'; break;
+                case 'g': o = english && (next == 'e' || next == 'i' || next == 'y') ? 'S' : 'G'; break;
+                case 's': case 'z': case 'j': o = 'S'; break;
+                case 'k': case 'q': o = 'K'; break;
+                case 'f': o = 'F'; break;
+                case 'v': o = 'V'; break;
+                case 'b': case 'd': case 'l': case 'm': case 'n': case 'p': case 'r': case 't': o = Character.toUpperCase(c); break;
+                default: break;                                   // w, h and anything else carry no sound here
+            }
+            if (vowel) {
+                if (k.length() == 0) { k.append('a'); f.append('-'); }
+                else {
+                    int at = f.length() - 1;
+                    char was = f.charAt(at);
+                    char now = c == 'o' && !english ? (was == 'v' ? 'v' : 'o') : 'v';
+                    if (k.length() == 1 && k.charAt(0) == 'a') now = '-';       // still the leading vowel
+                    f.setCharAt(at, now);
+                }
+            } else if (o != 0) {
+                if (k.length() > 0 && k.charAt(k.length() - 1) == o && f.charAt(f.length() - 1) == '-') continue;     // a doubled letter
+                k.append(o); f.append('-');
+            }
+        }
+        // a last o in Banglish is a spoken vowel, not a breath
+        if (!english && f.length() > 0 && f.charAt(f.length() - 1) == 'o') f.setCharAt(f.length() - 1, 'v');
+        return new String[]{k.toString(), f.toString()};
+    }
+
+    /**
+     * The usual English word that sounds like these Banglish letters, or null. Only long words with a clear shape are matched
+     * (6+ letters, 4+ consonant sounds, the vowels sitting in the same places), because short ones collide with real Bengali words.
+     */
+    public static String soundAlike(String roman) {
+        if (!ready || roman == null || roman.length() < 6) return null;
+        HashMap<String, List<String>> m = SOUND;
+        if (m == null) {
+            m = new HashMap<>();
+            String[] l = list;
+            for (int i = 0; i < l.length && i < 20000; i++) {
+                String w = l[i];
+                if (w.length() < 6 || w.indexOf('\'') >= 0 || DESI.contains(w)) continue;
+                String k = shape(w, true)[0];
+                if (k.length() < 4) continue;
+                List<String> at = m.get(k);
+                if (at == null) { at = new ArrayList<>(2); m.put(k, at); }
+                if (at.size() < 4) at.add(w);                     // most usual first
+            }
+            SOUND = m;
+        }
+        int half = roman.length() / 2;
+        if (roman.length() % 2 == 0 && roman.substring(0, half).equals(roman.substring(half))) return null;      // "tuktuk": Bengali doubles words
+        String[] r = shape(roman, false);
+        if (r[0].length() < 4) return null;
+        List<String> hits = m.get(r[0]);
+        if (hits == null) return null;
+        String second = null;
+        for (String hit : hits) {
+            int d = hit.length() - roman.length();
+            if (d > 4 || d < -4) continue;
+            String ef = shape(hit, true)[1];
+            if (ef.length() != r[1].length()) continue;
+            int extra = 0;
+            boolean ok = true;
+            for (int i = 0; i < ef.length() && ok; i++) {
+                char b = r[1].charAt(i), e = ef.charAt(i);
+                if (b == 'v' && e == '-') ok = false;             // a clear vowel in the spoken word where English has none: another word
+                else if (b == '-' && e == 'v') extra++;           // English writes a vowel that is not spoken (management)
+            }
+            if (!ok) continue;
+            if (extra == 0) return hit;                           // the vowels sit in exactly the same places ("promotion", not "permission")
+            if (extra == 1 && second == null) second = hit;
+        }
+        if (second != null) return second;
+        return null;
+    }
+
     /** True for a usual English word of 5+ letters that is not also Bangla / Hindi: on the Bangla / Hindi tab such a word is meant as English. */
     public static boolean clearlyEnglish(String w) {
         if (w == null || w.length() < 5) return false;

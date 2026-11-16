@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 93 = build-117** (15 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 97 = build-123** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -346,6 +346,19 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 94 (clear themes): 30 new see-through combinations at the end of the palette: 10 with 2 colours, 10 with 3, 10 with 4 (the 4th colour is the number row). Background alpha 5%, keys 30%, function keys 36%, so the app shows through; ink is dark on light keys and white on dark keys. Appended at the end so saved theme indexes stay the same.
 - Version 95 (window): the keyboard's own window was opaque, so the see-through themes could not show the app behind. `onCreateInputView` now makes the IME window background transparent; the keyboard root still paints the theme colour (alpha), so solid themes look the same. Tara's screenshot (build 118) was a solid keyboard: check which theme she picked.
 - Version 96 (palette squares): palette squares showed the see-through colours almost invisible, so 2/3/4 colour combinations looked blank. `Themes.swatch()` gives each square its solid colours (background, keys, function keys, number row, each once) as hard stripes. Tara chose the last clear theme and it still looked solid on build 118 (before the window fix in 95): ask her to test build 119 or newer.
+- Version 97 (Tara: "the text is still going with GIF"; "while I'm speaking in Bengali and some English words are coming in between it's unable to recognise;
+  these issues already shared earlier but not resolved"):
+  - GIF: version 80 removed the text only when the box held ONE word, so "good morning" + GIF still went as caption. `sendGif` now removes the whole text when it is short
+    (up to 40 characters, one line, cursor at the end); in a longer message only the word the GIFs were found for (`gifTyped`) when it stands right before the cursor.
+    If she wants a long message kept back as well, that needs a different idea (send text first): ask.
+  - Speaking Bengali with English words, WITHOUT the AI: the converter wrote spoken English by sound ("myanejment konfarens teknolji"). New sound-matcher:
+    `Translit.looksLoan` (a Bengali-script word that uses only the letters English loans use and has a tell-tale: ট ড ফ ্যা শন ক্স ন্স; not ড়, not খ ঘ ঠ থ ধ ছ ঁ ...,
+    not verb endings লেন / বেন / লাম ...) → `Words.soundAlike` (consonant shape + where the vowels sit, `Words.shape`; English words of 6+ letters, rank < 20000, 4+ consonant
+    sounds; an exact vowel match wins: promotion, not permission). Endings are split off (`ENDS`). PC test: 54 of 55 spoken-English samples come out right
+    (management, conference, technology, university, performance, experience ...); of about 170 ordinary Bengali words / 40 sentences none turned into English after the
+    fixes (কাটলেন → kathleen and ডাকলেন → decline were caught by the verb-ending rule). SHORT English words (under 6 letters) still need the explicit lists (`DICT` / `LOAN`)
+    or the AI fix. Not tested on a phone; if a Bengali word turns English, add its pattern to `looksLoan`.
+  - Lesson: she counts an issue as "not resolved" until it works on her phone; say plainly what is still limited instead of announcing a fix.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

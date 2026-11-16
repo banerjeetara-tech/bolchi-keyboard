@@ -1594,6 +1594,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private HorizontalScrollView gifScroll;
     private LinearLayout gifBox;
     private String gifFor = "";
+    private String gifTyped = "";      // the word as she typed it, for which the GIFs on show were found
     private int gifJob;
     private Runnable gifAsk;
 
@@ -1629,6 +1630,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (q.equals(gifFor)) return;
         hideGifs();
         gifFor = q;
+        gifTyped = w;
         final int job = gifJob;
         gifAsk = new Runnable() { @Override public void run() {
             new Thread(new Runnable() { @Override public void run() {
@@ -1722,6 +1724,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private void sendGif(final Gifs.Item it) {
+        final String gifWord = gifTyped;
         flashSpace("Getting the GIF\u2026");
         new Thread(new Runnable() { @Override public void run() {
             java.io.File f = null;
@@ -1732,17 +1735,24 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (ic == null) return;
                 boolean ok = false;
                 EditorInfo ei = getCurrentInputEditorInfo();
-                // she typed just one word to find this GIF: the word comes out, so it is not sent along as text under the GIF
+                // The words she typed to find this GIF must not be sent along as text under it (WhatsApp turns the text in the box into the caption).
+                // A short text (up to 40 characters, e.g. "good morning") is the search itself: all of it comes out.
+                // In a longer message only the word the GIFs were found for comes out, when it stands right before the cursor.
                 try {
-                    CharSequence tb = ic.getTextBeforeCursor(40, 0), ta = ic.getTextAfterCursor(3, 0);
-                    String only = tb == null ? "" : tb.toString();
-                    if ((ta == null || ta.length() == 0) && only.length() <= 30 && !only.trim().isEmpty()
-                            && only.trim().indexOf(' ') < 0 && only.trim().indexOf('\n') < 0) {
-                        ic.deleteSurroundingText(only.length(), 0);
-                        token.setLength(0);
-                        lastWord = "";
+                    CharSequence tb = ic.getTextBeforeCursor(60, 0), ta = ic.getTextAfterCursor(3, 0);
+                    String before = tb == null ? "" : tb.toString();
+                    boolean endOfText = ta == null || ta.length() == 0;
+                    if (endOfText && before.length() <= 40 && !before.trim().isEmpty() && before.indexOf('\n') < 0) {
+                        ic.deleteSurroundingText(before.length(), 0);
+                    } else if (!gifWord.isEmpty()) {
+                        String t = before.replaceAll("\\s+$", "");
+                        int cut = before.length() - t.length();
+                        String sw = shown(gifWord);
+                        if (t.toLowerCase().endsWith(sw.toLowerCase())) ic.deleteSurroundingText(sw.length() + cut, 0);
                     }
-                } catch (Throwable ignored) { /* the word stays */ }
+                    token.setLength(0);
+                    lastWord = "";
+                } catch (Throwable ignored) { /* the text stays */ }
                 justEnded = "";
                 fixTyped = null;
                 fixShownTyped = fixShownDone = null;
