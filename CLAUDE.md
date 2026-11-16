@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 106 = build-145** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 107 = build-146** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
