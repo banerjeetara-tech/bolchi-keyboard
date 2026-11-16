@@ -217,13 +217,18 @@ public class SetupActivity extends Activity {
         });
         col.addView(mixBtn);
 
-        // where a tap lands: the thumb presses lower than it aims, so taps are moved up a little (the keys keep their size)
-        final String[] touchNames = {"Normal", "A little higher", "Higher", "Much higher"};
-        final int[] touchDp = {0, 5, 8, 11};
-        int touchCur = 1;
-        for (int ti = 0; ti < touchDp.length; ti++) if (prefs.getInt("touchUp", 5) == touchDp[ti]) touchCur = ti;
+        // where a tap lands: the thumb presses lower than it aims, so taps are moved up a little (the keys keep their size). Auto = measured from her own taps.
+        final String[] touchNames = {"Auto (learns from your taps)", "Normal", "A little higher", "Higher", "Much higher"};
+        final int[] touchDp = {-1, 0, 5, 8, 11};
+        int touchCur = 0;
+        for (int ti = 0; ti < touchDp.length; ti++) if (prefs.getInt("touchUp", -1) == touchDp[ti]) touchCur = ti;
         final int[] touchPick = {touchCur};
         final TextView touchBtn = button("Key touch point: " + touchNames[touchCur] + " (tap to change)");
+        float tb = prefs.getFloat("touchBias", 0f);
+        int tn = prefs.getInt("touchN", 0);
+        col.addView(text(tn < 10 ? "Taps measured so far: " + tn + ". Type a few messages, then look here."
+                : "Measured on " + tn + " taps: they land on average " + String.format(java.util.Locale.US, "%.1f", Math.abs(tb)) + " dp "
+                + (tb > 0.5f ? "LOWER" : tb < -0.5f ? "HIGHER" : "right on") + (Math.abs(tb) > 0.5f ? " than the middle of the key." : " the middle of the key."), 14, MUTED));
         touchBtn.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 touchPick[0] = (touchPick[0] + 1) % touchDp.length;

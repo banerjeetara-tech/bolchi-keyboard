@@ -329,7 +329,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
      */
     private View keyUnderThumb(float x, float y) {
         View plain = keyAt(x, y);
-        float lift = dp(touchUp());
+        learnTouch(plain, y);
+        float lift = dp(liftDp());
         if (lift <= 0 || keysBox == null || keysBox.getChildCount() == 0) return plain;
         View lastRow = keysBox.getChildAt(keysBox.getChildCount() - 1);
         if (y >= lastRow.getTop()) return plain;                     // the bottom row (space bar and its neighbours) is hit as it is
@@ -340,7 +341,37 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         return lifted;
     }
 
-    private int touchUp() { return prefs().getInt("touchUp", 5); }
+    /**
+     * How far (dp) taps are moved up: a fixed amount she chose in the Bolchi app, or (default, -1) what the keyboard has measured:
+     * where her taps land inside a letter key, on average, from the middle of the key. Until 30 taps are known it uses 5 dp.
+     */
+    private float liftDp() {
+        int set = prefs().getInt("touchUp", -1);
+        if (set >= 0) return set;
+        if (touchN < 30) return 5f;
+        return Math.max(0f, Math.min(14f, touchBias));
+    }
+
+    private float touchBias;        // dp: + = taps land BELOW the middle of the key, - = above (running average, kept in prefs)
+    private int touchN;
+    private boolean touchLoaded;
+
+    /** Measures where a tap lands inside the letter key it hit (the position inside a key repeats every row, so this works even when some taps hit a neighbour). */
+    private void learnTouch(View k, float y) {
+        if (!touchLoaded) {
+            touchLoaded = true;
+            touchBias = prefs().getFloat("touchBias", 0f);
+            touchN = prefs().getInt("touchN", 0);
+        }
+        if (k == null || !(k instanceof TextView) || !letterKeys.contains(k) || !(k.getParent() instanceof View)) return;
+        View row = (View) k.getParent();
+        float centre = row.getTop() + k.getTop() + k.getHeight() / 2f;
+        float dy = (y - centre) / getResources().getDisplayMetrics().density;
+        dy = Math.max(-25f, Math.min(25f, dy));
+        touchN++;
+        touchBias += (dy - touchBias) / Math.min(touchN, 150);
+        if (touchN % 15 == 0) prefs().edit().putFloat("touchBias", touchBias).putInt("touchN", touchN).apply();
+    }
 
     /** The key under the finger, or the closest one when the finger lands just beside a key. */
     private View keyAt(float x, float y) {

@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 99 = build-129** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 100 = build-132** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -375,6 +375,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Not applied in the bottom row, and a tap never moves from a typing row into the word row / Bangla candidate row (`sugRow`, `candRow`). The Bolchi app has a button
   "Key touch point" (Normal / A little higher 5 / Higher 8 / Much higher 11 dp). The old hit test itself was consistent (`keyAt` = nearest key rectangle), so this is a guess
   from her words: if she says the letter ABOVE comes now, lower it. Not tested on a phone; swipe typing uses the raw path and is unchanged.
+- Version 100 (Tara: "for every letter it is happening, either the upper letter or the below letter comes"): that is more than a fixed thumb offset, and reading the code found
+  no drawing / touch offset (`keyAt` uses the same coordinates as the drawn rows). So the keyboard now MEASURES her taps (`learnTouch`: where a tap lands inside the letter key it
+  hit, from the key's middle, running average in prefs `touchBias` / `touchN`) and by default (pref `touchUp` = -1, "Auto") lifts taps by that measured amount, 0-14 dp
+  (5 dp until 30 taps are known). The Bolchi app shows "Measured on N taps: they land on average X dp LOWER / HIGHER than the middle of the key" and the button has the
+  fixed steps as before. Ask her for that line first: a bias near 0 with wrong rows means the taps are simply spread wide (then the problem is not an offset).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
