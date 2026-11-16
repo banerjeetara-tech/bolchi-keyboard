@@ -114,6 +114,40 @@ public final class Words {
         return best;
     }
 
+    /**
+     * The English word SHE uses (typed, spoken or saved, 2+ times) that a spoken Bengali spelling stands for: "biuti" / "beauti" -> "beauty". Only her own words are looked at (a short list), so two
+     * consonant sounds are enough; the same consonant sounds, a vowel in the same places that fits, at most one letter longer or shorter, and at most 3 letters different.
+     */
+    public static String personalEnglish(String w) {
+        if (!ready || w == null) return null;
+        String l = w.toLowerCase(Locale.ROOT);
+        if (l.length() < 4 || rank.containsKey(l) || DESI.contains(l) || isContact(l) || used(l) >= 2) return null;
+        String[] r = shape(l, false);
+        if (r[0].length() < 2) return null;
+        String best = null;
+        int bestUse = 0;
+        synchronized (USE) {
+            for (java.util.Map.Entry<String, Integer> e : USE.entrySet()) {
+                String c = e.getKey();
+                int u = e.getValue();
+                if (u < 2 || u <= bestUse || c.length() < 4 || Math.abs(c.length() - l.length()) > 1 || c.charAt(0) != l.charAt(0) || !rank.containsKey(c)) continue;
+                String[] en = shape(c, true);
+                if (!en[0].equals(r[0]) || en[1].length() != r[1].length()) continue;
+                boolean ok = true;
+                for (int i = 0; ok && i < en[1].length(); i++) {
+                    boolean lead = i == 0 && r[0].charAt(0) == 'a';
+                    boolean bv = r[1].charAt(i) != '-' || lead, ev = en[1].charAt(i) != '-' || (i == 0 && en[0].charAt(0) == 'a');
+                    if (bv != ev) ok = false;
+                    else if (bv && !lead && !vowelFits(r[2].charAt(i), en[2].charAt(i))) ok = false;
+                }
+                if (!ok || lev(c, l) > 3) continue;
+                best = c;
+                bestUse = u;
+            }
+        }
+        return best;
+    }
+
     /** True when she has already saved this word (kept it by hand) or used it 3+ times. */
     public static boolean isSaved(String w) {
         if (w == null) return false;
@@ -583,8 +617,10 @@ public final class Words {
         List<String> out = new ArrayList<>();
         if (!ready || roman == null || roman.length() < 3) return out;
         String l = roman.toLowerCase(Locale.ROOT);
+        String mine = personalEnglish(roman);
+        if (mine != null) out.add(matchCase(roman, mine));       // an English word she uses herself comes first
         String fx = fix(roman);
-        if (fx != null) out.add(fx);
+        if (fx != null && !out.contains(fx)) out.add(fx);
         String k = shape(l, false)[0];
         List<String> a = k.length() >= 4 ? longMap().get(k) : null, b = k.length() >= 3 ? shortMap().get(k) : null;
         for (List<String> src : new List[]{a, b}) {

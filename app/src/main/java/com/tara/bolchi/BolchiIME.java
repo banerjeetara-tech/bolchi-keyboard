@@ -3714,6 +3714,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             String w = bare(tok[i]);
             String r = w.isEmpty() ? null : m.get(w);
             if (r == null && w.length() >= 4 && w.matches("[a-z']+")) r = Words.rememberedSpelling(w);     // her own spelling of a word she uses a lot
+            if (r == null && w.length() >= 4 && w.matches("[a-z']+")) r = Words.personalEnglish(w);          // an English word she uses herself ("biuti" -> "beauty")
             if (r == null) continue;
             int at = tok[i].toLowerCase(java.util.Locale.ROOT).indexOf(w);
             if (at < 0) continue;

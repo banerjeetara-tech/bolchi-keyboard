@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 107 = build-146** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 108 = build-148** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -428,6 +428,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   for those letters (`rememberPick`, pref `phonPick`, 500 latest, per layout) and comes FIRST next time and is what space writes (`flushPhon`, `paintCands`); in the tap-into-text row a "★ save" chip
   (`SAVE_TOKEN`, `saveWordToMemory`: `keep` + counts 3) puts any non-English word into memory. Misheard words are only counted, so need 2 uses to be offered and 3 to rewrite anything.
   Not tested on a phone. If space now writes a word she did not want, she taps the other candidate: that replaces the memory.
+- Version 108 (Tara: "beauty is already saved in memory, why is it not coming and coming as beauti while speaking"): the spoken Bengali spelling ("biuti" / "beauti") was never matched against
+  the English words she uses: the general matcher needs 3-4 consonant sounds and "beauty" has 2. `Words.personalEnglish(w)`: among HER English words (dictionary words used 2+ times in the memory) the
+  one with the same consonant sounds, a fitting vowel in the same places, length within 1 and at most 3 letters different; applied in `applyVoiceFix` (dictation) and first in `Words.englishFor`
+  (tap row / automatic row). PC test: beauti / biuti / byuti / bauti → beauty, miting → meeting, salari → salary; bati, hati, bhalo, tumi, korchi unchanged. Only her own words, so a new word
+  needs 2 uses first. Where "beauti" comes from is not known (the converter writes "biuti" for বিউটি).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
