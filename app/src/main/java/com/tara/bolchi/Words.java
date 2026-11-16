@@ -79,6 +79,48 @@ public final class Words {
     }
 
     /** Words she uses often that start with these letters, most used first. */
+    private static int lev(String a, String b) {
+        int[] prev = new int[b.length() + 1], cur = new int[b.length() + 1];
+        for (int j = 0; j <= b.length(); j++) prev[j] = j;
+        for (int i = 1; i <= a.length(); i++) {
+            cur[0] = i;
+            for (int j = 1; j <= b.length(); j++) cur[j] = Math.min(Math.min(cur[j - 1], prev[j]) + 1, prev[j - 1] + (a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1));
+            int[] t = prev; prev = cur; cur = t;
+        }
+        return prev[b.length()];
+    }
+
+    /**
+     * Her own spelling of a Bengali / Hindi word, from memory: a word that sounds the same as one she uses a lot (same consonant sounds, at most 2 letters different, she used that one 3+ times and
+     * has not used this spelling twice) is written the way SHE writes it ("korchhi" -> "korchi"). Null when nothing fits. English words are never touched.
+     */
+    public static String rememberedSpelling(String w) {
+        if (!ready || w == null) return null;
+        String l = w.toLowerCase(Locale.ROOT);
+        if (l.length() < 4 || rank.containsKey(l) || DESI.contains(l) || isContact(l) || used(l) >= 2) return null;
+        String sk = null, best = null;
+        int bestUse = 0;
+        synchronized (USE) {
+            for (java.util.Map.Entry<String, Integer> e : USE.entrySet()) {
+                String c = e.getKey();
+                int u = e.getValue();
+                if (u < 3 || u <= bestUse || c.length() < 4 || Math.abs(c.length() - l.length()) > 2 || c.charAt(0) != l.charAt(0) || rank.containsKey(c)) continue;
+                if (sk == null) sk = shape(l, false)[0];
+                if (!shape(c, false)[0].equals(sk) || lev(c, l) > 2) continue;
+                best = c;
+                bestUse = u;
+            }
+        }
+        return best;
+    }
+
+    /** True when she has already saved this word (kept it by hand) or used it 3+ times. */
+    public static boolean isSaved(String w) {
+        if (w == null) return false;
+        String l = w.toLowerCase(Locale.ROOT);
+        return isKept(l) || used(l) >= 3;
+    }
+
     public static List<String> usedMatches(String prefix, int max) {
         List<String> out = new ArrayList<>();
         if (prefix == null || prefix.isEmpty()) return out;

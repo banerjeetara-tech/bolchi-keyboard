@@ -1353,7 +1353,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.deleteSurroundingText(shown(w).length(), 0);
         ic.commitText(val.indexOf('@') >= 0 ? val + " " : shown(val + " "), 1);   // an email must stay exactly as saved
         ic.endBatchEdit();
-        if (!keep) { Words.record(lastWord, val); lastWord = val.toLowerCase(); if (++usageEdits >= 25) saveUsage(); }
+        if (!keep) { Words.record(lastWord, val); Words.record(lastWord, val); lastWord = val.toLowerCase();       // a tapped word is meant: it counts double if (++usageEdits >= 25) saveUsage(); }
         if (keep) keep(w);
         resetWord();
         pickedSpace = true;
@@ -1792,6 +1792,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     // ---------- tap a word to repair it: the English word an English-sounding spelling was meant to be ("myanejment" -> "management") ----------
     private List<String> repairList = new ArrayList<>();
     private int repairPre, repairSuf;
+    private String repairSaveWord;
     private final boolean[] slotRepair = new boolean[3];
 
     /** Looks at the word the cursor stands in (after she tapped into the text or finished speaking) and finds English words it may have been meant to be. */
@@ -1811,11 +1812,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             while (suf < after.length() && isWordChar(after.charAt(suf))) suf++;
             if (pre + suf < 3 || pre + suf > 24) return;
             String w = before.substring(before.length() - pre) + after.substring(0, suf);
+            repairSaveWord = null;
             List<String> c = new ArrayList<>(heardAlternatives(w));          // what the phone heard instead ("font" for "phone")
             if (!Words.inDictionary(w) && !Words.known(w) && !Words.isDesi(w))
                 for (String e : Words.englishFor(w, 4)) if (!c.contains(e) && !e.equalsIgnoreCase(w)) c.add(e);
+            if (c.size() > 7) c = new ArrayList<>(c.subList(0, 7));
+            if (!Words.inDictionary(w) && !Words.isSaved(w)) { c.add(SAVE_TOKEN); repairSaveWord = w; }     // "★ save": this word goes into memory
             if (c.isEmpty()) return;
-            if (c.size() > 8) c = new ArrayList<>(c.subList(0, 8));
             repairList = c;
             repairPre = pre;
             repairSuf = suf;
@@ -1826,6 +1829,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     /** One tap: the word under the cursor becomes the English word. */
     private void applyRepair(String eng) {
+        if (SAVE_TOKEN.equals(eng)) {
+            if (repairSaveWord != null) saveWordToMemory(repairSaveWord);
+            repairList = new ArrayList<>();
+            repairSaveWord = null;
+            paintSugs();
+            paintCands();
+            return;
+        }
         if (repairAutoWord != null) { applyRepairAt(repairAutoWord, eng); return; }
         InputConnection ic = getCurrentInputConnection();
         if (ic == null || eng == null || eng.isEmpty()) return;
@@ -1841,6 +1852,19 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         word.setLength(0);
         paintSugs();
         paintCands();
+    }
+
+    private static final String SAVE_TOKEN = "\u2605 save";
+
+    /** Puts a word into memory: it is hers (never flagged), counts as used often (offered first, and the spelling of it is kept in dictation). */
+    private void saveWordToMemory(String w) {
+        try {
+            keep(w);
+            for (int i = 0; i < 3; i++) Words.record("", w);
+            usageEdits += 3;
+            if (usageEdits >= 25) saveUsage();
+            flashSpace("Saved \u201C" + w + "\u201D");
+        } catch (Throwable ignored) { /* a help only */ }
     }
 
     private boolean slotMoney;                                // the word row holds a typed amount of money in other currencies
@@ -2317,6 +2341,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         InputConnection ic = getCurrentInputConnection();
         String word = phon.toString();
         String out = useSuggestion && word.equals(candFor) && !cands.isEmpty() ? cands.get(0) : word;
+        String remembered = useSuggestion ? rememberedPick(word) : null;
+        if (remembered != null) out = remembered;                 // the word she picked for these letters last time comes by itself
         if (useSuggestion && Words.ready && Words.clearlyEnglish(word)) out = word;      // "office", "meeting", "please": an English word stays English
         phon.setLength(0);
         cands = new ArrayList<>();
@@ -2326,7 +2352,40 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         paintCands();
     }
 
+    // ---------- memory of the words she picks while typing Banglish letters: the same letters bring that word first, and space writes it ----------
+    private java.util.HashMap<String, String> phonMem;
+
+    private String phonKey(String letters) { return layout + ":" + letters.toLowerCase(java.util.Locale.ROOT); }
+
+    private java.util.HashMap<String, String> phonMemMap() {
+        if (phonMem == null) {
+            phonMem = new java.util.HashMap<>();
+            for (String line : prefs().getString("phonPick", "").split("\n")) {
+                int e = line.indexOf('=');
+                if (e > 0 && e < line.length() - 1) phonMem.put(line.substring(0, e), line.substring(e + 1));
+            }
+        }
+        return phonMem;
+    }
+
+    private void rememberPick(String letters, String word) {
+        try {
+            if (letters == null || letters.length() < 2 || word == null || word.isEmpty() || word.equals(letters)) return;
+            java.util.HashMap<String, String> m = phonMemMap();
+            m.put(phonKey(letters), word);
+            StringBuilder b = new StringBuilder();
+            int skip = Math.max(0, m.size() - 500);
+            for (java.util.Map.Entry<String, String> e : m.entrySet()) { if (skip-- > 0) continue; b.append(e.getKey()).append('=').append(e.getValue()).append('\n'); }
+            prefs().edit().putString("phonPick", b.toString()).apply();
+        } catch (Throwable ignored) { /* a help only */ }
+    }
+
+    private String rememberedPick(String letters) {
+        return letters == null || letters.length() < 2 ? null : phonMemMap().get(phonKey(letters));
+    }
+
     private void pickCand(String c) {
+        rememberPick(phon.toString(), c);
         InputConnection ic = getCurrentInputConnection();
         // she kept the English letters (a name): remember it so it is offered next time
         if (phon.length() >= 3 && c.equals(phon.toString()) && c.charAt(0) < 128) learn(c);
@@ -2383,7 +2442,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             lab.setTextSize(13);
             lab.setGravity(Gravity.CENTER);
             candRow.addView(lab, new LinearLayout.LayoutParams(0, dp(KEY_H + 4), 0.8f));
-            for (final String c : repairList.size() > 4 ? repairList.subList(0, 4) : repairList) {
+            List<String> rowChips = new ArrayList<>();
+            for (String c0 : repairList) if (!SAVE_TOKEN.equals(c0) && rowChips.size() < 3) rowChips.add(c0);
+            if (repairList.contains(SAVE_TOKEN)) rowChips.add(SAVE_TOKEN);
+            for (final String c : rowChips) {
                 TextView t = makeKey(c, 1f, cFn, cInk, 20);
                 t.setTypeface(Typeface.DEFAULT_BOLD);
                 onPress(t, cFn, new Runnable() { @Override public void run() { applyRepair(c); } });
@@ -2406,6 +2468,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             return;
         }
         List<String> show = new ArrayList<>(cands);
+        String memPick = rememberedPick(phon.toString());
+        if (memPick != null) { show.remove(memPick); show.add(0, memPick); }       // the word she picked for these letters before: first
         // her own saved names and words that start with what she typed (English letters)
         String lp = phon.toString().toLowerCase();
         int added = 0;
@@ -2416,6 +2480,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         for (String o : Words.contactMatches(lp, 2)) {
             if (added >= 3) break;
             if (!show.contains(o)) { show.add(o); added++; }
+        }
+        for (String o : Words.usedMatches(lp, 3)) {              // words she uses a lot (typed or spoken): from memory
+            if (added >= 4) break;
+            if (Words.inDictionary(o)) continue;
+            String shown = Words.matchCase(phon.toString(), o);
+            if (!show.contains(shown)) { show.add(shown); added++; }
         }
         for (String o : Words.ownMatches(lp, 2)) {
             if (added >= 3) break;
@@ -3588,6 +3658,24 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         return applyVoiceFix(out);
     }
 
+    /** The words she speaks go into the same memory as the words she types: used 2+ times they are offered first while typing, and the next word is predicted from them. */
+    private void learnFromSpeech(String said) {
+        try {
+            if (said == null || noFix) return;
+            String prev = "";
+            int n = 0;
+            for (String tok : said.trim().split("\\s+")) {
+                String w = bare(tok);
+                if (w.length() < 2 || !w.matches("[a-z']+")) { prev = ""; continue; }
+                Words.record(prev, w);
+                prev = w;
+                n++;
+            }
+            usageEdits += n;
+            if (usageEdits >= 25) saveUsage();
+        } catch (Throwable ignored) { /* a help only */ }
+    }
+
     // ---------- memory of her corrections: a word she repaired once is repaired by itself next time ----------
     private java.util.HashMap<String, String> voiceFix;
 
@@ -3620,12 +3708,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String applyVoiceFix(String text) {
         if (text == null || text.isEmpty()) return text;
         java.util.HashMap<String, String> m = voiceFixMap();
-        if (m.isEmpty()) return text;
         String[] tok = text.split(" ", -1);
         boolean any = false;
         for (int i = 0; i < tok.length; i++) {
             String w = bare(tok[i]);
             String r = w.isEmpty() ? null : m.get(w);
+            if (r == null && w.length() >= 4 && w.matches("[a-z']+")) r = Words.rememberedSpelling(w);     // her own spelling of a word she uses a lot
             if (r == null) continue;
             int at = tok[i].toLowerCase(java.util.Locale.ROOT).indexOf(w);
             if (at < 0) continue;
@@ -3949,7 +4037,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (!cut.isEmpty()) heard = cut;
                 // ? or ! from how the sentence is built. A full stop is NOT added at every pause (she often pauses to think in the middle of a sentence):
                 // it comes only when she stays silent for long before speaking again, or presses Stop.
-                String said = convert(heard);       // no mark at a pause: it may only be a breath in the middle of a sentence (see endSentence)
+                String said = convert(heard);
+                learnFromSpeech(said);              // no mark at a pause: it may only be a breath in the middle of a sentence (see endSentence)
                 rememberAlternatives(results, said);
                 findSuspects(said);
                 lastVoiceAt = System.currentTimeMillis();

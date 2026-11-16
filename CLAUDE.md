@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 105 = build-143** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 106 = build-145** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -420,6 +420,14 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   - Memory: (a) a word she repairs (tap row or the automatic row) is stored as wrong → right in pref `voiceFix` (latest 300) and replaced by itself in later dictation (`applyVoiceFix` inside
     `convert`); (b) the "✓ keep" chip on the automatic row (it was ✕) says the word is right: `keep(word)`, never pointed at again. Her wording was unclear ("defeating" = rejecting / deleting?):
     ask if she meant that deleting a word should teach the keyboard (not built).
+- Version 106-107 (Tara: "if I am using some words in Bengali it will be remembered in the memory, and next time this word will be shown or come from the memory itself"; then "both typing and
+  speaking it should be remembered. If I tap, then it will go to memory"): typing already counted words (`Words.record`, offered first from 2 uses), speaking did not. Now:
+  (1) every Latin word of a spoken sentence is recorded (`learnFromSpeech`, same `usage` memory, next-word pairs too); (2) a spoken word that sounds like one she uses 3+ times (same consonant
+  sounds, up to 2 letters different, not English, not hers twice itself, and not in the built-in `DESI` list) is written HER way (`Words.rememberedSpelling`, in `applyVoiceFix`); (3) the
+  ab→বাং / ab→हिं row offers her most used non-English words (`usedMatches`); (4) TAPS: a tapped word suggestion counts double (`pickSug`); the Bengali / Hindi word she taps for some typed letters is stored
+  for those letters (`rememberPick`, pref `phonPick`, 500 latest, per layout) and comes FIRST next time and is what space writes (`flushPhon`, `paintCands`); in the tap-into-text row a "★ save" chip
+  (`SAVE_TOKEN`, `saveWordToMemory`: `keep` + counts 3) puts any non-English word into memory. Misheard words are only counted, so need 2 uses to be offered and 3 to rewrite anything.
+  Not tested on a phone. If space now writes a word she did not want, she taps the other candidate: that replaces the memory.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
