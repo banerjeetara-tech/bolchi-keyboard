@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 101 = build-133** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 102 = build-135** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -386,6 +386,14 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (label "English?", `paintCands`) offers up to 3 English words that sound like it (`Words.englishFor`: a typo fix, then every word with the same consonant sounds, vowels not compared);
   one tap replaces the whole word (`applyRepair`). Works on any word, so it also repairs what the automatic matcher missed. Not for font mode, passwords, while speaking, or
   within 0.7 s of typing. Words with two consonant sounds only (potty, pause) cannot be matched: "porty" gives party / part / pretty. Not tested on a phone.
+- Version 102 (Tara sent a screenshot of the Bolchi app, build 101: "Last word not corrected: “tof” → too: just after Banglish words"; "Measured on 195 taps: they land on average
+  6.4 dp LOWER than the middle of the key"; "Key touch point: Normal"; "Mixed Bengali + English listening: ON"; asked "check the word issue and suggest"):
+  - Word issue: `desiRecent` made every correction offer-only for 2 words after any Banglish word, so in mixed typing English slips were left. `Words.confidentFix(typed, fixed)`:
+    one slip (insert / missing / wrong letter / swap) away from a word in the first 2000 of the list, typed 3+ letters, not Banglish-looking, not protected: that is now
+    swapped even after Banglish (`calm` in `endWord`). 8 of 265 Banglish test words collided (giye→give, chup→cup, kon→non, besi→best, yar→year, adda→add, mukh→much, buk→but):
+    added to `DESI` with ~35 more; test now 0 of 265, and 111/113 typos + 218/231 short forms unchanged. If a Banglish word turns English, add it to that DESI addition.
+  - Touch: her measured bias is 6.4 dp LOWER (raw taps, independent of the setting) and she had the button on "Normal" (= no correction). Told her to tap it once ("A little higher", 5 dp)
+    or to Auto (6.4 dp). Her AI key and Giphy key are visible in that screenshot: never repeat them.
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)

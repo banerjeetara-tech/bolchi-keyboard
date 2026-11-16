@@ -1334,7 +1334,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (Words.ready && layout == 0 && !noFix && !plainField) {
             String fx = Words.fix(w, wordAutoCap);
             // right after Banglish / Hinglish words a correction is only offered, except a known English slip ("recieve"), which is always put right
-            boolean calm = desiRecent == 0 || Words.knownSlip(w);
+            boolean calm = desiRecent == 0 || Words.knownSlip(w) || (fx != null && Words.confidentFix(w, fx));    // "tof" -> "too" is made even between Banglish words
             if (Words.isDesi(w)) desiRecent = 2;
             else if (desiRecent > 0 && (fx != null || Words.inDictionary(w))) desiRecent--;     // a mistyped English word counts as English too
             String dfx = !calm && !Words.known(w) ? Words.desiFix(w) : null;

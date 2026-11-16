@@ -737,6 +737,39 @@ public final class Words {
     /** Chat short forms ("u", "hv", "bt"). They are written out in English text, but right after Banglish / Hinglish they are only offered: "r", "k", "bt" are words there too. */
     private static final Set<String> SHORT = new HashSet<>(Arrays.asList(("hav coz wht abt becoz wat gud gd tonite nite mrng evng cuz dnt cnt thn whr hw nw hv hd bt nd luv sry wlcm bday hpy offc mtg mtng dcmnt rprt amt acnt nmbr adrs tym yr wk hrs gng cmng dng gt gv u ur r fr ws hs bn cm okk posb psbl pbm prblm").split(" ")));
 
+    static {
+        // Banglish words that sit one letter away from a usual English word: never "corrected", also between English words
+        DESI.addAll(Arrays.asList(("giye chup kon besi yar adda mukh buk jabi jabo dilo nilo elo gelo holo kheye pore kore bole hoye boro choto sobar sobai kaaj kaj "
+                + "tomar tomake amake tokhon ekhon bhai bhaiya didi dada boudi mashi pishi kaku jethu mama mami dosh noy").split(" ")));
+    }
+
+    /** True when two words differ by one inserted, missing or wrong letter, or two neighbouring letters swapped. */
+    private static boolean oneEdit(String a, String b) {
+        int n = a.length(), m = b.length();
+        if (Math.abs(n - m) > 1) return false;
+        int i = 0;
+        while (i < n && i < m && a.charAt(i) == b.charAt(i)) i++;
+        if (i == n && i == m) return true;
+        if (n == m) {
+            if (a.substring(i + 1).equals(b.substring(i + 1))) return true;                                            // one wrong letter
+            return i + 1 < n && a.charAt(i) == b.charAt(i + 1) && a.charAt(i + 1) == b.charAt(i) && a.substring(i + 2).equals(b.substring(i + 2));   // swapped
+        }
+        return n < m ? a.substring(i).equals(b.substring(i + 1)) : a.substring(i + 1).equals(b.substring(i));        // one letter missing / extra
+    }
+
+    /**
+     * True when a correction is so plain that it may be made even right after Banglish words: the typed word is one slip away from a VERY usual English word
+     * (the first 2000 of the list: too, the, with, because) and does not look like Banglish. Everything less sure is still only offered.
+     */
+    public static boolean confidentFix(String typed, String fixed) {
+        if (typed == null || fixed == null || typed.length() < 3 || fixed.indexOf(' ') >= 0) return false;
+        String t = typed.toLowerCase(Locale.ROOT), f = fixed.toLowerCase(Locale.ROOT);
+        Integer r = rank.get(f);
+        if (r == null || r >= 2000) return false;
+        if (looksBanglish(t) || DESI.contains(t) || isContact(t) || isKept(t)) return false;
+        return oneEdit(t, f);
+    }
+
     /** True for a spelling from the table of known English slips ("recieve", "teh", "dont"): always safe to put right. */
     public static boolean knownSlip(String typed) {
         if (typed == null) return false;
