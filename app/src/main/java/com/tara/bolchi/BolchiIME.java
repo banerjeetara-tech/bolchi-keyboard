@@ -1353,7 +1353,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.deleteSurroundingText(shown(w).length(), 0);
         ic.commitText(val.indexOf('@') >= 0 ? val + " " : shown(val + " "), 1);   // an email must stay exactly as saved
         ic.endBatchEdit();
-        if (!keep) { Words.record(lastWord, val); Words.record(lastWord, val); lastWord = val.toLowerCase();       // a tapped word is meant: it counts double if (++usageEdits >= 25) saveUsage(); }
+        if (!keep) { Words.record(lastWord, val); Words.record(lastWord, val); lastWord = val.toLowerCase(); if (++usageEdits >= 25) saveUsage(); }      // a tapped word is meant: it counts double
         if (keep) keep(w);
         resetWord();
         pickedSpace = true;
