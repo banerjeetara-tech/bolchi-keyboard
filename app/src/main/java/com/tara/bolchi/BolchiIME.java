@@ -1810,14 +1810,25 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             int pre = 0, suf = 0;
             while (pre < before.length() && isWordChar(before.charAt(before.length() - 1 - pre))) pre++;
             while (suf < after.length() && isWordChar(after.charAt(suf))) suf++;
-            if (pre + suf < 3 || pre + suf > 24) return;
+            if (pre + suf < 2 || pre + suf > 24) return;
             String w = before.substring(before.length() - pre) + after.substring(0, suf);
             repairSaveWord = null;
+            if (hasBengali(w) || hasDevanagari(w)) {
+                // a word in Bengali / Hindi script (typed on the Bangla / Hindi keys): only "save" can be offered (unless it is saved already)
+                String letters = hasBengali(w) ? Translit.toBanglish(w) : HindiTranslit.toHinglish(w);
+                letters = letters == null ? "" : letters.trim().toLowerCase(java.util.Locale.ROOT);
+                if (letters.length() < 2 || w.equals(rememberedPick(letters))) return;
+                repairList = new ArrayList<>(java.util.Collections.singletonList(SAVE_TOKEN));
+                repairSaveWord = w;
+                repairPre = pre;
+                repairSuf = suf;
+                return;
+            }
             List<String> c = new ArrayList<>(heardAlternatives(w));          // what the phone heard instead ("font" for "phone")
             if (!Words.inDictionary(w) && !Words.known(w) && !Words.isDesi(w))
                 for (String e : Words.englishFor(w, 4)) if (!c.contains(e) && !e.equalsIgnoreCase(w)) c.add(e);
             if (c.size() > 7) c = new ArrayList<>(c.subList(0, 7));
-            if (!Words.inDictionary(w) && !Words.isSaved(w)) { c.add(SAVE_TOKEN); repairSaveWord = w; }     // "★ save": this word goes into memory
+            if (!Words.isSaved(w)) { c.add(SAVE_TOKEN); repairSaveWord = w; }     // "★ save": this word goes into memory (any word, also a short or an English one)
             if (c.isEmpty()) return;
             repairList = c;
             repairPre = pre;
@@ -1825,7 +1836,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         } catch (Throwable ignored) { repairList = new ArrayList<>(); }
     }
 
-    private static boolean isWordChar(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '\''; }
+    private static boolean isWordChar(char c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '\'' || (c >= '\u0900' && c <= '\u09FF' && c != '\u0964' && c != '\u0965');     // Latin, Devanagari, Bengali
+    }
 
     /** One tap: the word under the cursor becomes the English word. */
     private void applyRepair(String eng) {
@@ -1859,6 +1872,19 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     /** Puts a word into memory: it is hers (never flagged), counts as used often (offered first, and the spelling of it is kept in dictation). */
     private void saveWordToMemory(String w) {
         try {
+            boolean bn = hasBengali(w), hi = !bn && hasDevanagari(w);
+            if (bn || hi) {
+                // a word in Bengali / Hindi script: tied to the Latin letters of its sound, so those letters bring it first (and space writes it)
+                String letters = (bn ? Translit.toBanglish(w) : HindiTranslit.toHinglish(w));
+                letters = letters == null ? "" : letters.trim().toLowerCase(java.util.Locale.ROOT);
+                if (letters.length() >= 2 && letters.matches("[a-z']+")) {
+                    rememberPickFor(bn ? 1 : 2, letters, w);
+                    Words.ensureUsed(letters, 3);
+                    romanOfSaved.put(w, letters);
+                    flashSpace("Saved \u201C" + w + "\u201D");
+                }
+                return;
+            }
             keep(w);
             for (int i = 0; i < 3; i++) Words.record("", w);
             usageEdits += 3;
@@ -2407,11 +2433,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         return phonMem;
     }
 
-    private void rememberPick(String letters, String word) {
+    private void rememberPick(String letters, String word) { rememberPickFor(layout, letters, word); }
+
+    private void rememberPickFor(int lay, String letters, String word) {
         try {
             if (letters == null || letters.length() < 2 || word == null || word.isEmpty() || word.equals(letters)) return;
             java.util.HashMap<String, String> m = phonMemMap();
-            m.put(phonKey(letters), word);
+            m.put(phonKeyFor(lay, letters), word);
             StringBuilder b = new StringBuilder();
             int skip = Math.max(0, m.size() - 500);
             for (java.util.Map.Entry<String, String> e : m.entrySet()) { if (skip-- > 0) continue; b.append(e.getKey()).append('=').append(e.getValue()).append('\n'); }
@@ -2476,7 +2504,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         candRow.removeAllViews();
         if (phon.length() == 0 && !repairList.isEmpty()) {
             TextView lab = new TextView(this);
-            lab.setText(repairAutoWord != null ? repairAutoWord + " ?" : "English?");
+            boolean onlySave = repairList.size() == 1 && repairList.contains(SAVE_TOKEN) && repairSaveWord != null;
+            lab.setText(repairAutoWord != null ? repairAutoWord + " ?" : onlySave ? repairSaveWord + " ?" : "English?");
             lab.setTextColor(cMuted);
             lab.setTextSize(13);
             lab.setGravity(Gravity.CENTER);

@@ -8,8 +8,8 @@ android {
         applicationId 'com.tara.bolchi'
         minSdk 24
         targetSdk 34
-        versionCode 109
-        versionName '109.0'
+        versionCode 110
+        versionName '110.0'
     }
     signingConfigs {
         debug {
