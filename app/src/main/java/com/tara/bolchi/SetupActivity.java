@@ -187,7 +187,8 @@ public class SetupActivity extends Activity {
         // test the AI key, and show which version is installed
         final TextView testOut = text("Installed version: Bolchi " + BuildConfigInfo.version(this)
                 + "\nAuto-correct: " + (prefs.getBoolean("autoFix", true) ? "ON" : "OFF (hold the Auto key on the keyboard to turn it on)")
-                + (prefs.getString("fixWhy", "").isEmpty() ? "" : "\nLast word not corrected: " + prefs.getString("fixWhy", "")), 14, MUTED);
+                + (prefs.getString("fixWhy", "").isEmpty() ? "" : "\nLast word not corrected: " + prefs.getString("fixWhy", ""))
+                + (prefs.getString("nextWhy", "").isEmpty() ? "" : "\nNext-word guesses: " + prefs.getString("nextWhy", "")), 14, MUTED);
         TextView testBtn = button("Test AI key");
         testBtn.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {

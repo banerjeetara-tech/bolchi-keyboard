@@ -1011,6 +1011,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             List<String> nx = Words.nextAfter(lastWord, 3);
             int[] order = {1, 0, 2};
             for (int k = 0; k < nx.size() && k < 3; k++) { v[order[k]] = nx.get(k); slotNext[order[k]] = true; }
+            noteNextWhy(lastWord.isEmpty() ? "no word before the cursor is known" : "after \u201C" + lastWord + "\u201D " + (nx.isEmpty() ? "nothing seen twice yet" : "offered " + nx));
+        } else if (w.isEmpty()) {
+            noteNextWhy(plainField ? "this box has no word row (email / number / search box)" : layout != 0 ? "typing layout is not the English keys" : !Words.ready ? "word list not loaded" : "a correction is showing instead");
         }
         if (w.length() > 0 && Words.ready && !plainField) {
             // BOLD in the middle = the keyboard's own correction or prediction.
@@ -1184,6 +1187,34 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         // a date, the time or a sum is showing in the word row: GIFs must not cover it
         // (after an auto-correct the GIF row carries the two choices itself: her word and the corrected word come first in it)
         maybeGifs(slotMoney || slotDate[2] || slotCalc[1] || uriBox || sugKeepsTyped || slotUndo[0] ? "" : ew);
+    }
+
+    private String nextWhyLast = "";
+
+    /** Why the next-word guesses showed or not, for the Bolchi app screen (written only when it changes). */
+    private void noteNextWhy(String why) {
+        try {
+            String t = why + " | memory: " + Words.memoryStats();
+            if (t.equals(nextWhyLast)) return;
+            nextWhyLast = t;
+            prefs().edit().putString("nextWhy", t).apply();
+        } catch (Throwable ignored) { /* a help only */ }
+    }
+
+    /** One tap on a next-word choice: the word and a space go in, and the memory counts it. */
+    private void writeNextWord(String val) {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null || val == null || val.isEmpty()) return;
+        String out = (shift || capsLock) ? Character.toUpperCase(val.charAt(0)) + val.substring(1) : val;
+        if (val.equals("i")) out = "I";
+        ic.commitText(shown(out + " "), 1);
+        pickedSpace = true;
+        Words.record(lastWord, val);
+        lastWord = val;
+        if (++usageEdits >= 25) saveUsage();
+        if (shift && !capsLock) { shift = false; updateShift(); }
+        paintSugs();
+        autoShift();
     }
 
     private static final String[] DATE_WORDS = {"today", "tomorrow", "yesterday", "date", "now", "time"};
@@ -2044,6 +2075,27 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                             LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
                             flp.setMargins(0, 0, dp(4), 0);
                             gifBox.addView(ft, flp);
+                        }
+                    }
+                    else if (word.length() == 0 && !plainField && !lastWord.isEmpty()) {
+                        // the word row is hidden by this row: her usual next words stay in it, first
+                        List<String> nxs = Words.nextAfter(lastWord, 3);
+                        for (int c = 0; c < nxs.size(); c++) {
+                            final String nw = nxs.get(c);
+                            TextView nt = new TextView(BolchiIME.this);
+                            nt.setText(nw);
+                            nt.setTextColor(cInk);
+                            nt.setTextSize(17);
+                            if (c == 0) nt.setTypeface(Typeface.DEFAULT_BOLD);
+                            nt.setGravity(Gravity.CENTER);
+                            nt.setPadding(dp(12), 0, dp(12), 0);
+                            nt.setBackground(box(cFn, 8));
+                            nt.setOnClickListener(new View.OnClickListener() {
+                                @Override public void onClick(View v) { tick(v); try { writeNextWord(nw); } catch (Exception ex) { saveProblem(ex); } }
+                            });
+                            LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
+                            nlp.setMargins(0, 0, dp(4), 0);
+                            gifBox.addView(nt, nlp);
                         }
                     }
                     String[] ems = EmojiHints.get(q);

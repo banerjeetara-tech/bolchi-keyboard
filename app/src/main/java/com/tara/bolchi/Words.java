@@ -113,6 +113,16 @@ public final class Words {
         }
     }
 
+    /** For the Bolchi app screen: how much phrase memory there is (pairs seen twice or more / all pairs / phrases seen twice or more / all phrases). */
+    public static String memoryStats() {
+        int p2 = 0, p = 0, h2 = 0, h = 0;
+        synchronized (USE) {
+            for (HashMap<String, Integer> m : NEXT.values()) for (int c : m.values()) { p++; if (c >= 2) p2++; }
+            for (HashMap<String, Integer> m : PHRASE.values()) for (int c : m.values()) { h++; if (c >= 2) h2++; }
+        }
+        return p2 + " of " + p + " pairs and " + h2 + " of " + h + " phrases seen 2+ times";
+    }
+
     /** What the keyboard does to a word when Auto-correct is OFF: only a capital letter (I, I'm, days, months, cities, apps), never another letter. Null when nothing to change. */
     public static String capitalOnly(String typed) {
         if (typed == null || typed.isEmpty()) return null;
