@@ -21,16 +21,17 @@ public final class Calc {
         if (s.endsWith("=")) s = s.substring(0, s.length() - 1);
         // a date (14/11/2026, 14-11-26) or a phone number with dashes is not a sum
         if (s.matches("\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}")) return null;
-        if (s.matches("\\d+(-\\d+)+") && (s.matches(".*\\d{5,}.*") || s.indexOf('-') != s.lastIndexOf('-'))) return null;
+        // digits and dashes only: a phone number (022-2345-6789, 98300-12345) when it has a group of 5+ digits, or 10+ digits in all with no 1-2 digit group; a chain like 100-20-30 or 1000-200-50-25 is a sum
+        if (s.matches("\\d+(-\\d+)+") && (s.matches(".*\\d{5,}.*") || (s.replace("-", "").length() >= 10 && !s.matches(".*(^|-)\\d{1,2}(-|$).*")))) return null;
         if (s.matches("0\\d+[-/].*")) return null;
-        if (s.length() < 3 || s.length() > 40) return null;
-        double[] num = new double[20];
-        char[] op = new char[20];
+        if (s.length() < 3 || s.length() > 400) return null;          // (was 40: a long chain of numbers gave no answer)
+        double[] num = new double[130];
+        char[] op = new char[130];
         int n = 0, i = 0, len = s.length();
         while (i < len) {
             int st = i;
             while (i < len && (Character.isDigit(s.charAt(i)) || s.charAt(i) == '.' || s.charAt(i) == ',')) i++;
-            if (i == st || n >= 19) return null;
+            if (i == st || n >= 128) return null;
             double v;
             try { v = Double.parseDouble(s.substring(st, i).replace(",", "")); } catch (Exception e) { return null; }
             if (i < len && s.charAt(i) == '%') { v = v / 100.0; i++; }

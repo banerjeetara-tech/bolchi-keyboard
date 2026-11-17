@@ -1080,7 +1080,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (ans == null && w.isEmpty()) {
                 // not typed just now (pasted, or she came back to it): look at the sum that sits right before the cursor
                 InputConnection sc = getCurrentInputConnection();
-                sum = sc == null ? null : Calc.tail(sc.getTextBeforeCursor(44, 0));
+                sum = sc == null ? null : Calc.tail(sc.getTextBeforeCursor(400, 0));
                 ans = sum == null ? null : Calc.eval(sum);
             }
             if (ans != null) { v[1] = "= " + ans; slotCalc[1] = true; ownSlot[1] = true; bold = true; calcHasEq = sum.trim().endsWith("="); }

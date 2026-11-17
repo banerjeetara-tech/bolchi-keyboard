@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 113 = build-157** (16 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 114 = build-159** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -451,6 +451,25 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   differs in one word, one the AI tidy creates, or one longer than 8 words. If it still doubles, ask for the exact text before / after again.
 - Version 113 (Tara: "keep the permanent button only"): the "★ save" chip in the tap-into-text row is removed (`computeRepair` adds no `SAVE_TOKEN` any more; a Bengali / Hindi script word gets no row at all).
   Saving is ONLY the permanent ★ button (`starKey` / `saveCurrentWord`). `SAVE_TOKEN` handling in `applyRepair` / `paintCands` is dead code, left in place.
+- Version 114 (Tara: "calculation is not working after a long chain of numbers"): `Calc.eval` ignored a sum over 40 characters and over 19 numbers, `Calc.tail` (pasted sums) read only 44 characters, and a chain like
+  "100-20-30" or "1000-200-50-25" was taken for a phone number. Now 400 characters / 128 numbers, 400 characters looked back, and digits-with-dashes is a phone number only with a group of 5+ digits or 10+ digits and no 1-2 digit group.
+  PC test: a 60-number chain = 1830 (correct); 022-2345-6789, 98300-12345 and 14/11/2026 still left alone.
+  COLOUR PACKS (asked 17 Nov: "two colour combination pack and three colour combination pack, genuine"): a PREVIEW picture of 12 two-colour + 12 three-colour soft themes in the Mint style was sent and is
+  WAITING FOR HER OK; the palette data is in the scratchpad `packs/packs.json` (name, bg, fn, ink, mu, ac, num) and the generator is described in the preview (white keys; 2-colour = one hue for background and side keys + one strong
+  accent; 3-colour = background, side keys, number row in three hues). Do NOT build them before she says yes.
+
+## HANDOVER for a stronger model (Tara, 17 Nov: "hand over this chat to Fable 5.2 to check every development, check all flags and fix anything not working")
+She asked for an audit of everything built since version 71 (versions 71-114 are all described above and NONE is confirmed on her phone except the Bolchi-app screen values she screenshotted). Suggested order:
+1. Read `BolchiIME.java` end to end for regressions from the many edits of the last days: voice flow (`onPartialResults`, `onResults`, `writeStop`, `endSentence`, `newLead`, `tidyApply`, `findSuspects`, `applyRepairAt`,
+   `learnFromSpeech`, `applyVoiceFix`), the word row (`paintSugs` is long: money / repair / calc / undo / emoji branches fight over the same three slots and the scrolling chip row), `paintCands` / `paintCands0`,
+   touch (`keyUnderThumb`, `learnTouch`), GIF (`sendGif`, `gifHeld`), `onUpdateSelection` / `computeRepair`.
+2. Dead or doubtful code to clean: `SAVE_TOKEN` handling (the chip was removed in 113), `slotRepair` flags, `repairSaveWord`, `Words.SHORT` vs `FIXED` overlap, `typeStyleApp`.
+3. Run the local PC tests again (javac on `Words`, `Spoken`, `Translit`, `Calc`, `Converter` pieces) and write a real test class list into the repo if she wants: typos 111/113, short forms 218/231, 0/265 Banglish changed,
+   dedupe / dropRepeat cases, soundAlike samples, Calc chains.
+4. Ask her for three screenshots only: the Bolchi app screen (Auto-correct line, "Last word not corrected", touch measurement), a dictation result, and the keyboard after typing "Ma ke niye".
+5. Known honest limits: speech-engine mishearing is outside Bolchi; two-consonant English words cannot be matched safely; `applyRepairAt` needs an editor that supports setSelection; replies / emoji search / translate
+   were never confirmed working; she reads every unconfirmed fix as "not resolved".
+Also: build with the workflow (`workflow_dispatch` on the branch), then fast-forward `main`; the release build number is the Actions run number (check it, I mis-guessed it several times).
 - Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
