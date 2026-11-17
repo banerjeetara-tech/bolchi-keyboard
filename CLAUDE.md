@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 114 = build-159** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 115 = build-? (see Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -454,9 +454,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 114 (Tara: "calculation is not working after a long chain of numbers"): `Calc.eval` ignored a sum over 40 characters and over 19 numbers, `Calc.tail` (pasted sums) read only 44 characters, and a chain like
   "100-20-30" or "1000-200-50-25" was taken for a phone number. Now 400 characters / 128 numbers, 400 characters looked back, and digits-with-dashes is a phone number only with a group of 5+ digits or 10+ digits and no 1-2 digit group.
   PC test: a 60-number chain = 1830 (correct); 022-2345-6789, 98300-12345 and 14/11/2026 still left alone.
-  COLOUR PACKS (asked 17 Nov: "two colour combination pack and three colour combination pack, genuine"): a PREVIEW picture of 12 two-colour + 12 three-colour soft themes in the Mint style was sent and is
-  WAITING FOR HER OK; the palette data is in `tools/colour-packs-proposal.json` (name, bg, fn, ink, mu, ac, num) and the generator is described in the preview (white keys; 2-colour = one hue for background and side keys + one strong
-  accent; 3-colour = background, side keys, number row in three hues). Do NOT build them before she says yes.
+- Version 115 (Tara, 17 Nov: "two colour combination pack and three colour combination pack, genuine"; first preview "looking very similar", second preview "Yes"): 24 themes appended at the END of `Themes`
+  (170 total; saved indexes unchanged): 12 "Two: X & Y" (coloured background + letter keys in a second soft colour, side keys deeper tone of the background hue, dark accent) and 12 "Three: X, Y & Z" (a third colour on side keys
+  and number row via the 7th value). Data in `tools/colour-packs-proposal.json`. They are inside `Themes.combo`, so the 🎨 square shows stripes (background / keys / side keys / number row). NOT seen on a phone.
+  Lesson: all-white keys made every pack look the same; letter keys must carry their own colour.
 
 ## HANDOVER for a stronger model (Tara, 17 Nov: "hand over this chat to Fable 5.2 to check every development, check all flags and fix anything not working")
 She asked for an audit of everything built since version 71 (versions 71-114 are all described above and NONE is confirmed on her phone except the Bolchi-app screen values she screenshotted). Suggested order:
