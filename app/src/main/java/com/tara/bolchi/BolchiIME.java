@@ -1500,6 +1500,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     public void onUpdateSelection(int oldSelStart, int oldSelEnd, int newSelStart, int newSelEnd,
                                   int candidatesStart, int candidatesEnd) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
+        if (newSelStart == 0 && newSelEnd == 0 && oldSelStart > 0) shiftAfterDelete();      // the box was emptied (sent, cleared, all deleted): a new start
         // the cursor was moved by hand: forget the word we were tracking
         // with a font on, one typed letter is two characters long (a styled letter, or a letter plus its line), so the cursor moves by 2 per letter
         int step = fontOn() ? 2 : 1;
@@ -3548,6 +3549,17 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private void deleteOne() {
+        deleteOne0();
+        shiftAfterDelete();
+        handler.postDelayed(new Runnable() { @Override public void run() { shiftAfterDelete(); } }, 90);   // the app may show the shorter text a moment later
+    }
+
+    /** After deleting, the capital for the start of a message / sentence comes back (it stayed off after "type a letter, delete it, start again"). A capital she switched on by hand is left alone. */
+    private void shiftAfterDelete() {
+        try { if (!shift || shiftAuto) autoShift(); } catch (Throwable ignored) { /* a help only */ }
+    }
+
+    private void deleteOne0() {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
         lastTypeAt = System.currentTimeMillis();

@@ -469,6 +469,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   already worked on the EN keys. Not on the full script keys (layouts 3 / 4: no word row).
   Auto capital with Auto-correct OFF (Tara: "auto capitalize is not coming if auto correct is off"): the capital letters were part of the auto-correct swap, so with "Auto OFF" i / i'm / monday / kolkata stayed lowercase.
   `Words.capitalOnly` (i -> I, I'm, days, months, cities, apps; only words typed fully lowercase) is now applied in `endWord` when `autoFix` is off; no other letter is ever changed. The capital at the start of a sentence (`autoShift`) never depended on Auto.
+  Auto capital after deleting (Tara: "if while starting I delete anything and starting again then the auto capital is not taking"): `autoShift` only ran after a space, mark, Enter or swipe-delete, never after a plain
+  backspace, so "type a letter, delete it, start again" left Shift off in an empty box. `deleteOne` now calls `shiftAfterDelete` (at once and again 90 ms later, because the app shows the shorter text a moment late), and
+  `onUpdateSelection` calls it when the cursor lands at 0 (box emptied / sent). A capital she switched on by hand (shift on, not `shiftAuto`) is left alone. Not tested on a phone.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
