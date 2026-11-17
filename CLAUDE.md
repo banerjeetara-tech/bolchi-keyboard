@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 123 = build-180** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 124 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -511,6 +511,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (`nextContext()` in `paintSugs`, the correction row and the GIF row). `Words.record` / `CHAIN` remain only as the fallback when an app will not give the text. PC test with the real tokenising: once = nothing; twice = "Ami " -> cheye,
   "Ami cheye " -> cheye / dekhi, "Ami cheye cheye " -> dekhi, "...dekhi " -> saradin; also after the cursor is moved into older text and after a restart (export / import). Not tested on a phone.
   Also seen in her screenshot: "Last word not corrected: “nit” → not: rare real word" (a rare dictionary word is only offered, by design).
+
+- Version 124 (Tara sent only a screenshot of the Bolchi app on version 123, WhatsApp 23:21: "after “gach” nothing seen twice yet | memory: 94 of 136 pairs and 1 of 114 phrases seen 2+ times"). Reading: since the 23:06 screenshot (version 122) pairs went 133 -> 136 and phrases
+  111 -> 114 while the "seen 2+" counts did not move at all: that is ONE short sentence typed ONCE (3 pairs + 3 phrases), i.e. the new text-based learning (version 123) works, and no sentence has been repeated yet on 123. To remove the guessing the Bolchi app now also
+  shows "Learned lately (words before > word)": the last 8 words learned and the words the keyboard read before each (`noteLearned`, pref `learnLog`). Next step: ask her to type the SAME sentence twice on 124 in a chat box, then screenshot that block.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:

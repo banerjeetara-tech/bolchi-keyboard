@@ -1313,12 +1313,27 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         return c;
     }
 
+    private final java.util.ArrayList<String> learnedLately = new java.util.ArrayList<>();
+
+    /** For the Bolchi app screen: the last few words learned, each with the words before it that the keyboard read from the text ("ami cheye > cheye"). */
+    private void noteLearned(List<String> t, String last) {
+        try {
+            String before = t.size() > 1 ? join3(t.subList(0, t.size() - 1)) : "(nothing before)";
+            learnedLately.add(before + " > " + last);
+            while (learnedLately.size() > 8) learnedLately.remove(0);
+            StringBuilder b = new StringBuilder();
+            for (String x : learnedLately) { if (b.length() > 0) b.append('\n'); b.append(x); }
+            prefs().edit().putString("learnLog", b.toString()).apply();
+        } catch (Throwable ignored) { /* a help only */ }
+    }
+
     /** `finalWord` (one word, or two after a split like "thankyou") has just been written before the cursor: learn it with the words before it, read from the text. */
     private void learnFinished(InputConnection ic, String finalWord) {
         try {
             String[] parts = finalWord.trim().split(" ");
             String last = parts[parts.length - 1].toLowerCase(java.util.Locale.ROOT);
             List<String> t = fontOn() ? new ArrayList<String>() : contextWords(ic);
+            noteLearned(t, last);
             if (t.size() >= parts.length && t.get(t.size() - 1).equals(last)) {
                 for (int i = t.size() - parts.length; i < t.size(); i++) {
                     List<String> before = new ArrayList<>(t.subList(Math.max(0, i - 5), i));
