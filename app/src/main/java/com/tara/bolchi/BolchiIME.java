@@ -2852,7 +2852,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (sel != null && sel.length() > 0) { isSelection[0] = true; return sel.toString(); }
         isSelection[0] = false;
         ExtractedText et = ic.getExtractedText(new ExtractedTextRequest(), 0);
-        if (et != null && et.text != null) return et.text.toString();
+        if (et != null && et.text != null && et.text.length() > 0) return et.text.toString();      // some apps answer with an empty text: then ask for the text around the cursor
         CharSequence b = ic.getTextBeforeCursor(4000, 0);
         CharSequence a = ic.getTextAfterCursor(4000, 0);
         return (b == null ? "" : b.toString()) + (a == null ? "" : a.toString());
@@ -3370,6 +3370,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         prefs().edit().putString(pref, b.toString()).apply();
     }
 
+    private String repliesNote;               // the answer to "\uFF0B Save my text here", shown in the replies tab
+    private long repliesNoteAt;
+
     private static final String REPLY_DEFAULTS = "I am in a meeting, will call you back.\u0001On my way.\u0001Please call me when you are free."
             + "\u0001Thank you.\u0001Noted, will do.\u0001Ami ektu pore phone korchi.";
 
@@ -3483,11 +3486,20 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         LinearLayout top = row();
         top.addView(listButton("\u2728 Reply to copied message", true, new Runnable() { @Override public void run() { askReplies(); } }));
         top.addView(listButton("\uFF0B Save my text here", false, new Runnable() { @Override public void run() {
-            String mine = currentText(new boolean[1]).trim();
-            if (mine.isEmpty() || mine.length() > 400) { flashSpace(mine.isEmpty() ? "Type the message first" : "Too long to save"); return; }
+            String mine = "";
+            try { mine = currentText(new boolean[1]).trim(); } catch (Throwable ignored) { /* the app would not show its text */ }
+            // the answer is written INSIDE this tab: the space bar (where flashSpace shows) is hidden while the emoji panel is open
+            if (mine.isEmpty()) { repliesNote = "\u26A0 Nothing to save: type the message in the box first, then open this tab and tap \uFF0B"; repliesNoteAt = System.currentTimeMillis(); buildKeysSoon(); return; }
+            if (mine.length() > 2000) { repliesNote = "\u26A0 Too long to save (over 2000 letters). Select the part you want, then tap \uFF0B"; repliesNoteAt = System.currentTimeMillis(); buildKeysSoon(); return; }
             List<String> l = loadList("quickReplies", REPLY_DEFAULTS);
-            l.remove(mine); l.add(0, mine); saveList("quickReplies", l); buildKeysSoon(); } }));
+            l.remove(mine); l.add(0, mine);
+            while (l.size() > 60) l.remove(l.size() - 1);
+            saveList("quickReplies", l);
+            repliesNote = "\u2713 Saved: tap it below to write it again";
+            repliesNoteAt = System.currentTimeMillis();
+            buildKeysSoon(); } }));
         into.addView(top);
+        if (repliesNote != null && System.currentTimeMillis() - repliesNoteAt < 8000) listHint(into, repliesNote);
         if (aiReplies != null) {
             for (String a : aiReplies) listLine(into, a, "\u2728", null, null, true);
         }

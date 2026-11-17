@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 117 = build-168** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 118 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -472,6 +472,12 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Auto capital after deleting (Tara: "if while starting I delete anything and starting again then the auto capital is not taking"): `autoShift` only ran after a space, mark, Enter or swipe-delete, never after a plain
   backspace, so "type a letter, delete it, start again" left Shift off in an empty box. `deleteOne` now calls `shiftAfterDelete` (at once and again 90 ms later, because the app shows the shorter text a moment late), and
   `onUpdateSelection` calls it when the cursor lands at 0 (box emptied / sent). A capital she switched on by hand (shift on, not `shiftAuto`) is left alone. Not tested on a phone.
+
+- Version 118 (Tara: "under save my note is not working"; read as the 💬 replies tab button "＋ Save my text here", `buildReplies`): no fault in the saving itself was provable by reading, but three things made it look dead:
+  (1) every answer ("Type the message first", "Too long to save") went to `flashSpace`, i.e. the space bar, which is HIDDEN while the emoji panel is open, and a successful save gave no sign at all;
+  (2) texts over 400 characters were refused; (3) `currentText` trusted an EMPTY `getExtractedText` answer (some apps return one) instead of asking for the text around the cursor.
+  Now the answer is written inside the tab (`repliesNote`, 8 s: "✓ Saved: tap it below to write it again" or a ⚠ line saying what to do), the limit is 2000 letters (60 saved messages), and an empty extracted text falls back
+  to before + after the cursor. If it still fails ask WHICH app and whether the ⚠ line shows (then that app gives the keyboard no text). Not tested on a phone.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
