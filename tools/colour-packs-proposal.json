@@ -1,0 +1,218 @@
+[
+ {
+  "name": "Teal & Coral",
+  "bg": "E8F6F5",
+  "fn": "B4E1DE",
+  "ink": "04201E",
+  "mu": "0A534F",
+  "ac": "DA5D43",
+  "num": null
+ },
+ {
+  "name": "Navy & Gold",
+  "bg": "E9EBF3",
+  "fn": "B7C0DA",
+  "ink": "060C1C",
+  "mu": "101E48",
+  "ac": "CA901D",
+  "num": null
+ },
+ {
+  "name": "Plum & Mint",
+  "bg": "F2ECF4",
+  "fn": "D5C2DB",
+  "ink": "190D1D",
+  "mu": "40214A",
+  "ac": "1F9E6E",
+  "num": null
+ },
+ {
+  "name": "Forest & Peach",
+  "bg": "EAF2ED",
+  "fn": "BCD5C7",
+  "ink": "091910",
+  "mu": "184129",
+  "ac": "D87C4C",
+  "num": null
+ },
+ {
+  "name": "Rose & Teal",
+  "bg": "FCEEF2",
+  "fn": "F5C7D4",
+  "ink": "2D1018",
+  "mu": "742A3F",
+  "ac": "129089",
+  "num": null
+ },
+ {
+  "name": "Indigo & Lemon",
+  "bg": "EDEDFA",
+  "fn": "C6C6ED",
+  "ink": "0F0F28",
+  "mu": "282868",
+  "ac": "D1B01B",
+  "num": null
+ },
+ {
+  "name": "Sky & Orange",
+  "bg": "EBF6FD",
+  "fn": "C0E1F8",
+  "ink": "0C202E",
+  "mu": "1E5379",
+  "ac": "D66C1F",
+  "num": null
+ },
+ {
+  "name": "Lavender & Emerald",
+  "bg": "F4F0FC",
+  "fn": "DBD0F5",
+  "ink": "1C152D",
+  "mu": "4A3874",
+  "ac": "10905F",
+  "num": null
+ },
+ {
+  "name": "Cocoa & Mint",
+  "bg": "F0EDEB",
+  "fn": "D0C5C0",
+  "ink": "150F0C",
+  "mu": "38261E",
+  "ac": "1F9E6E",
+  "num": null
+ },
+ {
+  "name": "Berry & Gold",
+  "bg": "F7EAF0",
+  "fn": "E6BCD0",
+  "ink": "230915",
+  "mu": "5C1838",
+  "ac": "CA901D",
+  "num": null
+ },
+ {
+  "name": "Slate & Rose",
+  "bg": "EDEFF1",
+  "fn": "C5CCD3",
+  "ink": "0F1318",
+  "mu": "26323D",
+  "ac": "CA496E",
+  "num": null
+ },
+ {
+  "name": "Sand & Navy",
+  "bg": "FAF6F0",
+  "fn": "EEE3D0",
+  "ink": "282115",
+  "mu": "695638",
+  "ac": "1C347C",
+  "num": null
+ },
+ {
+  "name": "Teal, Coral & Gold",
+  "bg": "E8F6F5",
+  "fn": "FBCBC1",
+  "ink": "04201E",
+  "mu": "0A534F",
+  "ac": "C6543D",
+  "num": "F3DBAA"
+ },
+ {
+  "name": "Sage, Lilac & Sand",
+  "bg": "F2F6F1",
+  "fn": "E4D2F2",
+  "ink": "192016",
+  "mu": "42533A",
+  "ac": "9066B1",
+  "num": "EADDC7"
+ },
+ {
+  "name": "Aqua, Blush & Butter",
+  "bg": "EAF9FA",
+  "fn": "FBD7DC",
+  "ink": "09262A",
+  "mu": "16646C",
+  "ac": "C6717D",
+  "num": "F9EDC3"
+ },
+ {
+  "name": "Lavender, Peach & Mint",
+  "bg": "F4F0FC",
+  "fn": "FAD7C5",
+  "ink": "1C152D",
+  "mu": "4A3874",
+  "ac": "C57146",
+  "num": "ABE1CC"
+ },
+ {
+  "name": "Pistachio, Rose & Cream",
+  "bg": "F4F8ED",
+  "fn": "F4C4D2",
+  "ink": "1C250F",
+  "mu": "496126",
+  "ac": "B84264",
+  "num": "F3E7C9"
+ },
+ {
+  "name": "Sky, Mint & Peach",
+  "bg": "EBF6FD",
+  "fn": "B4E4D2",
+  "ink": "0C202E",
+  "mu": "1E5379",
+  "ac": "1C9064",
+  "num": "F9D3BE"
+ },
+ {
+  "name": "Blush, Teal & Lemon",
+  "bg": "FEF3F5",
+  "fn": "AFDFDC",
+  "ink": "301C1E",
+  "mu": "7E484F",
+  "ac": "10837D",
+  "num": "F6E9AA"
+ },
+ {
+  "name": "Lilac, Gold & Sky",
+  "bg": "F7F2FB",
+  "fn": "F4DFB3",
+  "ink": "23192B",
+  "mu": "5C4070",
+  "ac": "B8831A",
+  "num": "B4DBF6"
+ },
+ {
+  "name": "Mint, Rose & Butter",
+  "bg": "E9F7F2",
+  "fn": "F4C4D2",
+  "ink": "072318",
+  "mu": "125C3F",
+  "ac": "B84264",
+  "num": "F9EDC3"
+ },
+ {
+  "name": "Peach, Sky & Sage",
+  "bg": "FEF3EE",
+  "fn": "BCDFF7",
+  "ink": "301C11",
+  "mu": "7D482C",
+  "ac": "3083BE",
+  "num": "CEDBC9"
+ },
+ {
+  "name": "Rose, Aqua & Lemon",
+  "bg": "FCEEF2",
+  "fn": "B7EAEF",
+  "ink": "2D1018",
+  "mu": "742A3F",
+  "ac": "239DAB",
+  "num": "F6E9AA"
+ },
+ {
+  "name": "Lavender, Gold & Aqua",
+  "bg": "F4F0FC",
+  "fn": "F4DFB3",
+  "ink": "1C152D",
+  "mu": "4A3874",
+  "ac": "B8831A",
+  "num": "AEE7ED"
+ }
+]

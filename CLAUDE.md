@@ -455,7 +455,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   "100-20-30" or "1000-200-50-25" was taken for a phone number. Now 400 characters / 128 numbers, 400 characters looked back, and digits-with-dashes is a phone number only with a group of 5+ digits or 10+ digits and no 1-2 digit group.
   PC test: a 60-number chain = 1830 (correct); 022-2345-6789, 98300-12345 and 14/11/2026 still left alone.
   COLOUR PACKS (asked 17 Nov: "two colour combination pack and three colour combination pack, genuine"): a PREVIEW picture of 12 two-colour + 12 three-colour soft themes in the Mint style was sent and is
-  WAITING FOR HER OK; the palette data is in the scratchpad `packs/packs.json` (name, bg, fn, ink, mu, ac, num) and the generator is described in the preview (white keys; 2-colour = one hue for background and side keys + one strong
+  WAITING FOR HER OK; the palette data is in `tools/colour-packs-proposal.json` (name, bg, fn, ink, mu, ac, num) and the generator is described in the preview (white keys; 2-colour = one hue for background and side keys + one strong
   accent; 3-colour = background, side keys, number row in three hues). Do NOT build them before she says yes.
 
 ## HANDOVER for a stronger model (Tara, 17 Nov: "hand over this chat to Fable 5.2 to check every development, check all flags and fix anything not working")
