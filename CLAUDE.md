@@ -463,7 +463,12 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (2) only ONE word of context, so "kal" gave the same guess after "ami kal" and "tumi kal"; (3) one-letter words ("I", "a") were never recorded, which broke "I am going". Now `Words.record` also keeps
   three-word phrases (`PHRASE`, key "first second" -> next word, tied by the `chain1/chain2` of the last recorded words), `nextAfter` offers phrase matches first (seen 2+ times), then pairs (2+), then `USUAL`;
   all pairs (also seen once, 5000) and phrases (5000) are saved (`#pairs`, `#phrases` in pref `usage`; old saves still load). Works for typing, tapped suggestions and speech (`learnFromSpeech`).
-  PC test: used once = no guess; twice = guess; "ami kal" -> office but "tumi kal" -> ghum. Shown after a space on the EN keys only (not on the ab->Bangla / Hindi rows). Not tested on a phone.
+  PC test: used once = no guess; twice = guess; "ami kal" -> office but "tumi kal" -> ghum. Not tested on a phone.
+  Also in 116 (Tara: "both for English and Bengali"): the same memory for Bengali / Hindi: words written on the ab->Bangla / Hindi keys (`flushPhon`, `pickCand` -> `noteScriptWord`, `Words.recordSeq`: pair and phrase memory only, no word count)
+  and words spoken as script (`learnFromSpeech`) are remembered as phrases; after a word the Bangla / Hindi row shows up to 4 next-word chips (`paintCands0`, `pickNextScript`) instead of the hint. Banglish typed or spoken in Latin letters
+  already worked on the EN keys. Not on the full script keys (layouts 3 / 4: no word row).
+  Auto capital with Auto-correct OFF (Tara: "auto capitalize is not coming if auto correct is off"): the capital letters were part of the auto-correct swap, so with "Auto OFF" i / i'm / monday / kolkata stayed lowercase.
+  `Words.capitalOnly` (i -> I, I'm, days, months, cities, apps; only words typed fully lowercase) is now applied in `endWord` when `autoFix` is off; no other letter is ever changed. The capital at the start of a sentence (`autoShift`) never depended on Auto.
 
 ## HANDOVER for a stronger model (Tara, 17 Nov: "hand over this chat to Fable 5.2 to check every development, check all flags and fix anything not working")
 She asked for an audit of everything built since version 71 (versions 71-114 are all described above and NONE is confirmed on her phone except the Bolchi-app screen values she screenshotted). Suggested order:

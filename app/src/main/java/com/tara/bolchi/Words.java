@@ -69,8 +69,24 @@ public final class Words {
         if ((w.length() < 2 && !tiny) || w.length() > 20) return;
         synchronized (USE) {
             if (!tiny) { Integer c = USE.get(w); USE.put(w, c == null ? 1 : c + 1); }
+        }
+        link(prev, w);
+    }
+
+    /** A word written in Bengali / Hindi letters (typed on the ab->Bangla / Hindi keys or spoken as script): only the pair and phrase memory, no word count. */
+    public static void recordSeq(String prev, String word) {
+        if (word == null) return;
+        String w = word.toLowerCase(Locale.ROOT);
+        if (w.isEmpty() || w.length() > 24) return;
+        link(prev, w);
+    }
+
+    private static boolean isScript(String w) { return !w.isEmpty() && w.charAt(0) >= '\u0900'; }
+
+    private static void link(String prev, String w) {
+        synchronized (USE) {
             String p = prev == null ? "" : prev.toLowerCase(Locale.ROOT);
-            if (p.length() >= 2 || p.equals("i") || p.equals("a")) {
+            if (p.length() >= 2 || p.equals("i") || p.equals("a") || isScript(p)) {
                 HashMap<String, Integer> m = NEXT.get(p);
                 if (m == null) { m = new HashMap<>(); NEXT.put(p, m); }
                 Integer n = m.get(w);
@@ -86,6 +102,17 @@ public final class Words {
             chain2 = p;                  // the next word will see (p, w) as its two words before
             chain1 = w;
         }
+    }
+
+    /** What the keyboard does to a word when Auto-correct is OFF: only a capital letter (I, I'm, days, months, cities, apps), never another letter. Null when nothing to change. */
+    public static String capitalOnly(String typed) {
+        if (typed == null || typed.isEmpty()) return null;
+        String l = typed.toLowerCase(Locale.ROOT);
+        if (!typed.equals(l)) return null;                      // she typed a capital herself: leave it
+        if (l.equals("i")) return "I";
+        if (l.matches("i'(m|ll|ve|d)")) return "I" + l.substring(1);
+        String p = PROPER.get(l);
+        return p != null && !p.equals(typed) ? p : null;
     }
 
     private static int used(String l) {

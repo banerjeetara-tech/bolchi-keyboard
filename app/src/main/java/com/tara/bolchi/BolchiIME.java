@@ -1369,12 +1369,28 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (w.isEmpty()) return;
         String finalWord = w;
         if (Words.ready && layout == 0 && !noFix && !plainField) {
-            String fx = Words.fix(w, wordAutoCap);
+            // Auto-correct is OFF: the capital letters still come by themselves (I, I'm, days, months, cities); no other letter is ever changed
+            String capFix = !autoFix && !uriBox ? Words.capitalOnly(w) : null;
+            boolean capDone = false;
+            if (capFix != null && wordIsThere(ic, w)) {
+                ic.beginBatchEdit();
+                ic.deleteSurroundingText(shown(w).length(), 0);
+                ic.commitText(shown(capFix), 1);
+                ic.endBatchEdit();
+                fixTyped = w;
+                fixDone = capFix;
+                fixShownTyped = w;
+                fixShownDone = capFix;
+                fixPrompt = false;
+                finalWord = capFix;
+                capDone = true;
+            }
+            String fx = capDone ? null : Words.fix(w, wordAutoCap);
             // right after Banglish / Hinglish words a correction is only offered, except a known English slip ("recieve"), which is always put right
             boolean calm = desiRecent == 0 || Words.knownSlip(w) || (fx != null && Words.confidentFix(w, fx));    // "tof" -> "too" is made even between Banglish words
             if (Words.isDesi(w)) desiRecent = 2;
             else if (desiRecent > 0 && (fx != null || Words.inDictionary(w))) desiRecent--;     // a mistyped English word counts as English too
-            String dfx = !calm && !Words.known(w) ? Words.desiFix(w) : null;
+            String dfx = !capDone && !calm && !Words.known(w) ? Words.desiFix(w) : null;
             if (dfx != null) {
                 // close to a Banglish / Hinglish word: left as typed, the likely word is offered in bold
                 fixShownTyped = w;
@@ -1382,7 +1398,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 fixPrompt = true;
             } else if (fx == null) {
                 // a new word of hers: remember it so it is offered next time
-                if (w.length() >= 3 && !Words.known(w)) learn(w);
+                if (!capDone && w.length() >= 3 && !Words.known(w)) learn(w);
             } else if (autoFix && calm && (!uriBox || searchWords()) && Words.sureFix(w) && wordIsThere(ic, w) && Words.autoReplaceOk(w)) {
                 ic.beginBatchEdit();
                 ic.deleteSurroundingText(shown(w).length(), 0);
@@ -2365,6 +2381,26 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         candFor = "";
         candJob++;
         if (ic != null) ic.commitText(shown(out), 1);      // English letters kept as typed follow the font too
+        if (useSuggestion && !out.isEmpty()) noteScriptWord(out);
+        paintCands();
+    }
+
+    /** A word was written on the ab->Bangla / Hindi keys: remember which word follows which (phrases), and keep it as the word before the next one. */
+    private void noteScriptWord(String w) {
+        try {
+            if (noFix || plainField) return;                // not in password / email / address boxes
+            Words.recordSeq(lastWord, w);
+            lastWord = w.toLowerCase(java.util.Locale.ROOT);
+            if (++usageEdits >= 25) saveUsage();
+        } catch (Throwable ignored) { /* a help only */ }
+    }
+
+    /** She tapped one of the next-word choices on the Bangla / Hindi row. */
+    private void pickNextScript(String c) {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic != null) ic.commitText(shown(c + " "), 1);
+        noteScriptWord(c);
+        pickedSpace = true;
         paintCands();
     }
 
@@ -2451,6 +2487,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         candFor = "";
         candJob++;
         if (ic != null) ic.commitText(shown(c + " "), 1);
+        noteScriptWord(c);
         paintCands();
     }
 
@@ -2574,6 +2611,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 candRow.addView(skip);
             }
             return;
+        }
+        if (phon.length() == 0 && Words.ready && !lastWord.isEmpty() && !plainField) {
+            // after a word: the words she usually writes next (phrases she used twice or more), in Bengali / Hindi letters as she wrote them
+            List<String> nx = Words.nextAfter(lastWord, 4);
+            if (!nx.isEmpty()) {
+                for (final String c : nx) {
+                    TextView t = makeKey(c, 1f, cFn, cInk, 20);
+                    onPress(t, cFn, new Runnable() { @Override public void run() { pickNextScript(c); } });
+                    candRow.addView(t);
+                }
+                return;
+            }
         }
         if (phon.length() == 0) {
             TextView hint = new TextView(this);
@@ -3798,6 +3847,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             String prev = "";
             int n = 0;
             for (String tok : said.trim().split("\\s+")) {
+                String sc = tok.replaceAll("^[\\p{Punct}\u0964\u0965]+|[\\p{Punct}\u0964\u0965]+$", "");
+                if (hasBengali(sc) || hasDevanagari(sc)) { Words.recordSeq(prev, sc); prev = sc.toLowerCase(java.util.Locale.ROOT); n++; continue; }     // a word spoken as Bengali / Hindi script
                 String w = bare(tok);
                 if (w.length() < 2 || !w.matches("[a-z']+")) { prev = ""; continue; }
                 Words.record(prev, w);
