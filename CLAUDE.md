@@ -459,19 +459,36 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   and number row via the 7th value). Data in `tools/colour-packs-proposal.json`. They are inside `Themes.combo`, so the 🎨 square shows stripes (background / keys / side keys / number row). NOT seen on a phone.
   Lesson: all-white keys made every pack look the same; letter keys must carry their own colour.
 
-## HANDOVER for a stronger model (Tara, 17 Nov: "hand over this chat to Fable 5.2 to check every development, check all flags and fix anything not working")
-She asked for an audit of everything built since version 71 (versions 71-114 are all described above and NONE is confirmed on her phone except the Bolchi-app screen values she screenshotted). Suggested order:
-1. Read `BolchiIME.java` end to end for regressions from the many edits of the last days: voice flow (`onPartialResults`, `onResults`, `writeStop`, `endSentence`, `newLead`, `tidyApply`, `findSuspects`, `applyRepairAt`,
-   `learnFromSpeech`, `applyVoiceFix`), the word row (`paintSugs` is long: money / repair / calc / undo / emoji branches fight over the same three slots and the scrolling chip row), `paintCands` / `paintCands0`,
-   touch (`keyUnderThumb`, `learnTouch`), GIF (`sendGif`, `gifHeld`), `onUpdateSelection` / `computeRepair`.
-2. Dead or doubtful code to clean: `SAVE_TOKEN` handling (the chip was removed in 113), `slotRepair` flags, `repairSaveWord`, `Words.SHORT` vs `FIXED` overlap, `typeStyleApp`.
-3. Run the local PC tests again (javac on `Words`, `Spoken`, `Translit`, `Calc`, `Converter` pieces) and write a real test class list into the repo if she wants: typos 111/113, short forms 218/231, 0/265 Banglish changed,
-   dedupe / dropRepeat cases, soundAlike samples, Calc chains.
-4. Ask her for three screenshots only: the Bolchi app screen (Auto-correct line, "Last word not corrected", touch measurement), a dictation result, and the keyboard after typing "Ma ke niye".
-5. Known honest limits: speech-engine mishearing is outside Bolchi; two-consonant English words cannot be matched safely; `applyRepairAt` needs an editor that supports setSelection; replies / emoji search / translate
-   were never confirmed working; she reads every unconfirmed fix as "not resolved".
-Also: build with the workflow (`workflow_dispatch` on the branch), then fast-forward `main`; the release build number is the Actions run number (check it, I mis-guessed it several times).
-- Local compile check: javac against Maven `com.google.android:android:4.1.1.4` jar (ignore org.json / checkSelfPermission errors).
+- Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
+  `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
+  - The row that points at a doubtful word after speaking (version 104) was wiped the moment it appeared: the dictation's own text update reached `onUpdateSelection` as
+    "she is typing" and cleared it. That is why she "could not understand how to use it". Now only typing / deleting / a pick / "keep" / a new box end it (`clearRepair`).
+    A one-step cursor move recomputes the tap row (its saved `repairPre` / `repairSuf` would have replaced the wrong letters).
+  - The same row flagged about one ordinary Bengali word per sentence ("tarpor ? trooper", "matha ? martha": 20 of 173 words in a PC sample), which would have shown
+    once the row stayed. `findSuspects` now needs a real sign: the phone also heard an English dictionary word there, or `Words.soundAlike` (strict) matches;
+    words with a Bengali ending on a known word are skipped (`desiWithEnding`). The tap-into-a-word row is unchanged (loose matches, her own choice).
+  - Voice full stop: `endSentence` wrote the mark wherever the cursor stood, so tapping into a word within 3 s of a pause put a full stop INSIDE that word. It now
+    writes only right after the sentence just spoken (`stopTail`) and never before a letter. The "take the full stop away again" step (`newLead`) only removes the mark
+    the timer wrote, at that place (`autoDotTail`). AI tidy arriving after the timer's mark no longer gives two marks ("acho??"). A round that ends without a final
+    text keeps `spokenAll` in step.
+  - Voice converter: "কাজটা" came out as "costa" (the ট of the ending -টা counted as an English sign). `Translit.endingOnly` skips the sound match for short words
+    whose only sign is the ending -টা / -টি / -টাকে (master, university, computer, party still convert). Still wrong, rare: ফানুস → phones, টাঙা → tongue, ফরমান → freeman.
+  - Numbers: a dot or comma right after a digit stays inside the number ("3.5", "10.30", "1,500"; it used to come out "3. 5", so a sum with a decimal could not be
+    typed). Side effect: a sentence that ends on a number gets no automatic space after its full stop.
+  - Calculator: "200+15%" gave 200.15; now like a pocket calculator (230; "500-10%" = 450). "200*15%" is still 30.
+  - Two spaces: after tapping a next-word guess, emoji, name, date, number, money, swipe guess or a Bangla / Hindi candidate, the space key added a second space
+    (`pickedSpace` was only set for the main word slots).
+  - English voice: "no no" is no longer a correction phrase ("I am going no no problem at all" lost its words).
+  - Emoji search: switched the typing layout to English for good (now `emoBackLayout` brings her layout back) and swallowed letters in a password box (now not started there).
+  - Small: backspace-undo of a correction left the old choices in the row; `setLayoutTo` deleted the wrong length in font mode; a repair offer survived into the next box.
+  - Dead code removed: `SAVE_TOKEN`, `repairSaveWord`, `slotRepair`, `typeStyleApp`. `Words.SHORT` is a proper subset of `FIXED` (checked: 59 of 59), left as it is.
+  Checked and found in order (PC): her test sentence corrects fully; 0 Banglish words changed in a sample; dedupe / dropRepeat cases ("Kota hoy beauty", Bengali repeat);
+  markFor; emoji search; money / units with made-up rates; long sums; 170 themes parse, names unique, none with unreadable letters; fonts round-trip (4 one-case fonts lose capitals, by nature).
+  Read and found no fault, but NOT provable without a phone: touch lift, GIF send, AI replies, SMS code, see-through themes, tap-to-repair in apps without setSelection.
+  How the PC tests were run: javac on Words, Spoken, Translit, HindiTranslit, Calc, EmojiHints, FontStyles, Swipe, Converter, Phonetic, Themes with tiny stand-in
+  classes for `org.json` and `android.graphics.Color`; Maven and the Android SDK are blocked, so `BolchiIME` itself is only compiled by GitHub.
+  Still open (need her phone): the three screenshots (Bolchi app screen; a dictation result; the keyboard after typing "Ma ke niye"); "stoppedAnd" / "removing.fter"
+  (lost space / letter at a voice round boundary, seen once on version 90, cause not found).
 
 ## iPhone version (asked 14 Nov 2026, nothing built)
 - Tara asked for Bolchi on iPhone. Told her: it must be rewritten in Swift; Apple needs a paid developer account (about ₹8,700 a year) which she does not have; Apple blocks

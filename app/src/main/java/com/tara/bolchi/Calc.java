@@ -27,6 +27,7 @@ public final class Calc {
         if (s.length() < 3 || s.length() > 400) return null;          // (was 40: a long chain of numbers gave no answer)
         double[] num = new double[130];
         char[] op = new char[130];
+        boolean[] pct = new boolean[130];
         int n = 0, i = 0, len = s.length();
         while (i < len) {
             int st = i;
@@ -34,7 +35,7 @@ public final class Calc {
             if (i == st || n >= 128) return null;
             double v;
             try { v = Double.parseDouble(s.substring(st, i).replace(",", "")); } catch (Exception e) { return null; }
-            if (i < len && s.charAt(i) == '%') { v = v / 100.0; i++; }
+            if (i < len && s.charAt(i) == '%') { v = v / 100.0; i++; pct[n] = true; }
             num[n] = v;
             if (i == len) { n++; break; }
             char c = s.charAt(i++);
@@ -49,16 +50,20 @@ public final class Calc {
         // times and divide first
         double[] a = new double[n];
         char[] o = new char[n];
+        boolean[] share = new boolean[n];       // this term is a bare percentage that is added or taken off: "200+15%" means 15% of the 200
         int m = 0;
         a[0] = num[0];
         for (int k = 1; k < n; k++) {
             char c = op[k - 1];
-            if (c == '*') a[m] *= num[k];
-            else if (c == '/') { if (num[k] == 0) return null; a[m] /= num[k]; }
-            else { o[m] = c; a[++m] = num[k]; }
+            if (c == '*') { a[m] *= num[k]; share[m] = false; }
+            else if (c == '/') { if (num[k] == 0) return null; a[m] /= num[k]; share[m] = false; }
+            else { o[m] = c; a[++m] = num[k]; share[m] = pct[k]; }
         }
         double r = a[0];
-        for (int k = 1; k <= m; k++) r = o[k - 1] == '+' ? r + a[k] : r - a[k];
+        for (int k = 1; k <= m; k++) {
+            double term = share[k] ? r * a[k] : a[k];      // like a pocket calculator: 200+15% = 230, 500-10% = 450
+            r = o[k - 1] == '+' ? r + term : r - term;
+        }
         if (Double.isNaN(r) || Double.isInfinite(r) || Math.abs(r) > 1e15) return null;
         double rd = Math.round(r * 100.0) / 100.0;
         if (rd == Math.rint(rd)) return String.valueOf((long) rd);

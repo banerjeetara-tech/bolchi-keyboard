@@ -15,9 +15,10 @@ public final class Spoken {
     /** Phrases that mean "I said it wrong, here is the right one". Longer ones first. */
     private static final String[][] MARKS = {
             {"sorry", "i", "mean"}, {"no", "i", "mean"}, {"no", "sorry"}, {"oh", "sorry"}, {"no", "wait"},
-            {"i", "mean"}, {"no", "no"},
-            {"না", "সরি"}, {"সরি", "না"}, {"না", "না"},
-            {"नहीं", "सॉरी"}, {"सॉरी", "नहीं"}, {"नहीं", "नहीं"}};
+            {"i", "mean"},
+            // ("no no" is not in this list any more: "I am going, no no problem at all" lost its words; people say "no no" without correcting anything)
+            {"না", "সরি"}, {"সরি", "না"},
+            {"नहीं", "सॉरी"}, {"सॉरी", "नहीं"}};
     /** Phrases that throw away everything said before them. */
     private static final String[][] WIPES = {{"scratch", "that"}, {"delete", "that"}, {"cancel", "that"}};
 
