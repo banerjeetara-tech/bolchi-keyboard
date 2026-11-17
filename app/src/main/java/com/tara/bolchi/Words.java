@@ -59,7 +59,14 @@ public final class Words {
 
     /** Phrases: two words in a row -> the word that followed (key "first second"). Also kept on her phone only. */
     private static final HashMap<String, HashMap<String, Integer>> PHRASE = new HashMap<>();
-    private static String chain1 = "", chain2 = "";     // the last two words recorded in a row (so a third word can be tied to both)
+    private static final int MAXCTX = 5;                  // a phrase is followed up to 5 words back
+    private static final ArrayList<String> CHAIN = new ArrayList<>();     // the last words recorded in a row (a new sentence or a cursor jump starts it again)
+
+    private static String join(List<String> w) {
+        StringBuilder b = new StringBuilder();
+        for (String x : w) { if (b.length() > 0) b.append(' '); b.append(x); }
+        return b.toString();
+    }
 
     /** She typed (or picked) `word` after `prev`: count the word, the pair, and the three-word phrase. */
     public static void record(String prev, String word) {
@@ -91,16 +98,18 @@ public final class Words {
                 if (m == null) { m = new HashMap<>(); NEXT.put(p, m); }
                 Integer n = m.get(w);
                 m.put(w, n == null ? 1 : n + 1);
-                if (p.equals(chain1) && !chain2.isEmpty()) {      // the word before `prev` is known: remember the whole phrase
-                    String key = chain2 + " " + p;
+                if (CHAIN.isEmpty() || !CHAIN.get(CHAIN.size() - 1).equals(p)) { CHAIN.clear(); CHAIN.add(p); }
+                // every length of phrase that ends with `p` (2 .. MAXCTX words) remembers which word came next
+                for (int k = 2; k <= CHAIN.size(); k++) {
+                    String key = join(CHAIN.subList(CHAIN.size() - k, CHAIN.size()));
                     HashMap<String, Integer> pm = PHRASE.get(key);
                     if (pm == null) { pm = new HashMap<>(); PHRASE.put(key, pm); }
                     Integer pn = pm.get(w);
                     pm.put(w, pn == null ? 1 : pn + 1);
                 }
-            }
-            chain2 = p;                  // the next word will see (p, w) as its two words before
-            chain1 = w;
+            } else CHAIN.clear();
+            CHAIN.add(w);
+            while (CHAIN.size() > MAXCTX) CHAIN.remove(0);
         }
     }
 
@@ -274,11 +283,6 @@ public final class Words {
                 + "Diwali Durga Puja Holi Eid Christmas").split(" ")) PROPER.put(n.toLowerCase(Locale.ROOT), n);
     }
 
-    /** The word written before `prev` in the chain just recorded (empty when `prev` did not come right after it). */
-    private static String wordBefore(String prev) {
-        synchronized (USE) { return prev != null && prev.equals(chain1) ? chain2 : ""; }
-    }
-
     private static void addCounted(List<String> out, HashMap<String, Integer> src, int need, int max) {
         if (src == null) return;
         final HashMap<String, Integer> m = new HashMap<>(src);
@@ -291,16 +295,19 @@ public final class Words {
     }
 
     /**
-     * The words she most often writes next: first what followed her last TWO words in a phrase she used twice or more, then what followed the last word
-     * (a pair seen twice), then everyday English.
+     * The words she most often writes next: first what followed her last words in the LONGEST phrase she used twice or more (up to 5 words), then in shorter ones,
+     * then what followed the last word alone (a pair seen twice), then everyday English.
      */
     public static List<String> nextAfter(String prev, int max) {
         List<String> out = new ArrayList<>();
         if (prev == null || prev.isEmpty()) return out;
         prev = prev.toLowerCase(Locale.ROOT);
-        String before = wordBefore(prev);
         synchronized (USE) {
-            if (!before.isEmpty()) addCounted(out, PHRASE.get(before + " " + prev), 2, max);
+            // the longest phrase she used twice or more that ends with her last words comes first (up to 5 words back), then shorter ones, then the last word alone
+            if (!CHAIN.isEmpty() && CHAIN.get(CHAIN.size() - 1).equals(prev)) {
+                List<String> ctx = new ArrayList<>(CHAIN);
+                for (int k = ctx.size(); k >= 2 && out.size() < max; k--) addCounted(out, PHRASE.get(join(ctx.subList(ctx.size() - k, ctx.size()))), 2, max);
+            }
             addCounted(out, NEXT.get(prev), 2, max);
         }
         String[] u = USUAL.get(prev);
@@ -337,7 +344,7 @@ public final class Words {
             java.util.Collections.sort(ph, new java.util.Comparator<String[]>() {
                 @Override public int compare(String[] a, String[] c) { return Integer.parseInt(c[2]) - Integer.parseInt(a[2]); }
             });
-            for (int i = 0; i < ph.size() && i < 5000; i++) b.append(ph.get(i)[0]).append(' ').append(ph.get(i)[1]).append(' ').append(ph.get(i)[2]).append('\n');
+            for (int i = 0; i < ph.size() && i < 6000; i++) b.append(ph.get(i)[0]).append('\t').append(ph.get(i)[1]).append('\t').append(ph.get(i)[2]).append('\n');
         }
         return b.toString();
     }
@@ -351,11 +358,15 @@ public final class Words {
                 if (line.equals("#phrases")) { pairs = false; phrases = true; continue; }
                 String[] p = line.split(" ");
                 try {
-                    if (phrases && p.length == 4) {
-                        String key = p[0] + " " + p[1];
+                    if (phrases) {
+                        String[] t = line.indexOf('\t') >= 0 ? line.split("\t") : null;      // new format: "words<TAB>next<TAB>count"; the old one had exactly two words in front
+                        String key, nx, cnt;
+                        if (t != null && t.length == 3) { key = t[0]; nx = t[1]; cnt = t[2]; }
+                        else if (p.length == 4) { key = p[0] + " " + p[1]; nx = p[2]; cnt = p[3]; }
+                        else continue;
                         HashMap<String, Integer> pm = PHRASE.get(key);
                         if (pm == null) { pm = new HashMap<>(); PHRASE.put(key, pm); }
-                        pm.put(p[2], Integer.parseInt(p[3]));
+                        pm.put(nx, Integer.parseInt(cnt));
                     } else if (!pairs && !phrases && p.length == 2) USE.put(p[0], Integer.parseInt(p[1]));
                     else if (pairs && p.length == 3) {
                         HashMap<String, Integer> m = NEXT.get(p[0]);

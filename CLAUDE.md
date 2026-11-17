@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 118 = build-170** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 119 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -478,6 +478,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (2) texts over 400 characters were refused; (3) `currentText` trusted an EMPTY `getExtractedText` answer (some apps return one) instead of asking for the text around the cursor.
   Now the answer is written inside the tab (`repliesNote`, 8 s: "✓ Saved: tap it below to write it again" or a ⚠ line saying what to do), the limit is 2000 letters (60 saved messages), and an empty extracted text falls back
   to before + after the cursor. If it still fails ask WHICH app and whether the ⚠ line shows (then that app gives the keyboard no text). Not tested on a phone.
+
+- Version 119 (Tara: "why 3? it can be any word if I'm using twice"): the phrase memory of 117 was limited to two words of context (three-word phrases) only because that was the first thing built. Now it follows up to 5 words back:
+  `Words.CHAIN` holds the last words written in a row (a sentence mark, new box or cursor jump clears it), every phrase length 2..5 that ends with the last word is counted in `PHRASE`, and `nextAfter` tries the LONGEST
+  phrase seen twice or more first, then shorter ones, then the pair, then `USUAL`. So a 9-word sentence she used twice is offered word by word ("please find attached the" -> report, "report herewith for" -> your).
+  Saved as "words<TAB>next<TAB>count" lines under `#phrases` in pref `usage` (6000 lines; the old 4-field lines still load). PC test: once = nothing, twice = offered, "ami kal" -> office / "tumi kal" -> ghum still differ. Not tested on a phone.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
