@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 115 = build-161** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 116 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -458,6 +458,12 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (170 total; saved indexes unchanged): 12 "Two: X & Y" (coloured background + letter keys in a second soft colour, side keys deeper tone of the background hue, dark accent) and 12 "Three: X, Y & Z" (a third colour on side keys
   and number row via the 7th value). Data in `tools/colour-packs-proposal.json`. They are inside `Themes.combo`, so the 🎨 square shows stripes (background / keys / side keys / number row). NOT seen on a phone.
   Lesson: all-white keys made every pack look the same; letter keys must carry their own colour.
+- Version 116 (Tara: "it can't remember one common phrase if I use anything constantly... at least twice... it should give me the next options automatically"): phrase memory. Causes found in the old next-word memory:
+  (1) `exportUsage` saved only word pairs seen 2+ times, so a phrase used once today and once tomorrow never reached 2 (the count-1 pairs were lost whenever the keyboard saved / restarted);
+  (2) only ONE word of context, so "kal" gave the same guess after "ami kal" and "tumi kal"; (3) one-letter words ("I", "a") were never recorded, which broke "I am going". Now `Words.record` also keeps
+  three-word phrases (`PHRASE`, key "first second" -> next word, tied by the `chain1/chain2` of the last recorded words), `nextAfter` offers phrase matches first (seen 2+ times), then pairs (2+), then `USUAL`;
+  all pairs (also seen once, 5000) and phrases (5000) are saved (`#pairs`, `#phrases` in pref `usage`; old saves still load). Works for typing, tapped suggestions and speech (`learnFromSpeech`).
+  PC test: used once = no guess; twice = guess; "ami kal" -> office but "tumi kal" -> ghum. Shown after a space on the EN keys only (not on the ab->Bangla / Hindi rows). Not tested on a phone.
 
 ## HANDOVER for a stronger model (Tara, 17 Nov: "hand over this chat to Fable 5.2 to check every development, check all flags and fix anything not working")
 She asked for an audit of everything built since version 71 (versions 71-114 are all described above and NONE is confirmed on her phone except the Bolchi-app screen values she screenshotted). Suggested order:
