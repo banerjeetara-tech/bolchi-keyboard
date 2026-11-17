@@ -1006,6 +1006,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             v[0] = fixShownTyped; v[1] = fixShownDone;
             slotFix[0] = true; slotFix[1] = true;
             bold = true;
+            // a correction that is only OFFERED used to hide her usual next word: the right-hand place keeps it
+            if (Words.ready && !lastWord.isEmpty()) {
+                List<String> nxf = Words.nextAfter(lastWord, 1);
+                if (!nxf.isEmpty() && !nxf.get(0).equalsIgnoreCase(v[0]) && !nxf.get(0).equalsIgnoreCase(v[1])) { v[2] = nxf.get(0); slotNext[2] = true; }
+            }
+            noteNextWhy("a correction is showing: " + v[0] + " / " + v[1] + (slotNext[2] ? ", next word " + v[2] + " on the right" : ", no next word known after \u201C" + lastWord + "\u201D"));
         } else if (w.isEmpty() && !plainField && layout == 0 && Words.ready) {
             // after a space: the words she usually writes next
             List<String> nx = Words.nextAfter(lastWord, 3);
@@ -1194,7 +1200,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     /** Why the next-word guesses showed or not, for the Bolchi app screen (written only when it changes). */
     private void noteNextWhy(String why) {
         try {
-            String t = why + " | memory: " + Words.memoryStats();
+            boolean plainNote = why.startsWith("this box has no word row") || why.startsWith("no word before");
+            if (plainNote && !prefs().getString("nextWhy", "").isEmpty()) return;        // an empty box / the Bolchi app's own boxes must not hide what happened while she typed words
+            String t = "[" + (curApp == null || curApp.isEmpty() ? "?" : curApp) + " " + new java.text.SimpleDateFormat("HH:mm", java.util.Locale.ENGLISH).format(new java.util.Date()) + "] "
+                    + why + " | memory: " + Words.memoryStats();
             if (t.equals(nextWhyLast)) return;
             nextWhyLast = t;
             prefs().edit().putString("nextWhy", t).apply();
@@ -1203,6 +1212,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     /** One tap on a next-word choice: the word and a space go in, and the memory counts it. */
     private void writeNextWord(String val) {
+        lastTypeAt = System.currentTimeMillis();
         InputConnection ic = getCurrentInputConnection();
         if (ic == null || val == null || val.isEmpty()) return;
         String out = (shift || capsLock) ? Character.toUpperCase(val.charAt(0)) + val.substring(1) : val;
@@ -1265,7 +1275,23 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         return bs.endsWith(sw) && (bs.length() == sw.length() || !Character.isLetter(bs.charAt(0)));
     }
 
+    /**
+     * The message was sent with the APP's own Send button (no space, no full stop): the last word never reached `endWord`, so it was never remembered and the phrase
+     * stopped one word short. It is counted now, as typed, unless it looks like a typing slip.
+     */
+    private void notePendingWord() {
+        try {
+            String w = word.toString();
+            if (w.length() < 2 || !Words.ready || layout != 0 || noFix || plainField || uriBox) return;
+            if (Words.fix(w, wordAutoCap) != null && !Words.isDesi(w) && !Words.known(w)) return;      // a likely slip: not remembered
+            Words.record(lastWord, w);
+            lastWord = w.toLowerCase();
+            if (++usageEdits >= 25) saveUsage();
+        } catch (Throwable ignored) { /* a help only */ }
+    }
+
     private void pickSug(int i) {
+        lastTypeAt = System.currentTimeMillis();       // the cursor move that follows this tap is hers, not a jump (a jump forgets the word before: the phrase would break)
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
@@ -1531,7 +1557,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     public void onUpdateSelection(int oldSelStart, int oldSelEnd, int newSelStart, int newSelEnd,
                                   int candidatesStart, int candidatesEnd) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
-        if (newSelStart == 0 && newSelEnd == 0 && oldSelStart > 0) shiftAfterDelete();      // the box was emptied (sent, cleared, all deleted): a new start
+        if (newSelStart == 0 && newSelEnd == 0 && oldSelStart > 0) { notePendingWord(); shiftAfterDelete(); }      // the box was emptied (sent, cleared, all deleted): a new start
         // the cursor was moved by hand: forget the word we were tracking
         // with a font on, one typed letter is two characters long (a styled letter, or a letter plus its line), so the cursor moves by 2 per letter
         int step = fontOn() ? 2 : 1;
@@ -2077,7 +2103,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                             gifBox.addView(ft, flp);
                         }
                     }
-                    else if (word.length() == 0 && !plainField && !lastWord.isEmpty()) {
+                    if (word.length() == 0 && !plainField && !lastWord.isEmpty()) {
                         // the word row is hidden by this row: her usual next words stay in it, first
                         List<String> nxs = Words.nextAfter(lastWord, 3);
                         for (int c = 0; c < nxs.size(); c++) {
@@ -2471,6 +2497,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     /** She tapped one of the next-word choices on the Bangla / Hindi row. */
     private void pickNextScript(String c) {
+        lastTypeAt = System.currentTimeMillis();
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) ic.commitText(shown(c + " "), 1);
         noteScriptWord(c);
@@ -2552,6 +2579,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     }
 
     private void pickCand(String c) {
+        lastTypeAt = System.currentTimeMillis();
         rememberPick(phon.toString(), c);
         InputConnection ic = getCurrentInputConnection();
         // she kept the English letters (a name): remember it so it is offered next time
