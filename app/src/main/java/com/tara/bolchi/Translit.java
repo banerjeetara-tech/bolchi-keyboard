@@ -227,7 +227,7 @@ public final class Translit {
             }
         }
         // an English word the speech engine wrote in Bengali letters ("ম্যানেজমেন্ট"): give its real English spelling when the sound matches one clearly
-        if (looksLoan(w)) {
+        if (looksLoan(w) && !endingOnly(w)) {
             String en = Words.soundAlike(plain(w));
             if (en != null) return en;
             for (String[] end : ENDS) {
@@ -268,7 +268,26 @@ public final class Translit {
         for (String v : new String[]{"লেন", "বেন", "তেন", "লাম", "ছেন", "ছিল"}) if (w.endsWith(v)) return false;
         if (w.indexOf('\u09DC') >= 0 || w.indexOf('\u09DD') >= 0 || w.indexOf('\u09BC') >= 0) return false;      // ড় ঢ় and the dot below: Bengali words
         for (int i = 0; i < w.length(); i++) if (NATIVE_ONLY.indexOf(w.charAt(i)) >= 0) return false;
+        return hasTell(w);
+    }
+
+    private static boolean hasTell(String w) {
         return w.indexOf('ট') >= 0 || w.indexOf('ড') >= 0 || w.indexOf('ফ') >= 0 || w.contains("্যা") || w.endsWith("শন") || w.contains("ক্স") || w.contains("ন্স");
+    }
+
+    /**
+     * "কাজটা", "বইটি", "লোকটাকে": a short word whose only English-looking letter is the ট of the Bengali ending -টা / -টি, with a plain Bengali word
+     * before it. Such a word is not matched against English by sound ("কাজটা" was coming out as "costa"). Long words ("ইউনিভার্সিটি"), words
+     * where the ট is part of a joined letter ("মাস্টার", "পার্টি") and the ending -টার ("লেটার", "কম্পিউটার") are still matched.
+     */
+    private static boolean endingOnly(String w) {
+        for (String e : new String[]{"টাকে", "টা", "টি"}) {
+            if (w.length() > e.length() + 1 && w.endsWith(e)) {
+                String stem = w.substring(0, w.length() - e.length());
+                return stem.charAt(stem.length() - 1) != '\u09CD' && !hasTell(stem) && plain(w).length() <= 6;
+            }
+        }
+        return false;
     }
 
     /** The word by the ordinary letter rules (no word list). */

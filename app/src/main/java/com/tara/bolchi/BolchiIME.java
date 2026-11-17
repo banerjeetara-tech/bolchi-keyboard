@@ -129,7 +129,6 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private int toneStyle = 0;   // the tone chosen under "Change tone" (Converter.TONES)
     private String justEnded = "";  // the word that was just finished: its emoji and GIFs stay until she types on
     private long justEndedAt;
-    private String typeStyleApp = "";   // the app where she turned the font on: the font is used only there
     private boolean uriBox;             // a web address / browser search bar: words are suggested and corrections offered, never swapped in by themselves
     private long lastTypeAt;            // when she last typed or deleted (to tell her own typing from a cursor moved by hand)
     private final java.util.HashSet<String> undoneOnce = new java.util.HashSet<>();
@@ -298,6 +297,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.endBatchEdit();
         word.setLength(0);
         fixTyped = null;
+        pickedSpace = true;
         swipeDone = w + " ";
         if (sugRow != null) {
             sugKeepsTyped = false;
@@ -975,6 +975,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             ic.deleteSurroundingText(shown(w).length(), 0);
             ic.commitText(shown(pick + " "), 1);
             ic.endBatchEdit();
+            pickedSpace = true;
         }
         fixTyped = null;
         word.setLength(0);
@@ -1100,7 +1101,6 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             }
         }
         // the cursor stands in a word with other possible words (the phone's other guesses, English words that sound alike): a row of choices, one tap repairs it
-        slotRepair[0] = slotRepair[1] = slotRepair[2] = false;
         if (w.isEmpty() && !repairList.isEmpty() && (repairAutoWord != null || (v[0].isEmpty() && v[1].isEmpty() && v[2].isEmpty())) && !plainField && contactScroll != null) {
             contactBox.removeAllViews();
             if (repairAutoWord != null) {
@@ -1238,7 +1238,6 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String val = sugVal[i];
         String w = word.toString();
         InputConnection ic = getCurrentInputConnection();
-        if (slotRepair[i] && !val.isEmpty()) { applyRepair(val); return; }
         if (slotUndo[i]) {
             gifHeld = null;
             if (ic != null && deletedBuf.length() > 0) ic.commitText(deletedBuf.toString(), 1);
@@ -1292,6 +1291,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             // the answer goes after the sum: "250*12" becomes "250*12=3000"
             String ans = val.substring(2);
             ic.commitText(shown((calcHasEq ? "" : "=") + ans + " "), 1);
+            pickedSpace = true;
             token.setLength(0);
             numTyped.setLength(0);
             resetWord();
@@ -1307,12 +1307,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                     ic.commitText(shown(val + " "), 1);
                     ic.endBatchEdit();
                 } else ic.commitText(shown(" " + val + " "), 1);                          // "tomorrow 15 Nov 2026"
+                pickedSpace = true;
             }
             resetWord();
             return;
         }
         if (slotNum[i] && !val.isEmpty() && ic != null) {
-            if (wordIsThere(ic, w)) ic.commitText(" " + val + " ", 1);
+            if (wordIsThere(ic, w)) { ic.commitText(" " + val + " ", 1); pickedSpace = true; }
             resetWord();
             return;
         }
@@ -1320,6 +1321,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             String out = (shift || capsLock) ? Character.toUpperCase(val.charAt(0)) + val.substring(1) : val;
             if (val.equals("i")) out = "I";
             ic.commitText(shown(out + " "), 1);
+            pickedSpace = true;
             Words.record(lastWord, val);
             lastWord = val;
             if (++usageEdits >= 25) saveUsage();
@@ -1330,6 +1332,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         if (slotEmoji[i] && !val.isEmpty() && ic != null) {
             // the emoji goes after the word she typed (after a space the word is already finished)
+            pickedSpace = true;
             if (w.isEmpty()) { ic.commitText(val + " ", 1); addRecent(val); return; }
             if (wordIsThere(ic, w)) { ic.commitText(" " + val + " ", 1); addRecent(val); }
             resetWord();
@@ -1342,6 +1345,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             ic.deleteSurroundingText(swipeDone.length(), 0);
             ic.commitText(val + " ", 1);
             ic.endBatchEdit();
+            pickedSpace = true;
             swipeDone = val + " ";
             sugVal[i] = "";
             sug[i].setText("");
@@ -1520,14 +1524,24 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             computeRepair();
             if (sugRow != null) paintSugs();        // text was pasted or the cursor moved: a sum before the cursor gets its answer
             paintCands();
-        } else if (!repairList.isEmpty() && !jumped) {
-            repairList = new ArrayList<>();          // she goes on typing: the offer is gone
-            repairAutoWord = null;
-            suspectWords.clear();
-            suspectChoices.clear();
+        } else if (!repairList.isEmpty() && !jumped && repairAutoWord == null) {
+            // the cursor moved one step inside the text: the choices follow the word it stands in now.
+            // (The row for a doubtful word of the dictation stays: the dictation's own text update used to wipe it the moment it appeared.
+            //  Typing, deleting, a pick or "keep" ends it: see clearRepair.)
+            computeRepair();
             if (sugRow != null) paintSugs();
             paintCands();
         }
+    }
+
+    /** She types or deletes: the offer to repair a word is over. True when there was one. */
+    private boolean clearRepair() {
+        if (repairList.isEmpty() && repairAutoWord == null && suspectWords.isEmpty()) return false;
+        repairList = new ArrayList<>();
+        repairAutoWord = null;
+        suspectWords.clear();
+        suspectChoices.clear();
+        return true;
     }
 
     /**
@@ -1542,7 +1556,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (layout == 0 && toPhonetic) {
                 String raw = word.toString();                 // letters typed on the English keys
                 if (!raw.isEmpty() && wordIsThere(ic, raw)) {
-                    ic.deleteSurroundingText(raw.length(), 0);
+                    ic.deleteSurroundingText(shown(raw).length(), 0);      // (in a font one letter is two characters long)
                     word.setLength(0);
                     fixTyped = null;
                     phon.append(raw);
@@ -1656,6 +1670,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         else ic.commitText(" ", 1);
         ic.commitText(val + " ", 1);
         ic.endBatchEdit();
+        pickedSpace = true;
         token.setLength(0);
         numTyped.setLength(0);
         resetWord();
@@ -1728,9 +1743,15 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             for (String tok : said.trim().split("\\s+")) {
                 String w = bare(tok);
                 if (w.length() < 4 || !w.matches("[a-z']+") || suspectWords.contains(w)) continue;
-                if (Words.inDictionary(w) || Words.known(w) || Words.isDesi(w)) continue;
+                if (Words.inDictionary(w) || Words.known(w) || Words.isDesi(w) || desiWithEnding(w)) continue;
                 List<String> c = new ArrayList<>();
                 for (String e : heardAlternatives(w)) if (Words.inDictionary(e) && !c.contains(e)) c.add(e);
+                // A word is pointed at only with a real sign that it was meant as English: the phone itself also heard an English word there, or the
+                // spelling sounds exactly like one English word ("myanejment"). A loose likeness is not enough: on ordinary Bengali it flagged about one
+                // word in every sentence ("tarpor ? trooper", "matha ? martha").
+                String sure = Words.soundAlike(w);
+                if (sure != null && !c.contains(sure)) c.add(0, sure);
+                if (c.isEmpty()) continue;
                 for (String e : Words.englishFor(w, 4)) {
                     char a = Character.toLowerCase(e.charAt(0)), b = w.charAt(0);
                     boolean sameStart = a == b || (a == 'c' && b == 'k') || (a == 'k' && b == 'c') || (a == 'f' && b == 'p');
@@ -1743,6 +1764,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             }
             showSuspect();
         } catch (Throwable ignored) { /* a help only */ }
+    }
+
+    /** A Bengali / Hindi word with an ending on it ("barir", "bajarer", "ghorte"): the word before the ending is known, so it is no English word. */
+    private static boolean desiWithEnding(String w) {
+        for (String end : new String[]{"gulo", "der", "er", "te", "ke", "ta", "ti", "ra", "r", "e"}) {
+            if (w.length() < end.length() + 3 || !w.endsWith(end)) continue;
+            String stem = w.substring(0, w.length() - end.length());
+            if (Words.isDesi(stem) || (Words.known(stem) && !Words.inDictionary(stem))) return true;
+        }
+        return false;
     }
 
     /** Puts the first queued doubtful word in the row (or clears the row when none is left). */
@@ -1799,6 +1830,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                         ic.setSelection(back, back);
                         ic.endBatchEdit();
                         spokenAll.setLength(0);          // the text was changed by hand: the AI fix leaves it alone
+                        stopTail = "";
                     }
                 }
             } catch (Throwable ex) { saveProblem(ex); }
@@ -1809,8 +1841,6 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     // ---------- tap a word to repair it: the English word an English-sounding spelling was meant to be ("myanejment" -> "management") ----------
     private List<String> repairList = new ArrayList<>();
     private int repairPre, repairSuf;
-    private String repairSaveWord;
-    private final boolean[] slotRepair = new boolean[3];
 
     /** Looks at the word the cursor stands in (after she tapped into the text or finished speaking) and finds English words it may have been meant to be. */
     private void computeRepair() {
@@ -1829,7 +1859,6 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             while (suf < after.length() && isWordChar(after.charAt(suf))) suf++;
             if (pre + suf < 2 || pre + suf > 24) return;
             String w = before.substring(before.length() - pre) + after.substring(0, suf);
-            repairSaveWord = null;
             if (hasBengali(w) || hasDevanagari(w)) return;     // a word in Bengali / Hindi script has no English choices (saving is the permanent star button)
             List<String> c = new ArrayList<>(heardAlternatives(w));          // what the phone heard instead ("font" for "phone")
             if (!Words.inDictionary(w) && !Words.known(w) && !Words.isDesi(w))
@@ -1848,14 +1877,6 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     /** One tap: the word under the cursor becomes the English word. */
     private void applyRepair(String eng) {
-        if (SAVE_TOKEN.equals(eng)) {
-            if (repairSaveWord != null) saveWordToMemory(repairSaveWord);
-            repairList = new ArrayList<>();
-            repairSaveWord = null;
-            paintSugs();
-            paintCands();
-            return;
-        }
         if (repairAutoWord != null) { applyRepairAt(repairAutoWord, eng); return; }
         InputConnection ic = getCurrentInputConnection();
         if (ic == null || eng == null || eng.isEmpty()) return;
@@ -1869,11 +1890,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.endBatchEdit();
         repairList = new ArrayList<>();
         word.setLength(0);
+        stopTail = "";
         paintSugs();
         paintCands();
     }
-
-    private static final String SAVE_TOKEN = "\u2605 save";
 
     /** Puts a word into memory: it is hers (never flagged), counts as used often (offered first, and the spelling of it is kept in dictation). */
     private void saveWordToMemory(String w) {
@@ -1975,6 +1995,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void pickEmoji(String em) {
         InputConnection ic = getCurrentInputConnection();
         String w = word.toString();
+        pickedSpace = true;
         if (ic != null && w.isEmpty() && !justEnded.isEmpty()) { ic.commitText(em + " ", 1); addRecent(em); return; }
         if (ic != null && !w.isEmpty() && wordIsThere(ic, w)) { ic.commitText(" " + em + " ", 1); addRecent(em); }
         resetWord();
@@ -2486,7 +2507,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         cands = new ArrayList<>();
         candFor = "";
         candJob++;
-        if (ic != null) ic.commitText(shown(c + " "), 1);
+        if (ic != null) { ic.commitText(shown(c + " "), 1); pickedSpace = true; }
         noteScriptWord(c);
         paintCands();
     }
@@ -2590,15 +2611,13 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         candRow.removeAllViews();
         if (phon.length() == 0 && !repairList.isEmpty()) {
             TextView lab = new TextView(this);
-            boolean onlySave = repairList.size() == 1 && repairList.contains(SAVE_TOKEN) && repairSaveWord != null;
-            lab.setText(repairAutoWord != null ? repairAutoWord + " ?" : onlySave ? repairSaveWord + " ?" : "English?");
+            lab.setText(repairAutoWord != null ? repairAutoWord + " ?" : "English?");
             lab.setTextColor(cMuted);
             lab.setTextSize(13);
             lab.setGravity(Gravity.CENTER);
             candRow.addView(lab, new LinearLayout.LayoutParams(0, dp(KEY_H + 4), 0.8f));
             List<String> rowChips = new ArrayList<>();
-            for (String c0 : repairList) if (!SAVE_TOKEN.equals(c0) && rowChips.size() < 3) rowChips.add(c0);
-            if (repairList.contains(SAVE_TOKEN)) rowChips.add(SAVE_TOKEN);
+            for (String c0 : repairList) if (rowChips.size() < 3) rowChips.add(c0);
             for (final String c : rowChips) {
                 TextView t = makeKey(c, 1f, cFn, cInk, 20);
                 t.setTypeface(Typeface.DEFAULT_BOLD);
@@ -2806,10 +2825,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             final int f = i == emojiTab ? cFn : cKey;
             onPress(t, f, new Runnable() { @Override public void run() {
                 if (search) {
+                    if (noFix) return;          // a password box has no row to show the search in: the letters would vanish
                     // the letter keys come back; what she types now searches the emojis
                     emoSearch = true;
                     emoQuery.setLength(0);
                     page = PAGE_ABC;
+                    emoBackLayout = layout;     // the search needs the English keys; her own layout comes back when it ends
                     if (layout != 0) setLayoutTo(0);
                     buildKeysSoon();
                     return;
@@ -3063,8 +3084,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (opt >= 8 && opt <= 11) {   // fonts work on the phone at once, no internet
             int st = opt == 8 ? FontStyles.BOLD : opt == 9 ? FontStyles.ITALIC : opt == 10 ? FontStyles.BOLD_ITALIC : fontStyle;   // -1 = Normal
             String styled = st < 0 ? FontStyles.plain(src) : FontStyles.apply(st, src);
-            typeStyle = st >= 0 && st != 20 ? st : -1;
-            typeStyleApp = curApp;     // new typing follows the chosen font (not upside down: it would have to be written backwards)
+            typeStyle = st >= 0 && st != 20 ? st : -1;     // new typing follows the chosen font (not upside down: it would have to be written backwards)
             replaceText(styled);            // applied right away: it stays when she leaves the converter
             paintSpace();
             showResult(job, styled);
@@ -3147,6 +3167,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
         lastTypeAt = System.currentTimeMillis();
+        if (clearRepair()) paintCands();
         if (pickedSpace) {
             pickedSpace = false;
             if (" ".equals(s)) {
@@ -3214,6 +3235,20 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
         if (emoSearch) { endEmojiSearch(); return; }
+        clearRepair();
+        if ((".".equals(m) || ",".equals(m)) && numTyped.length() > 0 && word.length() == 0 && phon.length() == 0) {
+            // right after a digit a dot or comma belongs to the number ("3.5", "10.30", "1,500", "2.5*4"): no space after it.
+            // (It used to come out as "3. 5", and a sum with a decimal point could not be typed at all.)
+            CharSequence pb = ic.getTextBeforeCursor(1, 0);
+            if (fontOn() || (pb != null && pb.length() == 1 && Character.isDigit(pb.charAt(0)))) {
+                lastTypeAt = System.currentTimeMillis();
+                deletedBuf.setLength(0);
+                ic.commitText(m, 1);
+                token.append(m);
+                numTyped.setLength(0);
+                return;
+            }
+        }
         deletedBuf.setLength(0);
         flushPhon(true);
         ic.finishComposingText();
@@ -3257,16 +3292,21 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         fixShownTyped = fixShownDone = null;
         swipeDone = null;
         if (delKeyView != null) tick(delKeyView);
+        clearRepair();
         paintSugs();
         autoShift();
     }
 
     // ---------- emoji search ----------
+    private int emoBackLayout;     // the typing layout she was on before the emoji search switched to the English keys
+
     private void endEmojiSearch() {
         emoSearch = false;
         emoQuery.setLength(0);
         hideGifs();
         paintSugs();
+        if (emoBackLayout > 0 && layout == 0) setLayoutTo(emoBackLayout);
+        emoBackLayout = 0;
     }
 
     /** The search row (in place of the word row): what she typed, the emojis found, and a cross to leave. */
@@ -3511,6 +3551,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
         lastTypeAt = System.currentTimeMillis();
+        if (clearRepair()) paintCands();
         if (emoSearch && page == PAGE_ABC) {
             if (emoQuery.length() == 0) endEmojiSearch();
             else { emoQuery.setLength(emoQuery.length() - 1); paintEmojiSearch(); }
@@ -3527,7 +3568,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (token.length() > 0) token.setLength(token.length() - 1);
         if (numTyped.length() > 0) numTyped.setLength(numTyped.length() - 1);
         fixShownTyped = fixShownDone = null;
-        if (undoFix(ic)) return;
+        if (undoFix(ic)) { paintSugs(); return; }      // (the row still showed the two choices of a correction that is undone now)
         if (swipeDone != null) {
             boolean there = swipeWordIsThere(ic);
             int len = swipeDone.length();
@@ -3664,6 +3705,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         emoSearch = false;
         emoQuery.setLength(0);
+        boolean layoutBack = emoBackLayout > 0 && layout == 0;       // an emoji search was open when the box changed: her typing layout comes back
+        if (layoutBack) { layout = emoBackLayout; prefs().edit().putInt("layout", layout).apply(); }
+        emoBackLayout = 0;
+        pickedSpace = false;
+        clearRepair();               // choices offered for a word of the last box mean nothing here
+        stopTail = "";
         fixShownTyped = fixShownDone = null;
         clearOtp();
         clearSms();
@@ -3707,7 +3754,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (keysBox == null) return;
         capsLock = false;
         int want = (cls == EditorInfo.TYPE_CLASS_NUMBER || cls == EditorInfo.TYPE_CLASS_PHONE) ? PAGE_SYM1 : PAGE_ABC;
-        if (page != want || wasNoFix != noFix) { page = want; buildKeys(); }
+        if (page != want || wasNoFix != noFix || layoutBack) { page = want; buildKeys(); }
         paintEnter();
         paintSugs();
         autoShift();
@@ -4088,12 +4135,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (listening && out.length() > 1 && (out.endsWith(".") || out.endsWith("\u0964")) && !said.endsWith(".") && !said.endsWith("\u0964"))
             out = out.substring(0, out.length() - 1);
         String clean = head + out;
-        String neu = clean + all.substring(said.length());
+        String rest = all.substring(said.length());
+        // the silence timer has already closed the sentence with its own mark while the AI was working: not two marks in a row ("acho??")
+        if (!rest.isEmpty() && ".?!\u0964".indexOf(rest.charAt(0)) >= 0 && clean.length() > 1 && ".?!\u0964".indexOf(clean.charAt(clean.length() - 1)) >= 0)
+            clean = clean.substring(0, clean.length() - 1);
+        String neu = clean + rest;
         if (!neu.equals(all)) {
             ic.beginBatchEdit();
             ic.deleteSurroundingText(all.length(), 0);
             ic.commitText(neu, 1);
             ic.endBatchEdit();
+            if (!stopTail.isEmpty()) stopTail = tailOf(neu);          // the sentence now ends the way the AI wrote it
+            if (autoDot) autoDotTail = tailOf(neu);
         }
         spokenAll.setLength(0);
         if (neu.length() < 1200) spokenAll.append(neu);   // long talk: start a fresh stretch
@@ -4127,12 +4180,22 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         @Override public void run() {
             if (!listening || !stopDue || composing) return;
             stopDue = false;
-            try { autoDot = endSentence(); autoDotAt = System.currentTimeMillis(); } catch (Exception ex) { saveProblem(ex); }
+            try {
+                autoDot = endSentence();
+                autoDotAt = System.currentTimeMillis();
+                InputConnection ic = getCurrentInputConnection();
+                CharSequence tb = autoDot && ic != null ? ic.getTextBeforeCursor(12, 0) : null;
+                autoDotTail = tb == null ? "" : tb.toString();
+            } catch (Exception ex) { saveProblem(ex); }
         }
     };
 
     private boolean autoDot;      // the timer wrote a full stop by itself: it is taken away again if she carries on speaking soon
     private long autoDotAt;
+    private String autoDotTail = "";   // the end of the text right after that full stop was written: it is only taken away again from that very place
+    private String stopTail = "";      // the end of the sentence just spoken: its full stop is written only while the cursor still stands right after it
+
+    private static String tailOf(String s) { return s.length() > 12 ? s.substring(s.length() - 12) : s; }
 
     /** Writes the mark that fits the sentence just spoken (? for a question, ! for a cheer, a full stop otherwise), judged on the WHOLE sentence since the last mark. */
     private boolean endSentence() {
@@ -4142,6 +4205,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (b == null || b.length() == 0) return false;
         String t = b.toString();
         if (!Character.isLetterOrDigit(t.charAt(t.length() - 1))) return false;
+        // She tapped somewhere else in the text after speaking (for example into a word, to repair it): the mark must not be written there.
+        // It goes only at the end of the sentence just spoken, and never into the middle of a word.
+        CharSequence aft = ic.getTextAfterCursor(1, 0);
+        if (aft != null && aft.length() == 1 && Character.isLetterOrDigit(aft.charAt(0))) return false;
+        if (!stopTail.isEmpty() && !t.endsWith(stopTail)) return false;
         int from = 0;
         for (int i = t.length() - 1; i >= 0; i--) {
             char c = t.charAt(i);
@@ -4161,8 +4229,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (autoDot && System.currentTimeMillis() - autoDotAt < 15000) {
             // she carries on speaking: the full stop the timer wrote was only a pause to think, so it goes again
             InputConnection ic = getCurrentInputConnection();
-            CharSequence b = ic == null ? null : ic.getTextBeforeCursor(1, 0);
-            if (b != null && b.length() == 1 && ".?!\u0964".indexOf(b.charAt(0)) >= 0) {
+            CharSequence b = ic == null || autoDotTail.isEmpty() ? null : ic.getTextBeforeCursor(autoDotTail.length(), 0);
+            // only the mark the timer wrote goes, and only while the cursor still stands right after it (not a full stop somewhere else she moved to)
+            if (b != null && b.toString().equals(autoDotTail) && ".?!\u0964".indexOf(b.charAt(b.length() - 1)) >= 0) {
                 ic.deleteSurroundingText(1, 0);
                 int n = spokenAll.length();
                 if (n > 0 && ".?!\u0964".indexOf(spokenAll.charAt(n - 1)) >= 0) spokenAll.setLength(n - 1);
@@ -4236,6 +4305,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (stopDue) handler.postDelayed(writeStop, 3000);
                 ic.setComposingText(roundLead + said, 1);
                 spokenAll.append(roundLead).append(said);
+                stopTail = tailOf(roundLead + said);
+            } else if (composing) {
+                spokenAll.append(lastPartial);      // the round ended without a final text: what was shown while she spoke stays, and is counted as written
             }
             ic.finishComposingText();
         }
