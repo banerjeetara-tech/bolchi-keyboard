@@ -185,10 +185,8 @@ public class SetupActivity extends Activity {
         col.addView(saveKey);
 
         // test the AI key, and show which version is installed
-        final TextView testOut = text("Installed version: Bolchi " + BuildConfigInfo.version(this)
-                + "\nAuto-correct: " + (prefs.getBoolean("autoFix", true) ? "ON" : "OFF (hold the Auto key on the keyboard to turn it on)")
-                + (prefs.getString("fixWhy", "").isEmpty() ? "" : "\nLast word not corrected: " + prefs.getString("fixWhy", ""))
-                + (prefs.getString("nextWhy", "").isEmpty() ? "" : "\nNext-word guesses: " + prefs.getString("nextWhy", "")), 14, MUTED);
+        final TextView testOut = text(diagText(), 14, MUTED);
+        diagView = testOut;
         TextView testBtn = button("Test AI key");
         testBtn.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
@@ -363,7 +361,22 @@ public class SetupActivity extends Activity {
         refresh();
     }
 
+    private TextView diagView;
+
+    /** The "Installed version" block: version, Auto-correct, why the last word was not corrected, and what the next-word guesses did. Always shows the next-word line. */
+    private String diagText() {
+        SharedPreferences p = getSharedPreferences("bolchi", Context.MODE_PRIVATE);
+        String next = p.getString("nextWhy", "");
+        return "Installed version: Bolchi " + BuildConfigInfo.version(this)
+                + "\nAuto-correct: " + (p.getBoolean("autoFix", true) ? "ON" : "OFF (hold the Auto key on the keyboard to turn it on)")
+                + (p.getString("fixWhy", "").isEmpty() ? "" : "\nLast word not corrected: " + p.getString("fixWhy", ""))
+                + "\nNext-word guesses: " + (next.isEmpty()
+                    ? "nothing noted yet. Type a few words with spaces in any app (English keys), then open this app again. If this stays empty, the keyboard installed is older than version 120."
+                    : next);
+    }
+
     private void refresh() {
+        if (diagView != null && diagView.getText().toString().startsWith("Installed version")) diagView.setText(diagText());
         boolean mic = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
         micBtn.setText(mic ? "✓ Microphone allowed" : "Allow microphone");
         micBtn.setBackground(box(mic ? OK : ACCENT, 0, 12));

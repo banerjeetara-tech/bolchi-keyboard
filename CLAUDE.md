@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 120 = build-174** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 121 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -490,6 +490,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   chips (`writeNextWord`, same as tapping a guess). Also new: `Words.memoryStats` and `noteNextWhy` write pref `nextWhy` ("after “x” offered [...]" / why no row: no word before the cursor, box without word row, not the English keys, ...
   plus "N of M pairs and N of M phrases seen 2+ times"); the Bolchi app shows it under "Installed version" as "Next-word guesses: ...". If she says it still fails, ask for a screenshot of THAT line first.
   Other causes NOT ruled out: `onUpdateSelection` wiping `lastWord` after a slow app reports the cursor (> 400 ms after her key), the last word of a message sent with the app's Send button (never recorded: no space), Bangla / Hindi full script keys (no row).
+
+- Version 121 (Tara after build-174: "There is no next word guess tab" / "In app"): the "Next-word guesses" line of version 120 was missing in the Bolchi app. It was only added when pref `nextWhy` already had text, and the block was built once in
+  `onCreate` and never redrawn on return. Now `SetupActivity.diagText()` ALWAYS shows the line (empty = "nothing noted yet ... older than version 120") and `refresh()` (onResume) redraws it. If it stays empty after typing words with spaces on the
+  English keys, the keyboard in use is not 120+ (check the "Installed version" line) or `paintSugs` never reaches the next-word branch (`sugRow == null`). Not tested on a phone.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
