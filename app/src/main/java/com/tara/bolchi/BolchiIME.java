@@ -1007,17 +1007,20 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             slotFix[0] = true; slotFix[1] = true;
             bold = true;
             // a correction that is only OFFERED used to hide her usual next word: the right-hand place keeps it
-            if (Words.ready && !lastWord.isEmpty()) {
-                List<String> nxf = Words.nextAfter(lastWord, 1);
+            List<String> cwf = Words.ready ? nextContext() : new ArrayList<String>();
+            if (!cwf.isEmpty()) {
+                List<String> nxf = Words.nextAfterCtx(cwf, 1);
                 if (!nxf.isEmpty() && !nxf.get(0).equalsIgnoreCase(v[0]) && !nxf.get(0).equalsIgnoreCase(v[1])) { v[2] = nxf.get(0); slotNext[2] = true; }
             }
             noteNextWhy("a correction is showing: " + v[0] + " / " + v[1] + (slotNext[2] ? ", next word " + v[2] + " on the right" : ", no next word known after \u201C" + lastWord + "\u201D"));
         } else if (w.isEmpty() && !plainField && layout == 0 && Words.ready) {
             // after a space: the words she usually writes next
-            List<String> nx = Words.nextAfter(lastWord, 3);
+            List<String> cw = nextContext();
+            List<String> nx = cw.isEmpty() ? new ArrayList<String>() : Words.nextAfterCtx(cw, 3);
             int[] order = {1, 0, 2};
             for (int k = 0; k < nx.size() && k < 3; k++) { v[order[k]] = nx.get(k); slotNext[order[k]] = true; }
-            noteNextWhy(lastWord.isEmpty() ? "no word before the cursor is known" : "after \u201C" + lastWord + "\u201D " + (nx.isEmpty() ? "nothing seen twice yet" : "offered " + nx));
+            String tail = cw.size() > 3 ? "\u2026 " + join3(cw) : join3(cw);
+            noteNextWhy(cw.isEmpty() ? "no word before the cursor is known" : "after \u201C" + tail + "\u201D " + (nx.isEmpty() ? "nothing seen twice yet" : "offered " + nx));
         } else if (w.isEmpty()) {
             noteNextWhy(plainField ? "this box has no word row (email / number / search box)" : layout != 0 ? "typing layout is not the English keys" : !Words.ready ? "word list not loaded" : "a correction is showing instead");
         }
@@ -1195,6 +1198,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         maybeGifs(slotMoney || slotDate[2] || slotCalc[1] || uriBox || sugKeepsTyped || slotUndo[0] ? "" : ew);
     }
 
+    private static String join3(List<String> w) {
+        StringBuilder b = new StringBuilder();
+        for (int i = Math.max(0, w.size() - 3); i < w.size(); i++) { if (b.length() > 0) b.append(' '); b.append(w.get(i)); }
+        return b.toString();
+    }
+
     private String nextWhyLast = "";
 
     /** Why the next-word guesses showed or not, for the Bolchi app screen (written only when it changes). */
@@ -1219,7 +1228,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (val.equals("i")) out = "I";
         ic.commitText(shown(out + " "), 1);
         pickedSpace = true;
-        Words.record(lastWord, val);
+        learnFinished(ic, val);
         lastWord = val;
         if (++usageEdits >= 25) saveUsage();
         if (shift && !capsLock) { shift = false; updateShift(); }
@@ -1273,6 +1282,54 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (b == null) return false;
         String bs = b.toString();
         return bs.endsWith(sw) && (bs.length() == sw.length() || !Character.isLetter(bs.charAt(0)));
+    }
+
+    /**
+     * The words that stand right before the cursor in the SAME sentence (lower case, oldest first, at most 6), read from the text of the box itself. This is what the phrase memory
+     * learns from and looks up, so it does not depend on what the keyboard remembers about "the last word" (that is reset by cursor moves, a new box, taps...).
+     */
+    private List<String> contextWords(InputConnection ic) {
+        List<String> out = new ArrayList<>();
+        try {
+            if (ic == null) return out;
+            CharSequence b = ic.getTextBeforeCursor(160, 0);
+            if (b == null) return out;
+            String t = b.toString();
+            int cut = Math.max(Math.max(t.lastIndexOf('.'), t.lastIndexOf('!')), Math.max(t.lastIndexOf('?'), t.lastIndexOf('\n')));
+            if (cut >= 0) t = t.substring(cut + 1);
+            for (String x : t.split("[^\\p{L}\\p{M}']+")) {
+                String y = x.replaceAll("^'+|'+$", "");
+                if (!y.isEmpty()) out.add(y.toLowerCase(java.util.Locale.ROOT));
+            }
+            while (out.size() > 6) out.remove(0);
+        } catch (Throwable ignored) { /* a help only */ }
+        return out;
+    }
+
+    /** The context for the next-word guesses: the words in the text before the cursor when they can be read, else the word the keyboard remembers. */
+    private List<String> nextContext() {
+        List<String> c = fontOn() ? new ArrayList<String>() : contextWords(getCurrentInputConnection());
+        if (c.isEmpty() && !lastWord.isEmpty()) c.add(lastWord);
+        return c;
+    }
+
+    /** `finalWord` (one word, or two after a split like "thankyou") has just been written before the cursor: learn it with the words before it, read from the text. */
+    private void learnFinished(InputConnection ic, String finalWord) {
+        try {
+            String[] parts = finalWord.trim().split(" ");
+            String last = parts[parts.length - 1].toLowerCase(java.util.Locale.ROOT);
+            List<String> t = fontOn() ? new ArrayList<String>() : contextWords(ic);
+            if (t.size() >= parts.length && t.get(t.size() - 1).equals(last)) {
+                for (int i = t.size() - parts.length; i < t.size(); i++) {
+                    List<String> before = new ArrayList<>(t.subList(Math.max(0, i - 5), i));
+                    Words.learnPhrase(before, t.get(i));
+                }
+            } else {
+                String prev = lastWord;
+                for (String part : parts) { if (part.isEmpty()) continue; Words.record(prev, part); prev = part.toLowerCase(java.util.Locale.ROOT); }       // the text could not be read: the old way
+            }
+            lastWord = last;
+        } catch (Throwable ignored) { /* a help only */ }
     }
 
     /**
@@ -1379,7 +1436,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (val.equals("i")) out = "I";
             ic.commitText(shown(out + " "), 1);
             pickedSpace = true;
-            Words.record(lastWord, val);
+            learnFinished(ic, val);
             lastWord = val;
             if (++usageEdits >= 25) saveUsage();
             if (shift && !capsLock) { shift = false; updateShift(); }
@@ -1415,7 +1472,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.deleteSurroundingText(shown(w).length(), 0);
         ic.commitText(val.indexOf('@') >= 0 ? val + " " : shown(val + " "), 1);   // an email must stay exactly as saved
         ic.endBatchEdit();
-        if (!keep) { Words.record(lastWord, val); Words.record(lastWord, val); lastWord = val.toLowerCase(); if (++usageEdits >= 25) saveUsage(); }      // a tapped word is meant: it counts double
+        if (!keep) { learnFinished(ic, val); learnFinished(ic, val); lastWord = val.toLowerCase(); if (++usageEdits >= 25) saveUsage(); }      // a tapped word is meant: it counts double
         if (keep) keep(w);
         resetWord();
         pickedSpace = true;
@@ -1483,11 +1540,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 fixPrompt = true;
             }
             // count the word she wrote (the corrected one if it was fixed) and which word came before it
-            for (String part : finalWord.split(" ")) {          // "thankyou" became two words
-                if (part.isEmpty()) continue;
-                Words.record(lastWord, part);
-                lastWord = part.toLowerCase();
-            }
+            learnFinished(ic, finalWord);          // "thankyou" became two words: both are learned, with the words before them read from the text
             if (++usageEdits >= 25) saveUsage();
             // emoji and GIFs go by the RIGHT word, also when the correction was only offered and her text still holds the typed one
             justEnded = fixShownDone != null && w.equals(fixShownTyped) ? fixShownDone : finalWord;
@@ -2103,9 +2156,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                             gifBox.addView(ft, flp);
                         }
                     }
-                    if (word.length() == 0 && !plainField && !lastWord.isEmpty()) {
+                    if (word.length() == 0 && !plainField) {
                         // the word row is hidden by this row: her usual next words stay in it, first
-                        List<String> nxs = Words.nextAfter(lastWord, 3);
+                        List<String> cws = nextContext();
+                        List<String> nxs = cws.isEmpty() ? new ArrayList<String>() : Words.nextAfterCtx(cws, 3);
                         for (int c = 0; c < nxs.size(); c++) {
                             final String nw = nxs.get(c);
                             TextView nt = new TextView(BolchiIME.this);

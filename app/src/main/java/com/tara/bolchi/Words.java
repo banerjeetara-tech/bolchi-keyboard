@@ -80,6 +80,36 @@ public final class Words {
         link(prev, w);
     }
 
+    /**
+     * She finished `word`; `before` are the words that stand before it in the SAME sentence of her text (oldest first), read from the text itself.
+     * Counts the word, the pair, and every phrase of 2..MAXCTX words that ends right before it. Does not depend on what was recorded before.
+     */
+    public static void learnPhrase(List<String> before, String word) {
+        if (word == null) return;
+        String w = word.toLowerCase(Locale.ROOT);
+        boolean tiny = w.equals("i") || w.equals("a");
+        if ((w.length() < 2 && !tiny && !isScript(w)) || w.length() > 24) return;
+        synchronized (USE) {
+            if (!tiny && !isScript(w)) { Integer c = USE.get(w); USE.put(w, c == null ? 1 : c + 1); }
+            int n = before == null ? 0 : before.size();
+            if (n == 0) return;
+            String p = before.get(n - 1).toLowerCase(Locale.ROOT);
+            if (!(p.length() >= 2 || p.equals("i") || p.equals("a") || isScript(p))) return;
+            HashMap<String, Integer> m = NEXT.get(p);
+            if (m == null) { m = new HashMap<>(); NEXT.put(p, m); }
+            Integer pc = m.get(w);
+            m.put(w, pc == null ? 1 : pc + 1);
+            for (int k = 2; k <= Math.min(MAXCTX, n); k++) {
+                StringBuilder key = new StringBuilder();
+                for (int i = n - k; i < n; i++) { if (key.length() > 0) key.append(' '); key.append(before.get(i).toLowerCase(Locale.ROOT)); }
+                HashMap<String, Integer> pm = PHRASE.get(key.toString());
+                if (pm == null) { pm = new HashMap<>(); PHRASE.put(key.toString(), pm); }
+                Integer pn = pm.get(w);
+                pm.put(w, pn == null ? 1 : pn + 1);
+            }
+        }
+    }
+
     /** A word written in Bengali / Hindi letters (typed on the ab->Bangla / Hindi keys or spoken as script): only the pair and phrase memory, no word count. */
     public static void recordSeq(String prev, String word) {
         if (word == null) return;
@@ -309,15 +339,24 @@ public final class Words {
      * then what followed the last word alone (a pair seen twice), then everyday English.
      */
     public static List<String> nextAfter(String prev, int max) {
-        List<String> out = new ArrayList<>();
-        if (prev == null || prev.isEmpty()) return out;
-        prev = prev.toLowerCase(Locale.ROOT);
+        List<String> ctx = new ArrayList<>();
+        if (prev == null || prev.isEmpty()) return ctx;
+        String p = prev.toLowerCase(Locale.ROOT);
         synchronized (USE) {
-            // the longest phrase she used twice or more that ends with her last words comes first (up to 5 words back), then shorter ones, then the last word alone
-            if (!CHAIN.isEmpty() && CHAIN.get(CHAIN.size() - 1).equals(prev)) {
-                List<String> ctx = new ArrayList<>(CHAIN);
-                for (int k = ctx.size(); k >= 2 && out.size() < max; k--) addCounted(out, PHRASE.get(join(ctx.subList(ctx.size() - k, ctx.size()))), 2, max);
-            }
+            if (!CHAIN.isEmpty() && CHAIN.get(CHAIN.size() - 1).equals(p)) ctx.addAll(CHAIN); else ctx.add(p);
+        }
+        return nextAfterCtx(ctx, max);
+    }
+
+    /** Same, for the words that stand right before the cursor (read from her text, oldest first): the longest phrase seen twice or more comes first. */
+    public static List<String> nextAfterCtx(List<String> ctx, int max) {
+        List<String> out = new ArrayList<>();
+        if (ctx == null || ctx.isEmpty()) return out;
+        List<String> c = new ArrayList<>();
+        for (String x : ctx) c.add(x.toLowerCase(Locale.ROOT));
+        String prev = c.get(c.size() - 1);
+        synchronized (USE) {
+            for (int k = Math.min(MAXCTX, c.size()); k >= 2 && out.size() < max; k--) addCounted(out, PHRASE.get(join(c.subList(c.size() - k, c.size()))), 2, max);
             addCounted(out, NEXT.get(prev), 2, max);
         }
         String[] u = USUAL.get(prev);

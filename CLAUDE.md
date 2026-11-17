@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 122 = build-178** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 123 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -503,6 +503,14 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   - a correction that was only OFFERED (very common between Banglish words: "cheye", "dekhi" have near dictionary words) filled the two left places and hid the next-word guess: the right-hand place now keeps the best next word
     (`slotNext[2]`), and the GIF row shows next-word chips after the correction chips too.
   Still open: ask for the Bolchi app screenshot again AFTER typing the sentence in a chat box (the line now says which app, when, and what it offered).
+
+- Version 123 (Tara, screenshot on build-178 / version 122, WhatsApp 23:06: "Next-word guesses: [com.whatsapp 23:06] after “rakam” nothing seen twice yet | memory: 94 of 133 pairs and 1 of 111 phrases seen 2+ times"; "Still same"). The keyboard WAS running
+  and learning in WhatsApp, but after a whole evening of the same sentence only 1 phrase had reached 2 uses (pairs 91 -> 94 seen 2+, phrases 1 -> 1): the phrase chain kept in memory (`CHAIN` / `lastWord`) is broken by too many things
+  (cursor-move updates, new box, tapped suggestions, ★ save, restarts) and could not be traced without a phone. So the memory no longer depends on it: `contextWords(ic)` reads the words before the cursor FROM THE TEXT (same sentence, up to 6),
+  `learnFinished` teaches `Words.learnPhrase(before, word)` (pair + every phrase of 2..5 words) after every finished word (`endWord`, `pickSug`, `writeNextWord`), and the guesses are looked up with `Words.nextAfterCtx(contextWords)`
+  (`nextContext()` in `paintSugs`, the correction row and the GIF row). `Words.record` / `CHAIN` remain only as the fallback when an app will not give the text. PC test with the real tokenising: once = nothing; twice = "Ami " -> cheye,
+  "Ami cheye " -> cheye / dekhi, "Ami cheye cheye " -> dekhi, "...dekhi " -> saradin; also after the cursor is moved into older text and after a restart (export / import). Not tested on a phone.
+  Also seen in her screenshot: "Last word not corrected: “nit” → not: rare real word" (a rare dictionary word is only offered, by design).
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
