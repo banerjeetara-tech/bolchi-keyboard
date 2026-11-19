@@ -68,6 +68,11 @@ import java.util.List;
 public class BolchiIME extends InputMethodService implements RecognitionListener {
 
     private static final int MODE_BN = 0, MODE_HI = 1, MODE_EN = 2;
+    /** Chat apps where the keyboard starts on Bangla (Banglish speaking, Bangla typing keys); every other app starts on English. */
+    private static final java.util.Set<String> CHAT_APPS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "com.whatsapp", "com.whatsapp.w4b", "org.telegram.messenger", "org.telegram.messenger.web", "org.thoughtcrime.securesms",
+            "com.facebook.orca", "com.facebook.mlite", "com.instagram.android", "com.snapchat.android", "com.google.android.apps.messaging",
+            "com.samsung.android.messaging", "com.android.mms", "com.viber.voip", "jp.naver.line.android", "com.imo.android.imoim", "com.truecaller"));
     private static final String[] MODE_LABEL = {"Bangla", "Hindi", "English"};
     private static final String[] MODE_LANG = {"bn-IN", "hi-IN", "en-IN"};
 
@@ -3977,13 +3982,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (!restarting) desiRecent = 0;       // a new box starts fresh: Banglish typed in the last chat must not hold back corrections here
         final String prevApp = curApp;
         curApp = info == null || info.packageName == null ? "" : info.packageName;
-        // version 140 (Tara: "make this setting default"): in a different app the keyboard starts on the Bangla chip and Speak writes Banglish
-        // (Bengali in English letters, English words in English). Inside the same app her last choice stays, so it does not flip while she chats.
+        // version 140 (Tara: "make this setting default ... for speaking or writing", then "WhatsApp like this, but apps like Google and email should be English by default"):
+        // in a DIFFERENT app than the last one the keyboard starts on Bangla (Banglish speaking, Bangla typing keys) in chat apps like WhatsApp, and on English (English keys, English speaking)
+        // everywhere else. Inside the same app her last choice stays, so it does not flip while she chats.
         if (!restarting && !listening && !curApp.equals(prevApp)) {
-            if (mode != MODE_BN) { mode = MODE_BN; prefs().edit().putInt("mode", MODE_BN).apply(); }
-            if (voiceScript[0]) { voiceScript[0] = false; prefs().edit().putBoolean("bnScript", false).apply(); }
+            boolean chat = CHAT_APPS.contains(curApp);
+            int want = chat ? MODE_BN : MODE_EN;
+            if (mode != want) { mode = want; prefs().edit().putInt("mode", want).apply(); }
+            if (chat && voiceScript[0]) { voiceScript[0] = false; prefs().edit().putBoolean("bnScript", false).apply(); }
             paintChips();
-            setLayoutTo(layout == 3 ? 3 : 1);     // writing too: Bangla typing keys (English letters in, Bangla words out); the full Bengali keys stay if she chose them
+            setLayoutTo(chat ? (layout == 3 ? 3 : 1) : 0);
         }
         lastWord = "";
         justEnded = "";
