@@ -658,7 +658,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             c.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     tick(v);
-                    if (m == mode && m != MODE_EN) toggleVoiceScript(); else setMode(m);
+                    if (m == mode && m != MODE_EN) toggleVoiceScript();
+                    else {
+                        setMode(m);
+                        if (m != MODE_EN) flashSpace(m == MODE_BN ? (voiceScript[0] ? "Speak writes \u09ac\u09be\u0982\u09b2\u09be letters. Tap again for Banglish" : "Speak writes Banglish. Tap Bangla again for \u09ac\u09be\u0982\u09b2\u09be letters")
+                                : (voiceScript[1] ? "Speak writes \u0939\u093f\u0902\u0926\u0940 letters. Tap again for Hinglish" : "Speak writes Hinglish. Tap Hindi again for \u0939\u093f\u0902\u0926\u0940 letters"));
+                    }
                 }
             });
             chips.add(c);
@@ -3865,6 +3870,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         cands = new ArrayList<>();
         word.setLength(0);
         fixTyped = null;
+        voiceScript[0] = prefs().getBoolean("bnScript", false);          // may have been changed in the Bolchi app
+        voiceScript[1] = prefs().getBoolean("hiScript", false);
+        paintChips();
         if (!restarting) desiRecent = 0;       // a new box starts fresh: Banglish typed in the last chat must not hold back corrections here
         curApp = info == null || info.packageName == null ? "" : info.packageName;
         lastWord = "";

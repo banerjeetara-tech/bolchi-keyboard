@@ -68,7 +68,8 @@ final class Converter {
                         + lang + "&q=" + q).openConnection();
                 c.setConnectTimeout(5000);
                 c.setReadTimeout(8000);
-                if (c.getResponseCode() != 200) { last = new UserMessage("Google Translate didn't answer"); continue; }
+                int rc = c.getResponseCode();
+                if (rc != 200) { last = new UserMessage("Google Translate didn't answer (" + rc + " from " + h.replace("https://", "") + ")"); continue; }
                 JSONArray j = new JSONArray(read(c.getInputStream()));
                 JSONArray parts = j.getJSONArray(0);
                 StringBuilder b = new StringBuilder();
@@ -77,7 +78,7 @@ final class Converter {
                     if (p != null && !p.isNull(0)) b.append(p.getString(0));
                 }
                 if (b.length() > 0) return b.toString().trim();
-            } catch (Exception e) { last = e; }
+            } catch (Exception e) { last = new UserMessage("Google Translate: " + e.getClass().getSimpleName() + " from " + h.replace("https://", "")); }
         }
         throw last != null ? last : new UserMessage("Google Translate didn't answer");
     }
@@ -91,7 +92,10 @@ final class Converter {
             String script = romanToScript(text, hindi);
             return googleTranslate(script, hindi ? "hi" : "bn");
         } catch (Exception e) {
-            if (key != null && !key.trim().isEmpty()) return translate(text, key);
+            if (key != null && !key.trim().isEmpty()) {
+                try { return translate(text, key); }
+                catch (UserMessage um2) { throw new UserMessage((e.getMessage() == null ? "Google Translate failed" : e.getMessage()) + ". AI: " + um2.getMessage()); }
+            }
             throw e;
         }
     }
@@ -248,8 +252,10 @@ final class Converter {
                 try { Thread.sleep(400); } catch (InterruptedException ie) { break; }
             }
         }
+        String why = lastDetail == null ? "" : lastDetail.replace('\n', ' ');
+        if (why.length() > 140) why = why.substring(0, 140);
         if (busyCode == 429) throw new UserMessage("Free AI limit reached for now. Try again in a minute");
-        if (busyCode != 0) throw new UserMessage("Google's AI is busy right now (" + busyCode + "), every model was tried. Try again in a minute");
+        if (busyCode != 0) throw new UserMessage("Google's AI is busy right now (" + busyCode + "), every model was tried. Try again in a minute. " + why);
         throw new UserMessage("The AI model is not available. Try again later");
     }
 

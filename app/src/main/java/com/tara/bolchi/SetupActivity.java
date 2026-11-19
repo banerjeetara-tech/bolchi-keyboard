@@ -216,6 +216,23 @@ public class SetupActivity extends Activity {
         });
         col.addView(mixBtn);
 
+        // what speaking writes on the Bangla / Hindi tabs: Banglish / Hinglish (English letters) or Bengali / Hindi letters
+        final TextView bnOut = button("");
+        final TextView hiOut = button("");
+        final Runnable paintOut = new Runnable() { @Override public void run() {
+            bnOut.setText("Speak on Bangla writes: " + (prefs.getBoolean("bnScript", false) ? "\u09ac\u09be\u0982\u09b2\u09be letters" : "Banglish (English letters)") + "  (tap to change)");
+            hiOut.setText("Speak on Hindi writes: " + (prefs.getBoolean("hiScript", false) ? "\u0939\u093f\u0902\u0926\u0940 letters" : "Hinglish (English letters)") + "  (tap to change)");
+        } };
+        paintOut.run();
+        bnOut.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { prefs.edit().putBoolean("bnScript", !prefs.getBoolean("bnScript", false)).apply(); paintOut.run(); }
+        });
+        hiOut.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { prefs.edit().putBoolean("hiScript", !prefs.getBoolean("hiScript", false)).apply(); paintOut.run(); }
+        });
+        col.addView(bnOut);
+        col.addView(hiOut);
+
         // where a tap lands: the thumb presses lower than it aims, so taps are moved up a little (the keys keep their size). Auto = measured from her own taps.
         final String[] touchNames = {"Auto (learns from your taps)", "Normal", "A little higher", "Higher", "Much higher"};
         final int[] touchDp = {-1, 0, 5, 8, 11};

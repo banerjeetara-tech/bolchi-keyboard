@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 126 = build-186** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 127 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -526,6 +526,13 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   if all fail the message says "Google's AI is busy right now (code), every model was tried". Voice does not use Gemini (Android `SpeechRecognizer` + Google's voice service), so it cannot be fixed by the same change: `onError` now writes pref `voiceWhy`
   ("[HH:mm] network error (code 2), Bangla") and the Bolchi app shows it as "Last voice error"; the message on the space bar names the code (ERROR_SERVER 4 is no longer called "needs internet"). If Speak fails while the AI works, ask for that line:
   codes 1 / 2 / 11 = phone to Google network problem (try mobile data / Wi-Fi, Google app voice settings), 4 = Google's server, 9 = mic permission, 12 / 13 = language not installed. Not tested on a phone.
+
+- Version 127 (Tara, 19 Nov 21:45-21:47, two screenshots on version 126: "Translate to English" -> "Google's AI is busy right now (503), every model was tried"; the keyboard on the বাং letter keys with the English chip dark; her words: "if I'm speaking and want it converted into Bengali word in Bengali
+  letters then it's not happening; check the first screenshot, still not happening"). (1) "Translate to English" is `translateFree`: FREE Google Translate first, the AI only as fallback, so BOTH failed: Google Translate (translate.google.com / translate.googleapis.com, answer or error unknown) and
+  Gemini (503 from all four models), while the phone is online and `inputtools` works: something between her phone and Google's translate / AI hosts (a Wi-Fi / DNS / VPN filter, a data-saver rule for the Bolchi app, or a real Google outage). Messages now carry the facts: Google Translate's HTTP code or exception and host,
+  the AI's code and the first 140 characters of Google's answer (`lastDetail`), joined in one message. The Bolchi app "Test AI key" shows the full answer. Ask her for that result / the "Last voice error" line before changing anything else. (2) Speaking Bengali in Bengali LETTERS already existed but was hidden:
+  select Bangla, then tap the Bangla chip AGAIN (`toggleVoiceScript`; the chip then reads বাংলা). It was not found (and with the English chip dark Speak listens in English). Now: tapping Bangla / Hindi shows on the space bar what Speak will write and how to switch;
+  the Bolchi app has two buttons "Speak on Bangla / Hindi writes: Banglish | বাংলা letters"; the keyboard re-reads the choice when a box opens. Not tested on a phone.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
