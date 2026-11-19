@@ -577,6 +577,13 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Released as build-201 (19 Nov). Tara then said Cerebras and Mistral both ask for a credit balance. Web check (Nov 2026): Cerebras has no standing free tier any more (a payment method buys a $5 trial credit that expires in 30 days);
   Mistral's free plan needs only a verified phone number but may be asking her for billing in its new console. Do not push these two keys; Groq + the on-phone translator + Gemini + Pollinations are enough. Only other no-card idea: Cloudflare Workers AI (needs account id + token, not built).
 
+- Version 133 (Tara, 20 Nov 00:00, screenshot of "Compare translators" on build-201): sentence 1 (en to bn): phone 91 ms good, Groq 1.9 s good; sentence 2 (Hindi to bn): phone 120 ms "a report" (wrong shade), Groq 0.6 s right ("by tomorrow morning");
+  sentence 3 (bn to en): phone 61 ms "Due to the fact that" (WRONG), Groq 0.7 s right, MyMemory ok, Pollinations 402 (1 reply per 45 s per IP). Her words: the instant answer followed by an AI answer means she has to judge which is best every time.
+  Decision: ONE answer, AI first. `translateChain` = AI services (Groq first) -> keyless doors -> phone -> MyMemory. The translator on the phone is only the safety net: `runConversion` waits 6 s for the AI and then shows the phone answer
+  once ("on your phone (the AI was slow)", never swapped again, `answered` flag). The "instant, then improved by AI" flow of 132 is gone. Cloudflare Workers AI was CHECKED (she asked "check whether it is worthy first") and NOT added: free 10,000 neurons/day (about 700 translations),
+  but Llama 3.3 70B does not officially support Bengali, Cloudflare's July 2026 changelog says some models now need the paid plan (could not open the page from Claude's workspace to see which), the no-card claim is unverified, and setup needs an account id AND a token.
+  Better Indic models there (IndicTrans2, only English to Indic) use a different API. Add it only if Groq starts failing for her. Cerebras now needs a card; Mistral's free plan wants phone verification.
+
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
   - The row that points at a doubtful word after speaking (version 104) was wiped the moment it appeared: the dictation's own text update reached `onUpdateSelection` as

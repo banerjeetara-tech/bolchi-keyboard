@@ -3279,15 +3279,22 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final String plainSrc = FontStyles.plain(src);                    // the AI and Google get real letters, never the styled look-alikes
         final int found = FontStyles.detect(src);
         final int keepStyle = found >= 0 ? found : (fontOn() ? typeStyle : -1);
+        final java.util.concurrent.atomic.AtomicBoolean answered = new java.util.concurrent.atomic.AtomicBoolean(false);
         new Thread(new Runnable() { @Override public void run() {
             String out;
-            // translating: the translator ON the phone answers at once (about 0.1 s); the AI services then try to do it better and, if they do, the answer is replaced
-            String fast = null;
+            // translating (version 133): ONE answer, from the AI (fast Groq first). Only when the AI has not answered after 6 s the translator on the phone answers instead
+            // (it is the safety net: slightly less accurate), and then the answer is never swapped again.
+            final boolean phoneFirst = true;
             if (opt == 0 || opt == 7 || opt == 13 || (opt == 1 && Converter.hasDevanagari(plainSrc))) {
-                fast = Converter.phoneTranslate(plainSrc, opt == 0 ? "en" : opt == 7 ? "hi" : "bn");
-                if (fast != null) { convNote = "instant, on your phone \u00B7 AI is checking\u2026"; showResult(job, fast); }
+                final String to = opt == 0 ? "en" : opt == 7 ? "hi" : "bn";
+                handler.postDelayed(new Runnable() { @Override public void run() {
+                    if (answered.get()) return;
+                    new Thread(new Runnable() { @Override public void run() {
+                        String f = Converter.phoneTranslate(plainSrc, to);
+                        if (f != null && answered.compareAndSet(false, true)) { convNote = "on your phone (the AI was slow)"; showResult(job, f); }
+                    } }).start();
+                } }, 6000);
             }
-            final boolean phoneFirst = fast == null;
             try {
                 if (opt == 0) out = Converter.translateFree(plainSrc, mode, key, phoneFirst);
                 else if (opt == 1) out = Converter.hasDevanagari(plainSrc) ? Converter.translateToBengali(plainSrc, key, phoneFirst) : Converter.romanToScript(plainSrc, false);     // Hindi letters cannot be "converted": they are translated
@@ -3319,12 +3326,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 saveProblem(e);
                 out = "\u26A0 Something went wrong (" + e.getClass().getSimpleName() + "). Tap Try again";
             }
-            if (fast != null) {
-                // the instant answer is already on the screen: replace it only when the AI gave a real, different answer
-                if (out != null && !out.startsWith("\u26A0") && !out.trim().equals(fast.trim())) { convNote = "improved by AI \u2728"; showResult(job, out); }
-                else { convNote = "on your phone"; showResult(job, fast); }
-                return;
-            }
+            if (!answered.compareAndSet(false, true)) return;          // the phone translator already answered because the AI was slow: keep that answer
             showResult(job, out);
         } }).start();
     }

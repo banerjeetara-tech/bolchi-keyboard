@@ -101,17 +101,12 @@ final class Converter {
      */
     private static String translateChain(String text, String from, String to, String prompt, String key, boolean useDoors, boolean phone) throws Exception {
         StringBuilder why = new StringBuilder();
-        // the translator ON the phone comes first when its languages are downloaded: instant, free, no limit, no internet. She prefers it to the AI services.
-        if (phone && (useDoors || hasScript(text))) {
-            try {
-                String r = offlineTranslate(text, to);
-                if (r != null && !r.trim().isEmpty() && !r.trim().equals(text.trim())) return r;
-            } catch (Throwable ignored) { /* not downloaded yet, or not possible: the online services follow */ }
-        }
+        // Version 133: the AI services come FIRST (her comparison: Groq right on all 3 sentences in 0.6-1.9 s, the phone translator wrong on one: "Due to the fact that").
+        // The translator on the phone is the safety net (no internet / every service failed), see below and `BolchiIME.runConversion`.
+        try { return gemini(key, prompt, text); } catch (Exception e) { why.append(shortAi(e)).append(" "); }
         if (useDoors) {
             try { return translateDoors(text, from, to); } catch (Exception e) { why.append(shortAi(e)).append(" "); }
         }
-        try { return gemini(key, prompt, text); } catch (Exception e) { why.append(shortAi(e)).append(" "); }
         try { return offlineTranslate(text, to); } catch (Throwable e) { why.append("On the phone: ").append(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()).append(". "); }
         try { return myMemoryAuto(text, to); } catch (Exception e) { why.append("MyMemory: ").append(shortWhy(e)); }
         throw new UserMessage(why.toString().trim());
@@ -462,7 +457,7 @@ final class Converter {
 
     /** A service that speaks the common "chat completions" format. Keyless ones have a fixed key. `listUrl` = where it names its models (null: fixed names). */
     private static final class Prov {
-        final String name, chatUrl, listUrl; final String[] prefer, fallback; final boolean freeOnly;
+        final String name, listUrl; volatile String chatUrl; final String[] prefer, fallback; final boolean freeOnly;
         volatile String key = ""; volatile String[] picked; volatile long pickedAt;
         Prov(String n, String base, String list, String[] prefer, String[] fallback, boolean freeOnly) {
             name = n; chatUrl = base; listUrl = list; this.prefer = prefer; this.fallback = fallback; this.freeOnly = freeOnly;

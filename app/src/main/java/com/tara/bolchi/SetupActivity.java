@@ -190,7 +190,7 @@ public class SetupActivity extends Activity {
                 + "Mistral: console.mistral.ai \u2192 API Keys. OpenRouter: openrouter.ai \u2192 Keys. Any one is enough; paste, then tap Save. "
                 + "Without any key Bolchi still tries free services that need none.", 14, MUTED));
         final String[][] links = {{"Open the Groq key page", "https://console.groq.com/keys"}, {"Open the Cerebras key page", "https://cloud.cerebras.ai/platform"},
-                {"Open the Mistral key page", "https://console.mistral.ai/api-keys"}, {"Open the OpenRouter key page", "https://openrouter.ai/keys"}};
+                {"Open the Mistral key page", "https://console.mistral.ai/api-keys"}, {"Open the OpenRouter key page", "https://openrouter.ai/keys"},};
         for (final String[] lk : links) {
             TextView lb = button(lk[0]);
             lb.setOnClickListener(new View.OnClickListener() {
@@ -201,10 +201,10 @@ public class SetupActivity extends Activity {
             });
             col.addView(lb);
         }
-        final String[] hints = {"Groq key (starts with gsk_)", "Cerebras key (starts with csk-)", "Mistral key", "OpenRouter key (starts with sk-or-)"};
+        final String[] hints = {"Groq key (starts with gsk_)", "Cerebras key (starts with csk-)", "Mistral key", "OpenRouter key (starts with sk-or-)",};
         final String[] prefNames = {"groqKey", "cerebrasKey", "mistralKey", "openrouterKey"};
-        final EditText[] boxes = new EditText[4];
-        for (int bi = 0; bi < 4; bi++) {
+        final EditText[] boxes = new EditText[prefNames.length];
+        for (int bi = 0; bi < prefNames.length; bi++) {
             EditText b = new EditText(this);
             boxes[bi] = b;
             b.setHint(hints[bi]);
@@ -219,7 +219,7 @@ public class SetupActivity extends Activity {
         }
         final Runnable saveBackups = new Runnable() { @Override public void run() {
             SharedPreferences.Editor ed = prefs.edit();
-            for (int i = 0; i < 4; i++) ed.putString(prefNames[i], boxes[i].getText().toString().trim());
+            for (int i = 0; i < prefNames.length; i++) ed.putString(prefNames[i], boxes[i].getText().toString().trim());
             ed.apply();
             Converter.useExtraKeys(prefs);
         } };
