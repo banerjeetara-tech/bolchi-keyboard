@@ -72,7 +72,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private static final String[] MODE_LANG = {"bn-IN", "hi-IN", "en-IN"};
 
     private static final int PAGE_ABC = 0, PAGE_SYM1 = 1, PAGE_SYM2 = 2, PAGE_EMOJI = 3, PAGE_CONVERT = 4, PAGE_THEMES = 5;
-    private static final String[] CONV_NAMES = {"Translate to English", "To Bangla script", "To English letters", "Units and currency", "Fix my grammar", "Rewrite it better", "To Hindi script", "Translate to Hindi", "Bold", "Italic", "Bold italic", "Font style", "Change tone"};
+    private static final String[] CONV_NAMES = {"Translate to English", "To Bangla script", "To English letters", "Units and currency", "Fix my grammar", "Rewrite it better", "To Hindi script", "Translate to Hindi", "Bold", "Italic", "Bold italic", "Font style", "Change tone", "Translate to Bengali"};
 
     private static final String NUMBERS = "1 2 3 4 5 6 7 8 9 0";
     private static final String[] LETTERS = {"q w e r t y u i o p", "a s d f g h j k l", "z x c v b n m"};
@@ -3040,7 +3040,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final String src = currentText(isSel).trim();
 
         // small tabs, four to a row, in a sensible order (two rows, shorter than before)
-        final int[][] ORDER = {{0, 7, 1, 6, 2}, {3, 4, 5, 12}, {8, 9, 10, 11}};   // languages, then help with the message, then fonts
+        final int[][] ORDER = {{0, 7, 13, 1, 6, 2}, {3, 4, 5, 12}, {8, 9, 10, 11}};   // languages, then help with the message, then fonts
         for (int rIdx = 0; rIdx < 3; rIdx++) {
             LinearLayout r = row();
             for (int c = 0; c < ORDER[rIdx].length; c++) {
@@ -3267,7 +3267,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             String out;
             try {
                 if (opt == 0) out = Converter.translateFree(plainSrc, mode, key);
-                else if (opt == 1) out = Converter.romanToScript(plainSrc, false);
+                else if (opt == 1) out = Converter.hasDevanagari(plainSrc) ? Converter.translateToBengali(plainSrc, key) : Converter.romanToScript(plainSrc, false);     // Hindi letters cannot be "converted": they are translated
+                else if (opt == 13) out = Converter.translateToBengali(plainSrc, key);
                 else if (opt == 4 || opt == 5) {
                     out = Converter.polish(plainSrc, key, opt == 5);
                     if (keepStyle >= 0) out = FontStyles.apply(keepStyle, out);    // her font stays after the grammar fix / rewrite

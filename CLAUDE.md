@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 124 = build-182** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 125 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -515,6 +515,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Version 124 (Tara sent only a screenshot of the Bolchi app on version 123, WhatsApp 23:21: "after “gach” nothing seen twice yet | memory: 94 of 136 pairs and 1 of 114 phrases seen 2+ times"). Reading: since the 23:06 screenshot (version 122) pairs went 133 -> 136 and phrases
   111 -> 114 while the "seen 2+" counts did not move at all: that is ONE short sentence typed ONCE (3 pairs + 3 phrases), i.e. the new text-based learning (version 123) works, and no sentence has been repeated yet on 123. To remove the guessing the Bolchi app now also
   shows "Learned lately (words before > word)": the last 8 words learned and the words the keyboard read before each (`noteLearned`, pref `learnLog`). Next step: ask her to type the SAME sentence twice on 124 in a chat box, then screenshot that block.
+
+- Version 125 (Tara, 19 Nov, screenshot of the converter in WhatsApp with Hindi-script text, "To Bangla script" selected: "I have asked to translate in bengali but its giving Hindi"): "To Bangla script" (option 1) only converts words written in ENGLISH LETTERS (`Converter.romanToScript`,
+  its regex sees Latin words only), so Hindi (Devanagari) text came back unchanged, and there was NO "Translate to Bengali" tab (only English and Hindi). Now: new tab "Translate to Bengali" (option 13, `CONV_NAMES`, first row {0, 7, 13, 1, 6, 2}) = `Converter.translateToBengali`
+  (Google Translate auto -> bn; Banglish in English letters, which Google leaves unchanged, is only written in Bengali letters via `romanToScript`; the AI is the last fallback); and "To Bangla script" given Devanagari text now translates to Bengali instead of echoing it
+  (`Converter.hasDevanagari`). Not tested on a phone (Google Translate cannot be reached from Claude's workspace). Her dictation screenshots also show the bolchi-keyboard.apk link and "All fixed _ memory & capital" sent to a contact: nothing to act on.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:

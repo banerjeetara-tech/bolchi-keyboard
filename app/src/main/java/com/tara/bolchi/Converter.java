@@ -96,6 +96,38 @@ final class Converter {
         }
     }
 
+    static boolean hasDevanagari(String s) {
+        for (int i = 0; i < s.length(); i++) { char c = s.charAt(i); if (c >= '\u0900' && c <= '\u097F') return true; }
+        return false;
+    }
+
+    private static boolean hasBengali(String s) {
+        for (int i = 0; i < s.length(); i++) { char c = s.charAt(i); if (c >= '\u0980' && c <= '\u09FF') return true; }
+        return false;
+    }
+
+    /**
+     * Translate into Bengali (Bengali script). Google Translate first (English, Hindi script, Bengali script all work). Banglish typed in English letters is
+     * ALREADY Bengali, so when Google leaves it unchanged it is only written in Bengali letters (`romanToScript`); the AI is the last fallback if a key is saved.
+     */
+    static String translateToBengali(String text, String key) throws Exception {
+        try {
+            String out = googleTranslateTo(text, "auto", "bn");
+            if (hasBengali(out)) return out;
+            if (!hasScript(text)) return romanToScript(text, false);       // Banglish: only the letters change
+            return out;
+        } catch (Exception e) {
+            if (key != null && !key.trim().isEmpty()) {
+                return gemini(key,
+                        "Translate the user's message into natural, simple Bengali written in Bengali script. The message may be English, Hindi "
+                                + "(Devanagari), or Bengali or Hindi in English letters. Keep names, numbers, emojis and links as they are. "
+                                + "Reply with only the translation, nothing else.", text);
+            }
+            if (!hasScript(text)) return romanToScript(text, false);
+            throw e;
+        }
+    }
+
     /** Translate into Hindi (Devanagari). Google Translate first, the AI only if that fails and a key is saved. */
     static String translateToHindi(String text, String key) throws Exception {
         try {
