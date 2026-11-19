@@ -29,7 +29,9 @@ final class Themes {
             "Blush & Navy", "Pistachio & Plum", "Mint, Peach & Lemon", "Rose, Sky & Cream", "Lavender, Mint & Blush", "Sky, Lemon & Rose", "Peach, Lilac & Mint", "Seafoam, Butter & Coral", "Lilac, Sky & Lemon", "Cream, Sage & Rose",
             "Clear Rose & Sky", "Clear Mint & Lilac", "Clear Lemon & Sky", "Clear Peach & Teal", "Clear Lavender & Aqua", "Clear Sage & Cream", "Clear Coral & Ice", "Clear Blush & Gold", "Clear Ocean & Foam", "Clear Plum & Pearl", "Clear Rose, Sky & Lemon", "Clear Mint, Lilac & Peach", "Clear Peach, Teal & Butter", "Clear Lavender, Aqua & Rose", "Clear Sage, Cream & Coral", "Clear Ocean, Mint & Gold", "Clear Blush, Lilac & Sky", "Clear Lemon, Pistachio & Plum", "Clear Coral, Lavender & Mint", "Clear Pearl, Sky & Rose", "Clear Rose, Sky, Lemon & Mint", "Clear Mint, Lilac, Peach & Sky", "Clear Peach, Teal, Butter & Rose", "Clear Lavender, Aqua, Rose & Lemon", "Clear Sage, Cream, Coral & Sky", "Clear Ocean, Mint, Gold & Lilac", "Clear Blush, Lilac, Sky & Lemon", "Clear Lemon, Pistachio, Plum & Rose", "Clear Coral, Lavender, Mint & Sky", "Clear Pearl, Sky, Rose & Mint",
             // colour packs (version 115): letter keys in their own colour on a coloured background; "Two:" = 2 colours, "Three:" = 3 colours
-            "Two: Teal & Cream", "Two: Rose & Mint", "Two: Sky & Butter", "Two: Lavender & Peach", "Two: Sage & Blush", "Two: Peach & Aqua", "Two: Lilac & Butter", "Two: Mint & Blush", "Two: Sand & Sky", "Two: Coral & Cream", "Two: Aqua & Rose", "Two: Butter & Lavender", "Three: Teal, Butter & Coral", "Three: Lavender, Mint & Peach", "Three: Sky, Blush & Butter", "Three: Rose, Cream & Aqua", "Three: Sage, Lilac & Butter", "Three: Coral, Aqua & Cream", "Three: Mint, Lilac & Peach", "Three: Butter, Sky & Rose", "Three: Lilac, Mint & Butter", "Three: Aqua, Peach & Lavender", "Three: Blush, Sage & Sky", "Three: Sand, Aqua & Lilac"};
+            "Two: Teal & Cream", "Two: Rose & Mint", "Two: Sky & Butter", "Two: Lavender & Peach", "Two: Sage & Blush", "Two: Peach & Aqua", "Two: Lilac & Butter", "Two: Mint & Blush", "Two: Sand & Sky", "Two: Coral & Cream", "Two: Aqua & Rose", "Two: Butter & Lavender", "Three: Teal, Butter & Coral", "Three: Lavender, Mint & Peach", "Three: Sky, Blush & Butter", "Three: Rose, Cream & Aqua", "Three: Sage, Lilac & Butter", "Three: Coral, Aqua & Cream", "Three: Mint, Lilac & Peach", "Three: Butter, Sky & Rose", "Three: Lilac, Mint & Butter", "Three: Aqua, Peach & Lavender", "Three: Blush, Sage & Sky", "Three: Sand, Aqua & Lilac",
+            // bold frames (version 137): a strong colour around light keys, each with its own side-key, number-row and button colour
+            "Marigold Frame", "Teal Lagoon", "Coral Pop", "Royal & Cream", "Berry Fizz", "Emerald & Ivory", "Violet Dusk", "Chilli & Sand", "Lime Zest", "Ocean & Orange", "Rust & Teal", "Grape & Lime", "Pink & Olive", "Slate & Peach", "Saffron & Indigo", "Kolkata Taxi", "Laal Paar (Red & White)"};
 
     /** The list of the earlier build (43 themes), only to keep the theme she already picked when the list changes. */
     static final String[] OLD = {
@@ -215,7 +217,24 @@ final class Themes {
             {"#E1CDF0", "#DCF2EA", "#F5DB83", "#23192B", "#583E6C", "#8961A8", "#F9E8AF"},
             {"#AEE7ED", "#FDECE4", "#B69FEB", "#09262A", "#166068", "#2296A2", "#D0C1F2"},
             {"#FAD3D8", "#EBF0E8", "#7FC1F0", "#301C1E", "#79454C", "#BD6C77", "#ACD7F5"},
-            {"#EADDC7", "#DDF5F7", "#CCAAE6", "#282115", "#645336", "#9D8153", "#DEC8EF"}};
+            {"#EADDC7", "#DDF5F7", "#CCAAE6", "#282115", "#645336", "#9D8153", "#DEC8EF"},
+            {"#F2A900", "#FFF8E6", "#FFE08A", "#3B2A00", "#7A5F10", "#C2410C", "#FFD966"},
+            {"#0F8B8D", "#F1FAF9", "#BFE8E6", "#06302F", "#2F6F6D", "#E4572E", "#D8F3F1"},
+            {"#F26B5B", "#FFF4F1", "#FFD0C8", "#4A1410", "#8F4338", "#1B6CA8", "#FFE3DE"},
+            {"#2F5BD3", "#FFF9EC", "#CAD7FA", "#0F1F55", "#44559A", "#F2A900", "#FFEFC7"},
+            {"#B5305F", "#FFF1F5", "#F7C3D5", "#4A0F25", "#8C3A58", "#0E8C7D", "#FFD9E5"},
+            {"#1E8F5A", "#F7FBF4", "#BFE5CF", "#0C3320", "#3C7A57", "#D4A017", "#E1F3E8"},
+            {"#7A4FD1", "#F8F3FF", "#DCCBFA", "#2A1559", "#5C478F", "#F59E0B", "#EADFFB"},
+            {"#C0392B", "#FBF0E2", "#F0CDA8", "#3B1208", "#7D4A32", "#1F6F8B", "#F6DDBF"},
+            {"#9BC53D", "#FBFFF0", "#DCEBB0", "#263300", "#566B1F", "#6A1B9A", "#EEF6CF"},
+            {"#1F6F8B", "#FFF4E0", "#FFC98B", "#2A1608", "#7A5030", "#E8590C", "#FFE2BD"},
+            {"#B4502B", "#E9F5F3", "#9ED3CE", "#0B2E2B", "#356B66", "#F2C230", "#CBE9E5"},
+            {"#5B2A86", "#F4FBE8", "#CDE88F", "#1F0F33", "#5A4A70", "#A3D63B", "#E3F2BC"},
+            {"#E86A9A", "#F6F5E4", "#C8CE8A", "#2F3010", "#6E703A", "#556B2F", "#E4E6BC"},
+            {"#6F7FA8", "#FFF1E6", "#FFCFAF", "#1E2644", "#55608A", "#E8590C", "#FFE0CC"},
+            {"#FF9933", "#FFFDF7", "#FFD9A8", "#1B1F5C", "#5A5E9A", "#138808", "#FFEACC"},
+            {"#F7C600", "#FFFBE0", "#BFD7F2", "#0B2A55", "#4A678F", "#0B5DAF", "#FFF0A0"},
+            {"#C8102E", "#FFFFFF", "#FADADD", "#3A0A10", "#8A4048", "#E0A800", "#FFE9EC"}};
 
     static final int BG = 0, KEY = 1, FN = 2, INK = 3, MUTED = 4, ACCENT = 5;
 
