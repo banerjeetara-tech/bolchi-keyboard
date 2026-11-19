@@ -94,7 +94,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private final StringBuilder spokenAll = new StringBuilder();   // everything written in this Speak session
     private String lastPartial = "";
     private int tidyJob;
-    private boolean tidyBusy, tidyFailed;
+    private boolean tidyBusy;
+    private long tidyFailedAt;                 // when the AI last failed to clean the speech: it is tried again after 12 s (it used to stop for the whole dictation)
     private boolean aiTidy;   // off unless she turns it on by holding Speak
     private String tidyPendSaid, tidyPendOut, tidyDone = "";
 
@@ -4261,7 +4262,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         lastPartial = "";
         tidyPendOut = null;
         tidyDone = "";
-        tidyFailed = false;
+        tidyFailedAt = 0;
         tidyJob++;
         failRounds = 0;
         composing = false;
@@ -4376,10 +4377,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
      * corrected version when she changes her mind, drops fumbles and adds punctuation. No need to tap Stop.
      */
     private void tidyAsk() {
-        if (!aiTidy || tidyBusy || tidyFailed) return;
+        if (!aiTidy || tidyBusy || System.currentTimeMillis() - tidyFailedAt < 12000) return;
         final String said = spokenAll.toString();
         final String key = prefs().getString("aikey", "");
-        if (key.trim().isEmpty() || said.equals(tidyDone) || said.trim().split("\\s+").length < 3) return;
+        if (key.trim().isEmpty() || said.equals(tidyDone) || said.trim().split("\\s+").length < 2) return;
         tidyBusy = true;
         final int job = tidyJob;
         new Thread(new Runnable() { @Override public void run() {
@@ -4390,7 +4391,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 tidyBusy = false;
                 if (job != tidyJob) return;
                 if (out == null || out.isEmpty()) {
-                    tidyFailed = true;
+                    tidyFailedAt = System.currentTimeMillis();
                     flashSpace("AI did not work: open Bolchi app, tap Test AI key");
                     return;
                 }
