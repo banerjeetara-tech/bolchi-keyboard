@@ -412,11 +412,21 @@ final class Converter {
     }
 
     /** Three ready answers to a message she received (one per line). */
-    static String replies(String received, String key) throws Exception {
+    static String replies(String received, String key) throws Exception { return replies(received, key, null); }
+
+    /** `avoid` = replies she has already seen for this message (the shuffle button): the new three must be different in wording and idea. */
+    static String replies(String received, String key, java.util.List<String> avoid) throws Exception {
+        String again = "";
+        if (avoid != null && !avoid.isEmpty()) {
+            StringBuilder b = new StringBuilder(" The user already saw these replies and wants three DIFFERENT ones: use new wording and new ideas (another way to agree, another way to ask for time, another polite way to decline; "
+                    + "vary the length and the warmth). Do not repeat or lightly reword any of them:");
+            for (String a : avoid) b.append("\n- ").append(a);
+            again = b.toString();
+        }
         return gemini(key, "The user received the message below and wants to answer it. Write three different short replies the user could send: "
                 + "one that agrees or says yes, one neutral that asks for a little time or more detail, and one that politely declines. "
                 + "Write in the same language and style as the message (English stays English, Banglish or Hinglish stays in English letters, "
-                + "Bengali or Hindi script stays in that script). Each reply on its own line, one or two sentences, no numbering, no labels, nothing else.",
+                + "Bengali or Hindi script stays in that script). Each reply on its own line, one or two sentences, no numbering, no labels, nothing else." + again,
                 received);
     }
 

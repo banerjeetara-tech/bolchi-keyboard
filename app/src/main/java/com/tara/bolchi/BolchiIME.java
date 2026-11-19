@@ -3684,6 +3684,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (aiReplies != null) {
             for (String a : aiReplies) listLine(into, a, "\u2728", null, null, true);
         }
+        if (haveRealReplies()) {
+            LinearLayout sh = row();
+            sh.addView(listButton("\uD83D\uDD00 Show 3 different replies", false, new Runnable() { @Override public void run() { askReplies(); } }));
+            into.addView(sh);
+        }
         final List<String> mine = loadList("quickReplies", REPLY_DEFAULTS);
         listHint(into, mine.isEmpty() ? "Type a message, open this tab and tap \uFF0B to keep it here" : "My ready messages \u2014 tap to write");
         for (final String m : mine) {
@@ -3691,7 +3696,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
     }
 
-    /** Asks the AI for three answers to the message that was copied last. */
+    private String repliesMsg;                                   // the message the shown replies answer
+    private final List<String> repliesSeen = new ArrayList<>();    // replies already shown for it (the shuffle asks for different ones)
+
+    private boolean haveRealReplies() {
+        if (aiReplies == null || aiReplies.isEmpty()) return false;
+        for (String a : aiReplies) if (a.startsWith("\u26A0") || a.startsWith("Writing replies")) return false;
+        return true;
+    }
+
+    /** Asks the AI for three answers to the message that was copied last. Asking again for the SAME message gives three different ones. */
     private void askReplies() {
         final String key = prefs().getString("aikey", "");
         String got = "";
@@ -3704,13 +3718,16 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         aiReplies = new ArrayList<>();
         if (key.isEmpty()) { aiReplies.add("\u26A0 Save an AI key in the Bolchi app first"); buildKeysSoon(); return; }
         if (got.isEmpty()) { aiReplies.add("\u26A0 Copy the message you received first, then tap again"); buildKeysSoon(); return; }
+        if (!got.equals(repliesMsg)) repliesSeen.clear();          // a new message starts fresh; the same one again = "show me different ones"
+        repliesMsg = got;
+        final List<String> avoid = new ArrayList<>(repliesSeen);
         aiReplies.add("Writing replies to: \u201C" + (got.length() > 40 ? got.substring(0, 40) + "\u2026" : got).replace('\n', ' ') + "\u201D");
         buildKeysSoon();
         final String msg = got.length() > 1500 ? got.substring(0, 1500) : got;
         new Thread(new Runnable() { @Override public void run() {
             final List<String> out = new ArrayList<>();
             try {
-                for (String line : Converter.replies(msg, key).split("\n")) {
+                for (String line : Converter.replies(msg, key, avoid).split("\n")) {
                     String l = line.trim().replaceFirst("^[-*\\d.)\\s]+", "");
                     if (!l.isEmpty() && out.size() < 3) out.add(l);
                 }
@@ -3720,7 +3737,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 if (!(first instanceof Converter.UserMessage)) {
                     // a slow first connection is the usual reason: try once more before giving up
                     try {
-                        for (String line : Converter.replies(msg, key).split("\n")) {
+                        for (String line : Converter.replies(msg, key, avoid).split("\n")) {
                             String l = line.trim().replaceFirst("^[-*\\d.)\\s]+", "");
                             if (!l.isEmpty() && out.size() < 3) out.add(l);
                         }
@@ -3736,6 +3753,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             }
             handler.post(new Runnable() { @Override public void run() {
                 aiReplies = out;
+                for (String o : out) if (!o.startsWith("\u26A0") && !repliesSeen.contains(o)) repliesSeen.add(o);
+                while (repliesSeen.size() > 15) repliesSeen.remove(0);
                 if (page == PAGE_EMOJI && emojiTab == TAB_REPLIES) buildKeys();
             } });
         } }).start();

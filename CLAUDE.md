@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 132 = build-201** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 133 = build-203** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -583,6 +583,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   once ("on your phone (the AI was slow)", never swapped again, `answered` flag). The "instant, then improved by AI" flow of 132 is gone. Cloudflare Workers AI was CHECKED (she asked "check whether it is worthy first") and NOT added: free 10,000 neurons/day (about 700 translations),
   but Llama 3.3 70B does not officially support Bengali, Cloudflare's July 2026 changelog says some models now need the paid plan (could not open the page from Claude's workspace to see which), the no-card claim is unverified, and setup needs an account id AND a token.
   Better Indic models there (IndicTrans2, only English to Indic) use a different API. Add it only if Groq starts failing for her. Cerebras now needs a card; Mistral's free plan wants phone verification.
+  Version 133 was released as build-203 (20 Nov).
+- Version 134 (Tara, 20 Nov: "can it be added like I want to shuffle or change, it will show different three options, if I try again it will show three different options"; read as the 💬 replies tab, "Reply to copied message" = 3 AI answers): new button
+  "🔀 Show 3 different replies" under the replies (it only appears when real replies are shown), and tapping "Reply to copied message" again for the SAME message does the same. `askReplies` remembers the message (`repliesMsg`) and the replies already shown (`repliesSeen`, 15);
+  `Converter.replies(received, key, avoid)` tells the AI to use new wording and ideas and not to repeat those. A different copied message starts fresh. Rewrite / Tone give ONE answer (a shuffle there is not built: ask if she meant those). Her message started with an AI sentence
+  ("I need the original text you'd like cleaned up before I can help"): that is an AI answer to an empty input, source unknown (voice AI fix or Rewrite with an empty box); ask where it appeared if it returns.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
