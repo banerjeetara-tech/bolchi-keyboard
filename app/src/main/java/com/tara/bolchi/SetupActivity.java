@@ -184,6 +184,36 @@ public class SetupActivity extends Activity {
         });
         col.addView(saveKey);
 
+        // free backup AI keys: used automatically when Google's AI is busy or cannot be reached
+        col.addView(text("Backup AI keys (free, optional)", 17, INK));
+        col.addView(text("If Google's AI is busy, Bolchi tries these. Groq: console.groq.com \u2192 API Keys. OpenRouter: openrouter.ai \u2192 Keys. Paste, then tap Save.", 14, MUTED));
+        final EditText groqBox = new EditText(this);
+        final EditText orBox = new EditText(this);
+        final String[] hints = {"Paste your Groq key (starts with gsk_)", "Paste your OpenRouter key (starts with sk-or-)"};
+        final String[] prefNames = {"groqKey", "openrouterKey"};
+        final EditText[] boxes = {groqBox, orBox};
+        for (int bi = 0; bi < 2; bi++) {
+            EditText b = boxes[bi];
+            b.setHint(hints[bi]);
+            b.setSingleLine(true);
+            b.setTextColor(INK);
+            b.setTextSize(15);
+            b.setBackground(box(CARD, LINE, 12));
+            b.setPadding(dp(12), dp(12), dp(12), dp(12));
+            b.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+            b.setText(prefs.getString(prefNames[bi], ""));
+            col.addView(b, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        }
+        TextView saveExtra = button("Save backup keys");
+        saveExtra.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                prefs.edit().putString("groqKey", groqBox.getText().toString().trim()).putString("openrouterKey", orBox.getText().toString().trim()).apply();
+                Converter.useExtraKeys(prefs);
+                Toast.makeText(SetupActivity.this, "Backup keys saved", Toast.LENGTH_SHORT).show();
+            }
+        });
+        col.addView(saveExtra);
+
         // test the AI key, and show which version is installed
         final TextView testOut = text(diagText(), 14, MUTED);
         diagView = testOut;
@@ -192,6 +222,7 @@ public class SetupActivity extends Activity {
             @Override public void onClick(View v) {
                 final String k = keyBox.getText().toString().trim();
                 prefs.edit().putString("aikey", k).apply();
+                Converter.useExtraKeys(prefs);
                 testOut.setText("Testing, wait up to 30 seconds\u2026");
                 new Thread(new Runnable() { @Override public void run() {
                     final String r = Converter.test(k);

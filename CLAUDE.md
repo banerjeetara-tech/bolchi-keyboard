@@ -533,6 +533,10 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   the AI's code and the first 140 characters of Google's answer (`lastDetail`), joined in one message. The Bolchi app "Test AI key" shows the full answer. Ask her for that result / the "Last voice error" line before changing anything else. (2) Speaking Bengali in Bengali LETTERS already existed but was hidden:
   select Bangla, then tap the Bangla chip AGAIN (`toggleVoiceScript`; the chip then reads বাংলা). It was not found (and with the English chip dark Speak listens in English). Now: tapping Bangla / Hindi shows on the space bar what Speak will write and how to switch;
   the Bolchi app has two buttons "Speak on Bangla / Hindi writes: Banglish | বাংলা letters"; the keyboard re-reads the choice when a box opens. Not tested on a phone.
+  Also in 127 (Tara: "do not push, it is consuming my token; fix and then push; you can add some more API, I will generate some free keys"): ONE release for all of it. Backup AI services, used only when Google's AI cannot answer (busy, key refused, unreachable) and only if she saved a key
+  in the Bolchi app ("Backup AI keys"): Groq (`api.groq.com/openai/v1`, llama-3.3-70b-versatile then llama-3.1-8b-instant, prefs `groqKey`) and OpenRouter (free models `:free`, pref `openrouterKey`), through `Converter.chatCompat`; `Converter.useExtraKeys(prefs)`. Translating also
+  ends with MyMemory (`api.mymemory.translated.net`, no key, ~500 letters per request, daily limit, source language from the letters) after Google Translate and the AI. Network errors (`IOException`) skip the other Gemini models at once and go to the backups. The messages list every step that failed.
+  Do not release more builds than needed: she pays for the tokens of every build cycle (fix first, one build, one release).
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:

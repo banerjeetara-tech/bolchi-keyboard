@@ -92,11 +92,12 @@ final class Converter {
             String script = romanToScript(text, hindi);
             return googleTranslate(script, hindi ? "hi" : "bn");
         } catch (Exception e) {
-            if (key != null && !key.trim().isEmpty()) {
-                try { return translate(text, key); }
-                catch (UserMessage um2) { throw new UserMessage((e.getMessage() == null ? "Google Translate failed" : e.getMessage()) + ". AI: " + um2.getMessage()); }
+            String first = e.getMessage() == null ? "Google Translate failed" : e.getMessage();
+            try { return translate(text, key); }
+            catch (Exception e2) {
+                try { return myMemoryAuto(text, "en"); }
+                catch (Exception e3) { throw new UserMessage(first + ". AI: " + (e2.getMessage() == null ? e2.getClass().getSimpleName() : e2.getMessage()) + ". MyMemory: " + (e3.getMessage() == null ? e3.getClass().getSimpleName() : e3.getMessage())); }
             }
-            throw e;
         }
     }
 
@@ -121,14 +122,18 @@ final class Converter {
             if (!hasScript(text)) return romanToScript(text, false);       // Banglish: only the letters change
             return out;
         } catch (Exception e) {
-            if (key != null && !key.trim().isEmpty()) {
+            try {
                 return gemini(key,
                         "Translate the user's message into natural, simple Bengali written in Bengali script. The message may be English, Hindi "
                                 + "(Devanagari), or Bengali or Hindi in English letters. Keep names, numbers, emojis and links as they are. "
                                 + "Reply with only the translation, nothing else.", text);
+            } catch (Exception e2) {
+                if (!hasScript(text)) {
+                    try { return romanToScript(text, false); } catch (Exception ignored) { /* try MyMemory next */ }
+                }
+                try { return myMemoryAuto(text, "bn"); }
+                catch (Exception e3) { throw new UserMessage((e.getMessage() == null ? "Google Translate failed" : e.getMessage()) + ". AI: " + (e2.getMessage() == null ? e2.getClass().getSimpleName() : e2.getMessage())); }
             }
-            if (!hasScript(text)) return romanToScript(text, false);
-            throw e;
         }
     }
 
@@ -137,11 +142,15 @@ final class Converter {
         try {
             return googleTranslateTo(text, "auto", "hi");
         } catch (Exception e) {
-            if (key == null || key.trim().isEmpty()) throw e;
-            return gemini(key,
-                    "Translate the user's message into natural, simple Hindi written in Devanagari script. The message may be English, "
-                            + "Bengali, or Bengali or Hindi in English letters. Keep names, numbers, emojis and links as they are. "
-                            + "Reply with only the translation, nothing else.", text);
+            try {
+                return gemini(key,
+                        "Translate the user's message into natural, simple Hindi written in Devanagari script. The message may be English, "
+                                + "Bengali, or Bengali or Hindi in English letters. Keep names, numbers, emojis and links as they are. "
+                                + "Reply with only the translation, nothing else.", text);
+            } catch (Exception e2) {
+                try { return myMemoryAuto(text, "hi"); }
+                catch (Exception e3) { throw new UserMessage((e.getMessage() == null ? "Google Translate failed" : e.getMessage()) + ". AI: " + (e2.getMessage() == null ? e2.getClass().getSimpleName() : e2.getMessage())); }
+            }
         }
     }
 
@@ -235,28 +244,141 @@ final class Converter {
                 text);
     }
 
+    /** Backup AI keys (free): Groq and OpenRouter. Set from the saved settings; used only when Google's AI cannot answer. */
+    static volatile String groqKey = "", openrouterKey = "";
+    static void useExtraKeys(android.content.SharedPreferences p) {
+        try { groqKey = p.getString("groqKey", "").trim(); openrouterKey = p.getString("openrouterKey", "").trim(); } catch (Throwable ignored) { /* keep what we had */ }
+    }
+    private static volatile String altWhy = "";
+
     /** The models tried one after the other when Google's AI is busy (503 / 500 / 502 / 504), over its free limit (429: each model has its own limit) or a name is not known (404). */
     private static final String[] MODELS = {MODEL, MODEL_BACKUP, "gemini-2.5-flash-lite", "gemini-2.5-flash"};
+    private static final String[] GROQ_MODELS = {"llama-3.3-70b-versatile", "llama-3.1-8b-instant"};
+    private static final String[] OPENROUTER_MODELS = {"meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free"};
 
     private static String gemini(String key, String instruction, String text) throws Exception {
         long t0 = System.currentTimeMillis();
         int busyCode = 0;
-        for (String m : MODELS) {
-            if (System.currentTimeMillis() - t0 > 18000) break;       // the keyboard gives up after 30 s: leave time for the answer
-            try {
-                return gemini(m, key, instruction, text);
-            } catch (ModelMissing mm) {
-                continue;
-            } catch (Busy b) {
-                busyCode = b.code;
-                try { Thread.sleep(400); } catch (InterruptedException ie) { break; }
+        java.io.IOException net = null;
+        UserMessage keyMsg = null;
+        boolean haveGoogle = key != null && !key.trim().isEmpty();
+        if (haveGoogle) {
+            for (String m : MODELS) {
+                if (System.currentTimeMillis() - t0 > 16000) break;       // the keyboard gives up after 30 s: leave time for the backups
+                try {
+                    return gemini(m, key, instruction, text);
+                } catch (ModelMissing mm) {
+                    continue;
+                } catch (Busy b) {
+                    busyCode = b.code;
+                    try { Thread.sleep(400); } catch (InterruptedException ie) { break; }
+                } catch (java.io.IOException io) {
+                    net = io;                                              // Google cannot be reached at all: do not try every model
+                    break;
+                } catch (UserMessage um) {
+                    keyMsg = um;                                           // key refused: the backups may still answer
+                    break;
+                }
             }
         }
+        String alt = viaOtherServices(instruction, text);
+        if (alt != null) return alt;
+        if (!haveGoogle && groqKey.isEmpty() && openrouterKey.isEmpty()) throw new UserMessage("Add your Google AI Studio key in the Bolchi app first");
+        String more = altWhy.isEmpty() ? "" : " " + altWhy;
+        if (keyMsg != null) throw new UserMessage(keyMsg.getMessage() + more);
+        if (net != null) throw new UserMessage("Could not reach Google's AI (" + net.getClass().getSimpleName() + ")." + more);
         String why = lastDetail == null ? "" : lastDetail.replace('\n', ' ');
         if (why.length() > 140) why = why.substring(0, 140);
-        if (busyCode == 429) throw new UserMessage("Free AI limit reached for now. Try again in a minute");
-        if (busyCode != 0) throw new UserMessage("Google's AI is busy right now (" + busyCode + "), every model was tried. Try again in a minute. " + why);
-        throw new UserMessage("The AI model is not available. Try again later");
+        if (busyCode == 429) throw new UserMessage("Free AI limit reached for now. Try again in a minute." + more);
+        if (busyCode != 0) throw new UserMessage("Google's AI is busy right now (" + busyCode + "), every model was tried. Try again in a minute. " + why + more);
+        throw new UserMessage("The AI model is not available. Try again later." + more);
+    }
+
+    /** The free backup services (only the ones she saved a key for). Null when none answered; `altWhy` then says why. */
+    private static String viaOtherServices(String instruction, String text) {
+        altWhy = "";
+        StringBuilder why = new StringBuilder();
+        if (!groqKey.isEmpty()) {
+            for (String m : GROQ_MODELS) {
+                try { stage = "asking Groq"; return chatCompat("https://api.groq.com/openai/v1/chat/completions", groqKey, m, instruction, text); }
+                catch (Exception e) { why.setLength(0); why.append("Groq: ").append(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()).append(". "); }
+            }
+        }
+        if (!openrouterKey.isEmpty()) {
+            for (String m : OPENROUTER_MODELS) {
+                try { stage = "asking OpenRouter"; return chatCompat("https://openrouter.ai/api/v1/chat/completions", openrouterKey, m, instruction, text); }
+                catch (Exception e) { why.append("OpenRouter: ").append(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()).append(". "); }
+            }
+        }
+        altWhy = why.toString().trim();
+        return null;
+    }
+
+    /** One request to a service that speaks the common "chat completions" format (Groq, OpenRouter). */
+    private static String chatCompat(String url, String key, String model, String instruction, String text) throws Exception {
+        JSONObject body = new JSONObject();
+        body.put("model", model);
+        body.put("temperature", 0.3);
+        body.put("messages", new JSONArray()
+                .put(new JSONObject().put("role", "system").put("content", instruction))
+                .put(new JSONObject().put("role", "user").put("content", text)));
+        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        current = c;
+        c.setRequestMethod("POST");
+        c.setConnectTimeout(5000);
+        c.setReadTimeout(20000);
+        c.setDoOutput(true);
+        c.setRequestProperty("Content-Type", "application/json");
+        c.setRequestProperty("Authorization", "Bearer " + key);
+        c.setRequestProperty("X-Title", "Bolchi Keyboard");
+        OutputStream os = c.getOutputStream();
+        os.write(body.toString().getBytes("UTF-8"));
+        os.close();
+        int code = c.getResponseCode();
+        String resp = read(code >= 400 ? c.getErrorStream() : c.getInputStream());
+        if (code == 401 || code == 403) throw new UserMessage("key refused (" + code + ")");
+        if (code == 429) throw new UserMessage("limit reached (429)");
+        if (code >= 400) throw new UserMessage("answered " + code);
+        JSONArray ch = new JSONObject(resp).optJSONArray("choices");
+        if (ch == null || ch.length() == 0) throw new UserMessage("no answer");
+        String out = ch.getJSONObject(0).getJSONObject("message").optString("content", "").trim();
+        if (out.isEmpty()) throw new UserMessage("no answer");
+        return out;
+    }
+
+    // ---------- translating without any key: MyMemory (a free translation memory, limited per day; 500 letters per request) ----------
+    private static String myMemory(String text, String from, String to) throws Exception {
+        StringBuilder out = new StringBuilder();
+        String rest = text.trim();
+        while (!rest.isEmpty()) {
+            int cut = Math.min(rest.length(), 420);
+            if (cut < rest.length()) {
+                int p = Math.max(rest.lastIndexOf('.', cut - 1), Math.max(rest.lastIndexOf('?', cut - 1), Math.max(rest.lastIndexOf('!', cut - 1), rest.lastIndexOf(' ', cut - 1))));
+                if (p > 100) cut = p + 1;
+            }
+            String piece = rest.substring(0, cut).trim();
+            rest = rest.substring(cut).trim();
+            if (piece.isEmpty()) continue;
+            stage = "asking MyMemory";
+            HttpURLConnection c = (HttpURLConnection) new URL("https://api.mymemory.translated.net/get?langpair=" + from + "%7C" + to + "&q="
+                    + java.net.URLEncoder.encode(piece, "UTF-8")).openConnection();
+            c.setConnectTimeout(5000);
+            c.setReadTimeout(8000);
+            if (c.getResponseCode() != 200) throw new UserMessage("MyMemory did not answer (" + c.getResponseCode() + ")");
+            JSONObject r = new JSONObject(read(c.getInputStream()));
+            String t = r.getJSONObject("responseData").optString("translatedText", "");
+            if (t.isEmpty() || t.toUpperCase(Locale.ROOT).contains("MYMEMORY WARNING")) throw new UserMessage("MyMemory limit reached for today");
+            if (out.length() > 0) out.append(' ');
+            out.append(t);
+        }
+        return out.toString();
+    }
+
+    /** Last fallback of every translation: MyMemory, with the source language taken from the letters (Hindi / Bengali script, else English). */
+    private static String myMemoryAuto(String text, String to) throws Exception {
+        String from = hasDevanagari(text) ? "hi" : hasBengali(text) ? "bn" : "en";
+        if (from.equals(to)) throw new UserMessage("nothing for MyMemory to translate");
+        return myMemory(text, from, to);
     }
 
     private static String gemini(String model, String key, String instruction, String text) throws Exception {

@@ -3234,6 +3234,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void runConversion(final String src, TextView resBox) {
         final int job = ++convJob;
         final int opt = convOption;
+        Converter.useExtraKeys(prefs());
         final String key = prefs().getString("aikey", "");
         if (opt == 2) { showResult(job, Converter.toEnglishLetters(src)); return; }
         if (opt >= 8 && opt <= 11) {   // fonts work on the phone at once, no internet
@@ -3870,6 +3871,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         cands = new ArrayList<>();
         word.setLength(0);
         fixTyped = null;
+        Converter.useExtraKeys(prefs());                                  // free backup AI keys saved in the Bolchi app
         voiceScript[0] = prefs().getBoolean("bnScript", false);          // may have been changed in the Bolchi app
         voiceScript[1] = prefs().getBoolean("hiScript", false);
         paintChips();
