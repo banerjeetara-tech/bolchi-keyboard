@@ -148,6 +148,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private int fontStyle = 3;   // the style chosen under "Font style" (starts on Script)
     private int convJob = 0;
     private String convResult = null;
+    private volatile String convNote = null;       // a few words next to "Result": where the answer came from
     private TextView convBtn;
     private TextView convResBox;
     private long convStarted;
@@ -3195,7 +3196,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 8));
         keysBox.addView(srcBox, slp);
 
-        final TextView resBox = panelBox("Result", convResult != null ? convResult
+        final TextView resBox = panelBox("Result" + (convNote == null || convResult == null ? "" : "   \u00B7   " + convNote), convResult != null ? convResult
                 : src.isEmpty() ? "" : "Working\u2026", true);
         convResBox = resBox;
         keysBox.addView(resBox, new LinearLayout.LayoutParams(
@@ -3240,6 +3241,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final int job = ++convJob;
         final int opt = convOption;
         Converter.useExtraKeys(prefs());
+        convNote = null;
         final String key = prefs().getString("aikey", "");
         if (opt == 2) { showResult(job, Converter.toEnglishLetters(src)); return; }
         if (opt >= 8 && opt <= 11) {   // fonts work on the phone at once, no internet
@@ -3276,10 +3278,17 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final int keepStyle = found >= 0 ? found : (fontOn() ? typeStyle : -1);
         new Thread(new Runnable() { @Override public void run() {
             String out;
+            // translating: the translator ON the phone answers at once (about 0.1 s); the AI services then try to do it better and, if they do, the answer is replaced
+            String fast = null;
+            if (opt == 0 || opt == 7 || opt == 13 || (opt == 1 && Converter.hasDevanagari(plainSrc))) {
+                fast = Converter.phoneTranslate(plainSrc, opt == 0 ? "en" : opt == 7 ? "hi" : "bn");
+                if (fast != null) { convNote = "instant, on your phone \u00B7 AI is checking\u2026"; showResult(job, fast); }
+            }
+            final boolean phoneFirst = fast == null;
             try {
-                if (opt == 0) out = Converter.translateFree(plainSrc, mode, key);
-                else if (opt == 1) out = Converter.hasDevanagari(plainSrc) ? Converter.translateToBengali(plainSrc, key) : Converter.romanToScript(plainSrc, false);     // Hindi letters cannot be "converted": they are translated
-                else if (opt == 13) out = Converter.translateToBengali(plainSrc, key);
+                if (opt == 0) out = Converter.translateFree(plainSrc, mode, key, phoneFirst);
+                else if (opt == 1) out = Converter.hasDevanagari(plainSrc) ? Converter.translateToBengali(plainSrc, key, phoneFirst) : Converter.romanToScript(plainSrc, false);     // Hindi letters cannot be "converted": they are translated
+                else if (opt == 13) out = Converter.translateToBengali(plainSrc, key, phoneFirst);
                 else if (opt == 4 || opt == 5) {
                     out = Converter.polish(plainSrc, key, opt == 5);
                     if (keepStyle >= 0) out = FontStyles.apply(keepStyle, out);    // her font stays after the grammar fix / rewrite
@@ -3289,7 +3298,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                     if (keepStyle >= 0) out = FontStyles.apply(keepStyle, out);
                 }
                 else if (opt == 6) out = Converter.romanToScript(plainSrc, true);
-                else if (opt == 7) out = Converter.translateToHindi(plainSrc, key);
+                else if (opt == 7) out = Converter.translateToHindi(plainSrc, key, phoneFirst);
                 else {
                     String r = Converter.units(src, Converter.usdRates());
                     out = r.isEmpty() ? "\u26A0 No amounts found. Try \"5 kg\" or \"\u20B9500\"" : r;
@@ -3306,6 +3315,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             } catch (Throwable e) {
                 saveProblem(e);
                 out = "\u26A0 Something went wrong (" + e.getClass().getSimpleName() + "). Tap Try again";
+            }
+            if (fast != null) {
+                // the instant answer is already on the screen: replace it only when the AI gave a real, different answer
+                if (out != null && !out.startsWith("\u26A0") && !out.trim().equals(fast.trim())) { convNote = "improved by AI \u2728"; showResult(job, out); }
+                else { convNote = "on your phone"; showResult(job, fast); }
+                return;
             }
             showResult(job, out);
         } }).start();

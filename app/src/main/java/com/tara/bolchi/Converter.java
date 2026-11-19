@@ -99,10 +99,10 @@ final class Converter {
      * Translate `text` into `to` ("en", "hi", "bn"). In this order: the free translators that need no key (several, Google's among them), then the AI services,
      * then the translator that lives ON the phone (works without internet once its languages are downloaded), then MyMemory.
      */
-    private static String translateChain(String text, String from, String to, String prompt, String key, boolean useDoors) throws Exception {
+    private static String translateChain(String text, String from, String to, String prompt, String key, boolean useDoors, boolean phone) throws Exception {
         StringBuilder why = new StringBuilder();
         // the translator ON the phone comes first when its languages are downloaded: instant, free, no limit, no internet. She prefers it to the AI services.
-        if (useDoors || hasScript(text)) {
+        if (phone && (useDoors || hasScript(text))) {
             try {
                 String r = offlineTranslate(text, to);
                 if (r != null && !r.trim().isEmpty() && !r.trim().equals(text.trim())) return r;
@@ -118,13 +118,15 @@ final class Converter {
     }
 
     /** Translate to English. Banglish / Hinglish typed in English letters is first written in its own script, then translated. */
-    static String translateFree(String text, int voiceMode, String key) throws Exception {
-        if (hasScript(text) || voiceMode == 2) return translateChain(text, "auto", "en", EN_PROMPT, key, true);
+    static String translateFree(String text, int voiceMode, String key) throws Exception { return translateFree(text, voiceMode, key, true); }
+
+    static String translateFree(String text, int voiceMode, String key, boolean phone) throws Exception {
+        if (hasScript(text) || voiceMode == 2) return translateChain(text, "auto", "en", EN_PROMPT, key, true, phone);
         boolean hindi = voiceMode == 1;
         String script = null;
         try { script = romanToScript(text, hindi); } catch (Exception ignored) { /* the AI can read Banglish itself */ }
-        if (script != null) return translateChain(script, hindi ? "hi" : "bn", "en", EN_PROMPT, key, true);
-        return translateChain(text, "auto", "en", EN_PROMPT, key, false);
+        if (script != null) return translateChain(script, hindi ? "hi" : "bn", "en", EN_PROMPT, key, true, phone);
+        return translateChain(text, "auto", "en", EN_PROMPT, key, false, phone);
     }
 
     static boolean hasDevanagari(String s) {
@@ -141,12 +143,55 @@ final class Converter {
      * Translate into Bengali (Bengali script). Banglish typed in English letters is ALREADY Bengali: when a translator leaves it unchanged it is only
      * written in Bengali letters (`romanToScript`).
      */
-    static String translateToBengali(String text, String key) throws Exception {
+    static String translateToBengali(String text, String key) throws Exception { return translateToBengali(text, key, true); }
+
+    static String translateToBengali(String text, String key, boolean phone) throws Exception {
         if (!hasScript(text) && looksBanglishText(text)) return romanToScript(text, false);       // already Bengali, only in English letters: no translating
-        String out = translateChain(text, "auto", "bn", BN_PROMPT, key, true);
+        String out = translateChain(text, "auto", "bn", BN_PROMPT, key, true, phone);
         if (hasBengali(out)) return out;
         if (!hasScript(text)) return romanToScript(text, false);       // Banglish: only the letters change
         return out;
+    }
+
+    /**
+     * The answer of the translator ON the phone, at once (about a tenth of a second), or null when it cannot give one (languages not downloaded, nothing to translate,
+     * Banglish in English letters which must first be written in a script). Never throws.
+     */
+    static String phoneTranslate(String text, String to) {
+        try {
+            if (!hasScript(text) && looksBanglishText(text)) return null;
+            String r = offlineTranslate(text, to);
+            return (r == null || r.trim().isEmpty() || r.trim().equals(text.trim())) ? null : r;
+        } catch (Throwable t) { return null; }
+    }
+
+    /** For the Bolchi app: the same sentence through every translator, with the time each took, so the quality can be judged side by side. */
+    static String compareTranslators(final String key) {
+        clearDown();
+        final String[][] samples = {
+            {"Please send me the report by tomorrow morning.", "bn"},
+            {"\u0906\u092a \u0915\u0932 \u0938\u0941\u092c\u0939 \u0924\u0915 \u0930\u093f\u092a\u094b\u0930\u094d\u091f \u092d\u0947\u091c \u0926\u0940\u091c\u093f\u092f\u0947\u0964", "bn"},
+            {"\u0986\u09ae\u09bf \u0986\u099c \u0985\u09ab\u09bf\u09b8\u09c7 \u09ae\u09bf\u099f\u09bf\u0982\u09af\u09bc\u09c7 \u09af\u09be\u09ac, \u09a4\u09c1\u09ae\u09bf \u0995\u09cd\u09b2\u09be\u09af\u09bc\u09c7\u09a8\u09cd\u099f\u0995\u09c7 \u099c\u09be\u09a8\u09bf\u09af\u09bc\u09c7 \u09a6\u09be\u0993\u0964", "en"}};
+        StringBuilder b = new StringBuilder("Translator comparison\n");
+        for (final String[] smp : samples) {
+            final String text = smp[0], to = smp[1];
+            b.append('\n').append(text).append("  \u2192 ").append(to).append('\n');
+            b.append(probe("On the phone", new Probe() { public String run() throws Exception { return Offline.translate(text, hasDevanagari(text) ? "hi" : hasBengali(text) ? "bn" : "en", to); } }));
+            b.append(probe("Groq", new Probe() { public String run() throws Exception {
+                StringBuilder w = new StringBuilder();
+                String r = viaProv(GROQ, w, to.equals("bn") ? BN_PROMPT : EN_PROMPT, text);
+                if (r == null) throw new UserMessage(w.toString());
+                return r;
+            } }));
+            b.append(probe("Pollinations", new Probe() { public String run() throws Exception {
+                StringBuilder w = new StringBuilder();
+                String r = viaProv(POLLINATIONS, w, to.equals("bn") ? BN_PROMPT : EN_PROMPT, text);
+                if (r == null) throw new UserMessage(w.toString());
+                return r;
+            } }));
+            b.append(probe("MyMemory", new Probe() { public String run() throws Exception { return myMemoryAuto(text, to); } }));
+        }
+        return b.toString();
     }
 
     /** True when a third or more of the words are Banglish / Hinglish (the built-in list of everyday Bengali / Hindi words in English letters). */
@@ -164,12 +209,14 @@ final class Converter {
     }
 
     /** Translate into Hindi (Devanagari). */
-    static String translateToHindi(String text, String key) throws Exception {
+    static String translateToHindi(String text, String key) throws Exception { return translateToHindi(text, key, true); }
+
+    static String translateToHindi(String text, String key, boolean phone) throws Exception {
         if (!hasScript(text) && looksBanglishText(text)) {                // Banglish in English letters: first write it in Bengali letters, then translate that
             String bn = romanToScript(text, false);
-            return translateChain(bn, "bn", "hi", HI_PROMPT, key, true);
+            return translateChain(bn, "bn", "hi", HI_PROMPT, key, true, phone);
         }
-        return translateChain(text, "auto", "hi", HI_PROMPT, key, true);
+        return translateChain(text, "auto", "hi", HI_PROMPT, key, true, phone);
     }
 
     // ---------- the free translators that need no key: each is tried in turn, and one that failed is left alone for a few minutes ----------
@@ -305,7 +352,7 @@ final class Converter {
         long t0 = System.currentTimeMillis();
         try {
             String r = p.run();
-            if (r != null && r.length() > 40) r = r.substring(0, 40);
+            if (r != null && r.length() > 160) r = r.substring(0, 160);
             return "\u2713 " + name + " (" + (System.currentTimeMillis() - t0) + " ms): " + (r == null ? "" : r.replace('\n', ' ')) + "\n";
         } catch (Throwable t) {
             String m = t.getMessage() == null ? "" : t.getMessage();

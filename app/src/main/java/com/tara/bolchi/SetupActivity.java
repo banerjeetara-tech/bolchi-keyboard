@@ -274,6 +274,23 @@ public class SetupActivity extends Activity {
         col.addView(allBtn);
         col.addView(allOut);
 
+        final TextView cmpOut = text("", 13, MUTED);
+        TextView cmpBtn = button("Compare translators (quality and speed)");
+        cmpBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                saveBackups.run();
+                prefs.edit().putString("aikey", keyBox.getText().toString().trim()).apply();
+                cmpOut.setText("Comparing, wait up to a minute\u2026");
+                final String k = keyBox.getText().toString().trim();
+                new Thread(new Runnable() { @Override public void run() {
+                    final String r = Converter.compareTranslators(k);
+                    runOnUiThread(new Runnable() { @Override public void run() { cmpOut.setText(r); } });
+                } }).start();
+            }
+        });
+        col.addView(cmpBtn);
+        col.addView(cmpOut);
+
         // test the AI key, and show which version is installed
         final TextView testOut = text(diagText(), 14, MUTED);
         diagView = testOut;
