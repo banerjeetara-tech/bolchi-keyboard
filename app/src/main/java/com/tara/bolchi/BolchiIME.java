@@ -3209,6 +3209,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         TextView back = makeKey("Back to keys", 1f, cFn, cInk, 14);
         onPress(back, cFn, new Runnable() { @Override public void run() { page = PAGE_ABC; buildKeysSoon(); } });
         act.addView(back);
+        // reshuffle: a different version of an AI answer (translate, grammar, rewrite, tone), as often as she likes
+        boolean aiAnswer = convOption == 0 || convOption == 4 || convOption == 5 || convOption == 7 || convOption == 12 || convOption == 13
+                || (convOption == 1 && Converter.hasDevanagari(src));
+        if (aiAnswer && convResult != null && !convResult.startsWith("\u26A0")) {
+            TextView mix = makeKey("\uD83D\uDD00 Another", 1f, cFn, cInk, 14);
+            onPress(mix, cFn, new Runnable() { @Override public void run() { shuffleNext = true; convResult = null; convNote = null; buildKeysSoon(); } });
+            act.addView(mix);
+        }
         final TextView use = makeKey("Replace my text", 1f, cAcc, cOnAcc, 14);
         onPress(use, cAcc, new Runnable() { @Override public void run() {
             if (convResult == null || convResult.isEmpty()) return;
@@ -3240,11 +3248,19 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         } });
     }
 
+    private boolean shuffleNext = false;                           // the shuffle key was tapped: ask the AI for a different version
+    private final List<String> convSeen = new ArrayList<>();       // versions already shown for this text and tab
+    private String convSeenKey = "";
+
     private void runConversion(final String src, TextView resBox) {
         final int job = ++convJob;
         final int opt = convOption;
         Converter.useExtraKeys(prefs());
         convNote = null;
+        final String seenKey = opt + "|" + toneStyle + "|" + src;
+        if (!seenKey.equals(convSeenKey)) { convSeen.clear(); convSeenKey = seenKey; }
+        final boolean again = shuffleNext && !convSeen.isEmpty();
+        shuffleNext = false;
         final String key = prefs().getString("aikey", "");
         if (opt == 2) { showResult(job, Converter.toEnglishLetters(src)); return; }
         if (opt >= 8 && opt <= 11) {   // fonts work on the phone at once, no internet
@@ -3280,6 +3296,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final int found = FontStyles.detect(src);
         final int keepStyle = found >= 0 ? found : (fontOn() ? typeStyle : -1);
         final java.util.concurrent.atomic.AtomicBoolean answered = new java.util.concurrent.atomic.AtomicBoolean(false);
+        if (again) { Converter.variation = Converter.variationFor(convSeen); Converter.temp = 0.9; }
         new Thread(new Runnable() { @Override public void run() {
             String out;
             // translating (version 133): ONE answer, from the AI (fast Groq first). Only when the AI has not answered after 6 s the translator on the phone answers instead
@@ -3326,7 +3343,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 saveProblem(e);
                 out = "\u26A0 Something went wrong (" + e.getClass().getSimpleName() + "). Tap Try again";
             }
+            Converter.variation = ""; Converter.temp = 0.3;
             if (!answered.compareAndSet(false, true)) return;          // the phone translator already answered because the AI was slow: keep that answer
+            if (out != null && !out.startsWith("\u26A0")) {
+                if (again && convSeen.contains(out)) convNote = "same as before: no other version found";
+                else convSeen.add(out);
+            }
             showResult(job, out);
         } }).start();
     }

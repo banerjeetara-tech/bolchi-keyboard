@@ -504,7 +504,20 @@ final class Converter {
     /** The models tried one after the other when Google's AI is busy (503 / 500 / 502 / 504), over its free limit (429: each model has its own limit) or a name is not known (404). */
     private static final String[] MODELS = {MODEL, MODEL_BACKUP, "gemini-2.5-flash-lite", "gemini-2.5-flash"};
 
+    /** Set by the keyboard for ONE conversion when she taps the shuffle key: tells the AI the versions she already saw and asks for a different one. Empty = normal. */
+    static volatile String variation = "";
+    static volatile double temp = 0.3;
+
+    /** The words that ask for a different version than the ones in `seen`. */
+    static String variationFor(java.util.List<String> seen) {
+        StringBuilder b = new StringBuilder(" The user already saw the version(s) below and wants a DIFFERENT one: use new wording and a new way of saying it, "
+                + "but keep the same meaning, language and script. Do not repeat or lightly reword any of them:");
+        for (String a : seen) b.append("\n- ").append(a);
+        return b.toString();
+    }
+
     private static String gemini(String key, String instruction, String text) throws Exception {
+        if (!variation.isEmpty()) instruction = instruction + variation;
         long t0 = System.currentTimeMillis();
         StringBuilder why = new StringBuilder();
         for (Prov p : FAST) {
@@ -623,7 +636,7 @@ final class Converter {
     private static String chatCompat(String url, String key, String model, String instruction, String text) throws Exception {
         JSONObject body = new JSONObject();
         body.put("model", model);
-        body.put("temperature", 0.3);
+        body.put("temperature", temp);
         body.put("messages", new JSONArray()
                 .put(new JSONObject().put("role", "system").put("content", instruction))
                 .put(new JSONObject().put("role", "user").put("content", text)));

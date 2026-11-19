@@ -588,6 +588,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   "🔀 Show 3 different replies" under the replies (it only appears when real replies are shown), and tapping "Reply to copied message" again for the SAME message does the same. `askReplies` remembers the message (`repliesMsg`) and the replies already shown (`repliesSeen`, 15);
   `Converter.replies(received, key, avoid)` tells the AI to use new wording and ideas and not to repeat those. A different copied message starts fresh. Rewrite / Tone give ONE answer (a shuffle there is not built: ask if she meant those). Her message started with an AI sentence
   ("I need the original text you'd like cleaned up before I can help"): that is an AI answer to an empty input, source unknown (voice AI fix or Rewrite with an empty box); ask where it appeared if it returns.
+- Version 135 (Tara: "had reshuffle everywhere wherever possible"): the converter result row has a "🔀 Another" key (between Back and Replace) for every AI answer: Translate to English / Hindi / Bengali, To Bangla script on Hindi text, Fix my grammar, Rewrite it better, Change tone.
+  Tap = the AI is told the versions already shown for this text + tab (`convSeen`, cleared when the text, tab or tone changes) and asked for a different one (`Converter.variation`, `variationFor`, temperature 0.9 for that one call, `Converter.temp`); repeatable. If the AI gives the same
+  text again the note says "same as before: no other version found". Not for fonts, units, script-only conversions (nothing to vary). The 💬 replies already had "🔀 Show 3 different replies" (134). Not tested on a phone.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
