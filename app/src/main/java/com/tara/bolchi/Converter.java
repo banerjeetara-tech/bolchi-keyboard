@@ -101,6 +101,13 @@ final class Converter {
      */
     private static String translateChain(String text, String from, String to, String prompt, String key, boolean useDoors) throws Exception {
         StringBuilder why = new StringBuilder();
+        // the translator ON the phone comes first when its languages are downloaded: instant, free, no limit, no internet. She prefers it to the AI services.
+        if (useDoors || hasScript(text)) {
+            try {
+                String r = offlineTranslate(text, to);
+                if (r != null && !r.trim().isEmpty() && !r.trim().equals(text.trim())) return r;
+            } catch (Throwable ignored) { /* not downloaded yet, or not possible: the online services follow */ }
+        }
         if (useDoors) {
             try { return translateDoors(text, from, to); } catch (Exception e) { why.append(shortAi(e)).append(" "); }
         }
@@ -135,14 +142,33 @@ final class Converter {
      * written in Bengali letters (`romanToScript`).
      */
     static String translateToBengali(String text, String key) throws Exception {
+        if (!hasScript(text) && looksBanglishText(text)) return romanToScript(text, false);       // already Bengali, only in English letters: no translating
         String out = translateChain(text, "auto", "bn", BN_PROMPT, key, true);
         if (hasBengali(out)) return out;
         if (!hasScript(text)) return romanToScript(text, false);       // Banglish: only the letters change
         return out;
     }
 
+    /** True when a third or more of the words are Banglish / Hinglish (the built-in list of everyday Bengali / Hindi words in English letters). */
+    private static boolean looksBanglishText(String text) {
+        try {
+            if (!Words.ready) return false;
+            int n = 0, d = 0;
+            for (String t : text.toLowerCase(Locale.ROOT).split("[^a-z']+")) {
+                if (t.length() < 2) continue;
+                n++;
+                if (Words.isDesi(t)) d++;
+            }
+            return d >= 1 && d * 3 >= n;
+        } catch (Throwable ignored) { return false; }
+    }
+
     /** Translate into Hindi (Devanagari). */
     static String translateToHindi(String text, String key) throws Exception {
+        if (!hasScript(text) && looksBanglishText(text)) {                // Banglish in English letters: first write it in Bengali letters, then translate that
+            String bn = romanToScript(text, false);
+            return translateChain(bn, "bn", "hi", HI_PROMPT, key, true);
+        }
         return translateChain(text, "auto", "hi", HI_PROMPT, key, true);
     }
 
@@ -499,6 +525,7 @@ final class Converter {
         c.setRequestProperty("Authorization", "Bearer " + key);
         int code = c.getResponseCode();
         String resp = read(code >= 400 ? c.getErrorStream() : c.getInputStream());
+        if (code == 401 || code == 403) throw new UserMessage("key refused (" + code + "): copy the whole key again");
         if (code >= 400) throw new UserMessage("model list answered " + code);
         JSONArray data = new JSONObject(resp).getJSONArray("data");
         java.util.List<String> ok = new java.util.ArrayList<>();

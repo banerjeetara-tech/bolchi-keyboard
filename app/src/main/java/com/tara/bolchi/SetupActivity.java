@@ -189,6 +189,18 @@ public class SetupActivity extends Activity {
         col.addView(text("If Google's AI is busy, Bolchi tries these, fastest first. Groq: console.groq.com \u2192 API Keys. Cerebras: cloud.cerebras.ai \u2192 API Keys. "
                 + "Mistral: console.mistral.ai \u2192 API Keys. OpenRouter: openrouter.ai \u2192 Keys. Any one is enough; paste, then tap Save. "
                 + "Without any key Bolchi still tries free services that need none.", 14, MUTED));
+        final String[][] links = {{"Open the Groq key page", "https://console.groq.com/keys"}, {"Open the Cerebras key page", "https://cloud.cerebras.ai/platform"},
+                {"Open the Mistral key page", "https://console.mistral.ai/api-keys"}, {"Open the OpenRouter key page", "https://openrouter.ai/keys"}};
+        for (final String[] lk : links) {
+            TextView lb = button(lk[0]);
+            lb.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    try { startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(lk[1]))); }
+                    catch (Exception e) { Toast.makeText(SetupActivity.this, lk[1], Toast.LENGTH_LONG).show(); }
+                }
+            });
+            col.addView(lb);
+        }
         final String[] hints = {"Groq key (starts with gsk_)", "Cerebras key (starts with csk-)", "Mistral key", "OpenRouter key (starts with sk-or-)"};
         final String[] prefNames = {"groqKey", "cerebrasKey", "mistralKey", "openrouterKey"};
         final EditText[] boxes = new EditText[4];

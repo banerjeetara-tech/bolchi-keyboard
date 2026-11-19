@@ -52,6 +52,16 @@ final class Offline {
         }
     }
 
+    /** Starts the downloads of the missing languages in the background, on Wi-Fi only (so no mobile data is used). Does not wait. */
+    static void autoDownload() {
+        for (String l : LANGS) {
+            try {
+                if (has(l)) continue;
+                RemoteModelManager.getInstance().download(new TranslateRemoteModel.Builder(l).build(), new DownloadConditions.Builder().requireWifi().build());
+            } catch (Throwable ignored) { /* the button in the Bolchi app can be used instead */ }
+        }
+    }
+
     /** Downloads the languages that are missing, telling `p` what is happening every 2 seconds. Needs internet this once. Returns the final report. */
     static String downloadAll(Progress p) {
         StringBuilder b = new StringBuilder();

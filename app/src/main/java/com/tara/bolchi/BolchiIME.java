@@ -752,6 +752,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             }
         };
         prefs().registerOnSharedPreferenceChangeListener(smsWatch);
+        // the translator on the phone: fetch the missing languages by itself on Wi-Fi (at most every 12 hours), so she never has to remember the button
+        if (System.currentTimeMillis() - prefs().getLong("offlineTry", 0) > 12 * 3600 * 1000L) {
+            prefs().edit().putLong("offlineTry", System.currentTimeMillis()).apply();
+            new Thread(new Runnable() { @Override public void run() { Offline.autoDownload(); } }).start();
+        }
         if (!Words.ready) new Thread(new Runnable() { @Override public void run() {
             try { Words.load(getAssets().open("words.txt")); } catch (Throwable t) { saveProblem(t); }
             try {

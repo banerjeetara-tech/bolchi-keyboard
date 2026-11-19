@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 131 = build-197** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 132 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -563,6 +563,12 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   languages, `Tasks.await` 6 min each) so it looked dead, and Hindi may have been missing. Now `Offline.downloadAll(Progress)` polls every 2 s ("Downloading Hindi… 14 s"), waits up to 15 min per language, reports each language, and the Bolchi app shows "On your phone now: English ✓ Hindi ✗ Bengali ✓" (`Offline.status`, refreshed on open).
   The same test: Google Translate 429, Google other door 429, Edge "no token (404)" (its sign-in endpoint is gone: left in the list but not asked again for 6 h after a failure), Lingva socket timeout after 23 s (now 2 instances, 7 s at most, not asked again for 30 min), MyMemory ✓ (good for "good morning", poor for "hello"),
   Gemini ✓ 7.6 s, Groq ✓ 1 s, Cerebras "model list answered 401" (the key she pasted is refused or wrong), OpenRouter 429, LLM7 "key refused (401)" (it now wants a key: removed from the chain), Pollinations ✓ without any key (7 s, last resort). Not tested on a phone.
+
+- Version 132 (Tara, 19 Nov 23:31, screenshot: the Bolchi app shows "On your phone now: English ✓ Hindi ✓ Bengali ✓"; her voice-typed message, my reading: translating "waits one second and then immediately asks Groq", "why is it depending on Groq, the translator [on the phone] is better",
+  "Mistral and Cerebras are not working, share the direct links to generate keys", "do something so I do not have to come back again and again"). Changes: (1) `translateChain` tries the translator ON the phone FIRST (instant, free, no limit; needs the languages downloaded) before the online doors, the AI services and MyMemory;
+  it is skipped for Banglish in English letters until that is written in a script. (2) Banglish typed in English letters ("ami tomake bhalobashi") is not English: `looksBanglishText` (a third of the words in `Words.isDesi`) makes "Translate to Bengali" only write it in Bengali letters (`romanToScript`) and "Translate to Hindi" first write it in Bengali letters, then translate.
+  (3) `Offline.autoDownload` fetches missing languages by itself on Wi-Fi only, at most every 12 hours (pref `offlineTry`, started from `onCreate`). (4) The Bolchi app has buttons that open the key pages: console.groq.com/keys, cloud.cerebras.ai/platform, console.mistral.ai/api-keys, openrouter.ai/keys; a refused key is now reported as "key refused (401): copy the whole key again".
+  The AI features (grammar, rewrite, tone, replies, voice fix) use Groq first only because it is the fastest of her working services; Groq is NOT needed for translating any more. Her Cerebras test said 401 (wrong / incomplete key) and Mistral had no key saved. Not tested on a phone.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
