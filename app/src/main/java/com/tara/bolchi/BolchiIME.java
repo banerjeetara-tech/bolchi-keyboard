@@ -669,6 +669,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 @Override public void onClick(View v) {
                     tick(v);
                     if (m == mode && m != MODE_EN) toggleVoiceScript();
+                    else if (m == mode) fixMessageTap();          // English tapped again: fix the message (spelling in English sentences + the end mark)
                     else {
                         setMode(m);
                         if (m != MODE_EN) flashSpace(m == MODE_BN ? (voiceScript[0] ? "Speak writes \u09ac\u09be\u0982\u09b2\u09be letters. Tap again for Banglish" : "Speak writes Banglish. Tap Bangla again for \u09ac\u09be\u0982\u09b2\u09be letters")
@@ -1734,7 +1735,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private TextView layoutKey() {
         TextView k = makeKey(LAYOUT_KEY[layout], 1.4f, cFn, cInk, layout == 0 ? 14 : 15);
         onPress(k, cFn, new Runnable() { @Override public void run() {
+            int was = layout;
             setLayoutTo((layout + 1) % LAYOUT_KEY.length);
+            if (was != 0 && layout == 0) fixMessage(false);       // version 144: back on the English keys, the English sentences of the message are put right
         } });
         return k;
     }
@@ -3042,6 +3045,119 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.endBatchEdit();
     }
 
+    // ---------- version 144: fix the whole message ----------
+    // Tara: "correction should only work in total English, while writing or speaking"; "punctuation will also work in English; for Bengali English it will understand the tone
+    // and give only the appropriate punctuation"; "when I switch in WhatsApp from Bengali to English the sentence will be autocorrected, manually, speaking or writing".
+    // Done when she switches to English (the English tab, the layout key) and when she taps the English tab again. SentenceFix decides what is changed.
+    private String sfOld, sfNew;       // the box text before / after the last whole-message fix: backspace right after it puts the old text back
+    private int sfCursor, sfCursorNew; // where the cursor stood before / after it
+    private long sfAt;
+
+    /** The whole text of the box and the cursor in it; null when it is too long to handle. */
+    private String boxText(InputConnection ic, int[] cursor) {
+        ExtractedText et = ic.getExtractedText(new ExtractedTextRequest(), 0);
+        if (et != null && et.text != null && et.text.length() > 0 && et.startOffset == 0) {
+            String t = et.text.toString();
+            cursor[0] = Math.max(0, Math.min(et.selectionStart, t.length()));
+            return t.length() > 8000 ? null : t;
+        }
+        CharSequence b = ic.getTextBeforeCursor(4000, 0), a = ic.getTextAfterCursor(4000, 0);      // some apps answer with no text: read around the cursor
+        String bs = b == null ? "" : b.toString(), as = a == null ? "" : a.toString();
+        if (bs.length() >= 4000 || as.length() >= 4000) return null;
+        cursor[0] = bs.length();
+        return bs + as;
+    }
+
+    /**
+     * Fixes the message in the box: spelling, short forms and capitals ONLY in sentences that are entirely English (a sentence with a Bangla / Hindi / Banglish word is never touched),
+     * and the end mark of the last sentence by its meaning. manual = she tapped the English tab again (always done); otherwise she switched to English (done when Auto-correct is on).
+     */
+    private void fixMessage(boolean manual) {
+        try {
+            if (!Words.ready || noFix || plainField || uriBox || fontOn()) { if (manual) flashSpace("Nothing to fix in this box"); return; }
+            if (!manual && !autoFix) return;
+            InputConnection ic = getCurrentInputConnection();
+            if (ic == null) return;
+            if (composing) { ic.finishComposingText(); composing = false; }
+            CharSequence sel = ic.getSelectedText(0);
+            boolean isSel = sel != null && sel.length() > 0;
+            int[] cur = new int[1];
+            String text = isSel ? sel.toString() : boxText(ic, cur);
+            if (text == null) { if (manual) flashSpace("Message too long to check"); return; }
+            if (isSel) cur[0] = text.length();
+            if (text.trim().isEmpty()) return;
+            SentenceFix.Result r = SentenceFix.fix(text, cur[0], !isSel);
+            if (!r.changed()) {
+                if (manual) flashSpace(r.english == 0 && r.left > 0 ? "Not all English: left as it is" : "No mistakes found ✓");
+                return;
+            }
+            ic.beginBatchEdit();
+            if (isSel) {
+                ic.commitText(r.text, 1);
+                sfOld = sfNew = null;
+            } else {
+                ic.setSelection(r.from, r.to);          // only the part that changed is replaced; the cursor goes back to where it stood
+                ic.commitText(r.insert, 1);
+                ic.setSelection(r.cursor, r.cursor);
+                sfOld = text;
+                sfNew = r.text;
+                sfCursor = cur[0];
+                sfCursorNew = r.cursor;
+                sfAt = System.currentTimeMillis();
+            }
+            ic.endBatchEdit();
+            word.setLength(0);
+            fixTyped = null;
+            fixShownTyped = fixShownDone = null;
+            lastWord = "";
+            justEnded = "";
+            pickedSpace = false;
+            lastTypeAt = System.currentTimeMillis();
+            if (clearRepair()) paintCands();
+            StringBuilder what = new StringBuilder();
+            if (r.fixed > 0) what.append(r.fixed).append(" fixed");
+            if (r.marked) what.append(what.length() > 0 ? " + " : "").append(r.mark.equals("।") ? "danda" : r.mark);
+            flashSpace("✓ " + what + (isSel ? "" : " · backspace = undo"));
+            StringBuilder note = new StringBuilder();
+            for (int i = 0; i < r.pairs.size() && i < 6; i++) note.append(i > 0 ? ", " : "").append(r.pairs.get(i));
+            prefs().edit().putString("msgFix", "[" + (curApp.isEmpty() ? "?" : curApp) + " " + new java.text.SimpleDateFormat("HH:mm", java.util.Locale.ENGLISH).format(new java.util.Date()) + "] "
+                    + r.fixed + " fixed" + (note.length() > 0 ? " (" + note + ")" : "") + (r.marked ? ", mark " + r.mark : "") + "; English sentences " + r.english + ", left alone " + r.left).apply();
+            paintSugs();
+        } catch (Exception ex) { saveProblem(ex); }
+    }
+
+    /** Backspace right after a whole-message fix puts the old text back (like backspace after one auto-corrected word). True when it did. */
+    private boolean undoMessageFix(InputConnection ic) {
+        if (sfOld == null || sfNew == null) return false;
+        String old = sfOld, neu = sfNew;
+        sfOld = sfNew = null;
+        if (System.currentTimeMillis() - sfAt > 60000) return false;
+        int[] cur = new int[1];
+        String now = boxText(ic, cur);
+        if (now == null || !now.equals(neu) || cur[0] != sfCursorNew) return false;      // she typed or moved on: backspace is an ordinary backspace
+        int m = Math.min(old.length(), neu.length()), p = 0, q = 0;
+        while (p < m && old.charAt(p) == neu.charAt(p)) p++;
+        while (q < m - p && old.charAt(old.length() - 1 - q) == neu.charAt(neu.length() - 1 - q)) q++;
+        ic.beginBatchEdit();
+        ic.setSelection(p, neu.length() - q);
+        ic.commitText(old.substring(p, old.length() - q), 1);
+        int c = Math.max(0, Math.min(sfCursor, old.length()));
+        ic.setSelection(c, c);
+        ic.endBatchEdit();
+        word.setLength(0);
+        fixShownTyped = fixShownDone = null;
+        flashSpace("Undone");
+        return true;
+    }
+
+    /** The English tab was tapped while English is already on: fix the message now (and carry on listening if she was speaking). */
+    private void fixMessageTap() {
+        boolean was = listening;
+        if (was) stopListening(null);
+        fixMessage(true);
+        if (was) startListening();
+    }
+
     private TextView panelBox(String label, CharSequence body, boolean strong) {
         TextView t = new TextView(this);
         t.setMovementMethod(new android.text.method.ScrollingMovementMethod());      // a long text scrolls inside the box (drag up / down)
@@ -3849,6 +3965,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             return;
         }
         if (composing) { ic.finishComposingText(); composing = false; }
+        if (undoMessageFix(ic)) { paintSugs(); return; }      // version 144: right after a whole-message fix, backspace puts the old text back
         if (token.length() > 0) token.setLength(token.length() - 1);
         if (numTyped.length() > 0) numTyped.setLength(numTyped.length() - 1);
         fixShownTyped = fixShownDone = null;
@@ -3989,12 +4106,15 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             boolean chat = CHAT_APPS.contains(curApp);
             int want = chat ? MODE_BN : MODE_EN;   // she asked for it (twice): English chip + English keys in Google, email, websites; Bangla in chat apps
             if (mode != want) { mode = want; prefs().edit().putInt("mode", want).apply(); }
+            // chat apps: speaking Bangla / Hindi comes out in English letters (Banglish / Hinglish), English words as English words
             if (chat && voiceScript[0]) { voiceScript[0] = false; prefs().edit().putBoolean("bnScript", false).apply(); }
+            if (chat && voiceScript[1]) { voiceScript[1] = false; prefs().edit().putBoolean("hiScript", false).apply(); }
             paintChips();
             setLayoutTo(chat ? (layout == 3 ? 3 : 1) : 0);
         }
         lastWord = "";
         justEnded = "";
+        sfOld = sfNew = null;          // the undo of a whole-message fix belongs to the box it was made in
         deletedBuf.setLength(0);
         // a message that was taken out of the box when a GIF was sent is offered back here, once, in the same app
         // (not in the "Add a caption" box of the GIF preview: there it would go along with the GIF after all)
@@ -4170,12 +4290,14 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private void setMode(int m) {
         if (m == mode) return;
         boolean was = listening;
+        final int oldMode = mode;
         if (was) stopListening(null);
         mode = m;
         prefs().edit().putInt("mode", m).apply();
         // the tab also sets the typing language (the letter-key layouts she picked stay as they are)
         setLayoutTo(m == MODE_EN ? 0 : m == MODE_BN ? (layout == 3 ? 3 : 1) : (layout == 4 ? 4 : 2));
         paintChips();
+        if (m == MODE_EN && oldMode != MODE_EN) fixMessage(false);      // version 144: switching Bangla / Hindi -> English puts the English sentences of the message right
         if (was) startListening();
     }
 
@@ -4527,7 +4649,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             char c = t.charAt(i);
             if (c == '.' || c == '?' || c == '!' || c == '\u0964' || c == '\n') { from = i + 1; break; }
         }
-        String mark = Spoken.markFor(t.substring(from));
+        String sentence = t.substring(from);
+        // entirely English: full punctuation; Banglish / Hinglish: only the mark the tone asks for (a question word gives ?, a cheer gives !)
+        String mark = Spoken.markFor(sentence, SentenceFix.isTotalEnglish(sentence));
         if (mark.isEmpty()) return false;
         ic.commitText(mark, 1);
         spokenAll.append(mark);
@@ -4611,7 +4735,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 rememberAlternatives(results, said);
                 findSuspects(said);
                 lastVoiceAt = System.currentTimeMillis();
-                stopDue = Spoken.wantsStop(said);
+                stopDue = !Spoken.markFor(said, SentenceFix.isTotalEnglish(said)).isEmpty();      // also a short question / cheer ("tumi kothay", "wow") gets its mark after the silence
                 roundEndAt = System.currentTimeMillis();
                 handler.removeCallbacks(writeStop);
                 if (stopDue) handler.postDelayed(writeStop, 3000);

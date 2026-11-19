@@ -497,6 +497,7 @@ public class SetupActivity extends Activity {
         return "Installed version: Bolchi " + BuildConfigInfo.version(this)
                 + "\nAuto-correct: " + (p.getBoolean("autoFix", true) ? "ON" : "OFF (hold the Auto key on the keyboard to turn it on)")
                 + (p.getString("fixWhy", "").isEmpty() ? "" : "\nLast word not corrected: " + p.getString("fixWhy", ""))
+                + (p.getString("msgFix", "").isEmpty() ? "" : "\nLast whole-message fix (English tab): " + p.getString("msgFix", ""))
                 + (p.getString("learnLog", "").isEmpty() ? "" : "\nLearned lately (words before > word):\n" + p.getString("learnLog", ""))
                 + (p.getString("voiceWhy", "").isEmpty() ? "" : "\nLast voice error: " + p.getString("voiceWhy", ""))
                 + "\nNext-word guesses: " + (next.isEmpty()

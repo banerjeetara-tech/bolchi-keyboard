@@ -75,25 +75,6 @@ public final class Spoken {
         return b.toString();
     }
 
-    private static final java.util.Set<String> ASKS = new java.util.HashSet<>(Arrays.asList((
-            "what why how when where who whom whose which is are am was were do does did can could will would should shall "
-            + "keno kothay kokhon kemon kobe kivabe kibhabe ki ke kar koto kon konta "
-            + "kya kyun kyu kyon kaise kaisa kaisi kab kahan kaha kaun kitna kitne kitni "
-            + "কেন কোথায় কোথায় কখন কেমন কি কী কে কত "
-            + "क्या क्यों कैसे कब कहाँ कहां कौन कितना").split(" ")));
-    private static final java.util.Set<String> ASKS_ANY = new java.util.HashSet<>(Arrays.asList((
-            "keno kothay kokhon kemon kobe kivabe kibhabe koto kota kyun kyu kyon kaise kaisa kaisi kab kahan kaun kitna kitne kitni "
-            + "\u0995\u09C7\u09A8 \u0995\u09CB\u09A5\u09BE\u09DF \u0995\u09CB\u09A5\u09BE\u09AF\u09BC \u0995\u0996\u09A8 \u0995\u09C7\u09AE\u09A8 \u0995\u09A4 "
-            + "\u0915\u094D\u092F\u093E \u0915\u094D\u092F\u094B\u0902 \u0915\u0948\u0938\u0947 \u0915\u092C \u0915\u0939\u093E\u0901 \u0915\u0939\u093E\u0902 \u0915\u094C\u0928 \u0915\u093F\u0924\u0928\u093E").split(" ")));
-    private static final java.util.Set<String> ASK_ENDS = new java.util.HashSet<>(Arrays.asList(
-            "ki", "naki", "kya", "na", "কি", "কী", "নাকি", "क्या", "ना"));
-    private static final java.util.Set<String> CHEERS = new java.util.HashSet<>(Arrays.asList(
-            "wow", "congratulations", "congrats", "hurray", "omg", "great", "awesome", "darun", "bah", "shabash", "wah", "badhai"));
-
-    /**
-     * Ends a spoken stretch the way it sounds: a question gets "?", a cheer gets "!", a full sentence gets a full stop
-     * (the Bengali / Hindi danda in those scripts). Short bits of one or two words are left open.
-     */
     /** Words that are said twice on purpose. */
     private static final java.util.Set<String> TWICE_OK = new java.util.HashSet<>(Arrays.asList(
             "very", "so", "no", "bye", "ha", "had", "that", "really", "many", "long", "far", "too", "ok", "okay", "yes", "na", "hi", "bla", "blah", "knock", "more", "again"));
@@ -156,51 +137,110 @@ public final class Spoken {
         return said;
     }
 
-    public static String punctuate(String text) { return punctuate(text, true); }
+    // ---------- punctuation by meaning (version 144) ----------
+    // Tara: "punctuation will also work when speaking or writing in English; for Bengali English it will understand the tone and give only the appropriate punctuation".
+    // A wrong mark annoys more than a missing one, so a question / cheer is only recognised when the words say so.
+
+    private static java.util.Set<String> set(String s) { return new java.util.HashSet<>(Arrays.asList(s.split(" "))); }
 
     /** Words a sentence does not end on: a pause after one of these is a pause to think, not the end. */
-    private static final java.util.Set<String> OPEN = new java.util.HashSet<>(java.util.Arrays.asList((
+    private static final java.util.Set<String> OPEN = set(
             "and but or so to the a an of in on at for with from by because that which who if when then than as is are was were am be will would can could should "
             + "my your his her our their not very also just into "
-            + "ar ebong kintu je ki ke er te theke jonno karon tai jodi tokhon amar tomar tar amader "
-            + "aur lekin ya ki ka ke ko se me par liye kyunki agar toh to mera tumhara uska").split(" ")));
+            + "ar ebong kintu je ki ke er te theke jonno karon tai jodi tokhon amar tomar tar amader tahole "
+            + "aur lekin ya ka ko se me par liye kyunki agar toh to mera tumhara uska");
 
-    /** True when a stretch of speech looks like a finished sentence that should get a full stop (3+ words, no mark yet, not ending on a joining word). */
-    public static boolean wantsStop(String text) {
-        if (text == null) return false;
-        String t = text.trim();
-        if (t.isEmpty() || ".?!,;:।".indexOf(t.charAt(t.length() - 1)) >= 0) return false;
-        String[] w = norm(t).split("\\s+");
-        return w.length >= 3 && !OPEN.contains(w[w.length - 1]);
+    private static final java.util.Set<String> EN_WH = set("what why how when where who whom whose which");
+    private static final java.util.Set<String> EN_AUX = set("is are am was were can could will would should shall may might must have has had "
+            + "isn't aren't wasn't weren't can't couldn't won't wouldn't shouldn't haven't hasn't hadn't");
+    private static final java.util.Set<String> EN_DO = set("do does did don't doesn't didn't");
+    private static final java.util.Set<String> EN_SUBJ = set("i you we he she they it there this that these those my your his her our their any anyone anybody everyone everybody "
+            + "someone somebody nobody something anything everything both all each some people");
+    private static final java.util.Set<String> EN_ART = set("the a an");
+    private static final java.util.Set<String> EN_WH_PRON = set("i we you he she they it the a an my our their this that these those there his her");
+    private static final java.util.Set<String> EN_ADJ = set("nice beautiful wonderful lovely sweet great cute awesome amazing good kind pretty");
+    private static final java.util.Set<String> NEG_AUX = set("isn't aren't wasn't weren't don't doesn't didn't won't wouldn't can't couldn't shouldn't haven't hasn't hadn't");
+    private static final java.util.Set<String> TAG_PRON = set("it you he she they we i there that");
+    private static final java.util.Set<String> CHEER1 = set("wow hurray hooray omg yay great awesome amazing wonderful fantastic superb excellent brilliant congratulations congrats cheers "
+            + "darun bah shabash wah badhai mast zabardast kamal chomotkar osadharon");
+    private static final java.util.Set<String> WISH = set("mubarak subho shubho shubh badhai abhinandan shubhechha");
+    private static final java.util.Set<String> KI = set("ki কি কী");
+    private static final java.util.Set<String> KYA = set("kya क्या");
+    private static final java.util.Set<String> KI_EXCL = set("sundor shundor sundar darun bhalo valo moja maja mishti chomotkar khub kando ador osadharon "
+            + "সুন্দর দারুণ ভালো মজা");
+    private static final java.util.Set<String> KYA_EXCL = set("baat mast khoob kamal zabardast बात मस्त");
+    /** Bangla / Hindi question words that ask whatever the place in the sentence ("tumi kothay acho", "tum kab aaoge"). */
+    private static final java.util.Set<String> BN_Q_ANY = set("keno kothay kokhon kemon kobe kivabe kibhabe koto kota kon konta kake kader kyun kyu kyon kaise kaisa kaisi kab kahan kaun kitna kitne kitni "
+            + "kidhar kiska kiski kisko naki "
+            + "কেন কোথায় কোথায় কখন কেমন কত কবে কোন কোনটা "
+            + "কিভাবে কীভাবে কাকে নাকি "
+            + "क्यों कैसे कब कहाँ कहां कौन कितना");
+
+    /** What a sentence asks for at its end: '?', '!', '.' (a danda in script) or 0 for nothing. `english`: the sentence is entirely English, so no Banglish rules are tried. */
+    private static char kind(String t, boolean english) {
+        String[] raw = t.trim().split("\\s+");
+        int n = raw.length;
+        String[] w = new String[n];
+        for (int i = 0; i < n; i++) w[i] = norm(raw[i]);
+        String w0 = w[0], w1 = n > 1 ? w[1] : "", last = w[n - 1];
+        boolean name1 = n > 1 && !raw[1].isEmpty() && Character.isUpperCase(raw[1].charAt(0)) && !w1.equals("i");
+        // 1. a cheer, a wish, a greeting, "what a ..." is an exclamation
+        if (n <= 4 && CHEER1.contains(w0)) return '!';
+        if ((w0.equals("congratulations") || w0.equals("congrats")) && n <= 8) return '!';
+        if ((w0.equals("happy") || w0.equals("happiest")) && n <= 6) return '!';
+        if (w0.equals("welcome") && n <= 5) return '!';
+        if (w0.equals("good") && n <= 6 && (w1.equals("morning") || w1.equals("afternoon") || w1.equals("evening") || w1.equals("night"))) return '!';
+        if (n <= 4 && ((w0.equals("well") && w1.equals("done")) || (w0.equals("get") && w1.equals("well")) || (w0.equals("best") && w1.equals("wishes")))) return '!';
+        if (n >= 3 && n <= 5 && w0.equals("all") && w1.equals("the") && w[2].equals("best")) return '!';
+        if (w0.equals("what") && (w1.equals("a") || w1.equals("an")) && n <= 8) return '!';
+        if (w0.equals("how") && n <= 3 && EN_ADJ.contains(w1)) return '!';
+        if (!english) {
+            if (n <= 6) for (String x : w) if (WISH.contains(x)) return '!';
+            if (n > 1 && n <= 5 && KI.contains(w0) && KI_EXCL.contains(w1)) return '!';          // "ki sundor"
+            if (n > 1 && n <= 5 && KYA.contains(w0) && KYA_EXCL.contains(w1)) return '!';        // "kya baat hai"
+        }
+        // 2. a question
+        if (EN_WH.contains(w0)) {
+            if (!EN_WH_PRON.contains(w1)) return '?';                                     // "how are you", "what time is it", "who is coming"
+            // "when you reach home call me" is a statement; "what you are doing" is a question
+            if ((w0.equals("what") || w0.equals("why") || w0.equals("how") || w0.equals("where")) && n > 2 && (EN_AUX.contains(w[2]) || EN_DO.contains(w[2]))) return '?';
+        } else if (n > 1 && (EN_AUX.contains(w0) || EN_DO.contains(w0))) {
+            boolean subj = EN_SUBJ.contains(w1) || name1 || (EN_AUX.contains(w0) && EN_ART.contains(w1));
+            if (w0.equals("have") && (w1.equals("a") || w1.equals("an"))) subj = false;     // "Have a nice day"
+            if (subj) return '?';                                                         // "can you send", "is the file ready"; not "do not forget", "will send tomorrow"
+        }
+        if (n >= 2 && NEG_AUX.contains(w[n - 2]) && TAG_PRON.contains(last)) return '?';   // "you will come, won't you"
+        if (n >= 2 && raw[n - 2].endsWith(",") && (last.equals("right") || last.equals("ok") || last.equals("okay") || (!english && last.equals("na")))) return '?';
+        if (!english) {
+            for (int i = 0; i < n; i++) if (BN_Q_ANY.contains(w[i])) return '?';
+            if (KI.contains(w0) || KYA.contains(w0)) return '?';                          // "ki korcho", "kya kar rahe ho"
+            if (n >= 2 && (KI.contains(last) || KYA.contains(last))) return '?';          // "tumi jabe ki"
+            if (n >= 3 && n <= 6) for (int i = 1; i < n - 1; i++) if (KI.contains(w[i]) || KYA.contains(w[i])) return '?';   // "tumi ki khabe"
+            if (w0.equals("ke") || w0.equals("kar") || w0.equals("কে") || w0.equals("কার")) return '?';
+            // ("ami jabo na" is a plain statement: "na" at the end is NOT a question)
+        }
+        // 3. a plain statement: a whole sentence of 3+ words that does not end on a joining word
+        if (n >= 3 && !OPEN.contains(last)) {
+            char lc = t.trim().charAt(t.trim().length() - 1);
+            return lc >= 'ऀ' && lc <= '৿' ? '।' : '.';
+        }
+        return 0;
     }
 
-    /** The mark a finished sentence gets by its meaning: "?" for a question, "!" for a cheer, a full stop (danda in script) for a plain statement, "" when it is too short or unfinished. */
-    public static String markFor(String sentence) {
+    /**
+     * The mark a finished sentence gets by its meaning: "?" for a question, "!" for a cheer / wish / greeting, a full stop (danda in Bangla / Hindi script) for a plain statement,
+     * "" when it already has a mark, is too short or looks unfinished. `english`: the sentence is entirely English (see SentenceFix.isTotalEnglish); otherwise it is judged as
+     * Banglish / Hinglish speech and only the question / cheer words of those languages count in addition.
+     */
+    public static String markFor(String sentence, boolean english) {
         if (sentence == null) return "";
         String t = sentence.trim();
         if (t.isEmpty()) return "";
-        String r = punctuate(t, true);
-        String mark = r.length() > t.length() ? r.substring(t.length()) : "";
-        if ((mark.equals(".") || mark.equals("\u0964")) && !wantsStop(t)) return "";      // "I will send the report and" is not finished
-        return mark;
+        char lastCh = t.charAt(t.length() - 1);
+        if (!Character.isLetterOrDigit(lastCh)) return "";            // already ends in a mark, a comma, a bracket, an emoji ...
+        char k = kind(t, english);
+        return k == 0 ? "" : String.valueOf(k);
     }
 
-    /** stop = false: only ? and ! are added; the full stop is left to the caller, who knows how long the pause really was. */
-    public static String punctuate(String text, boolean stop) {
-        if (text == null) return "";
-        String t = text.trim();
-        if (t.isEmpty()) return text;
-        char last = t.charAt(t.length() - 1);
-        if (".?!,;:।".indexOf(last) >= 0) return text;
-        String[] w = norm(t).split("\\s+");
-        if (w.length == 0) return text;
-        boolean ask = ASKS.contains(w[0]) || (w.length >= 2 && ASK_ENDS.contains(w[w.length - 1]));
-        // Bangla and Hindi put the question word in the middle ("tumi kemon acho"); English helpers like "is" only count at the start
-        for (int i = 1; i < w.length && !ask; i++) ask = ASKS_ANY.contains(w[i]);
-        if (ask) return t + "?";
-        if (CHEERS.contains(w[0]) || (w.length >= 2 && w[0].equals("happy"))) return t + "!";
-        if (w.length < 3 || !stop) return text;
-        boolean script = last >= 'ऀ' && last <= '৿';
-        return t + (script ? "।" : ".");
-    }
+    public static String markFor(String sentence) { return markFor(sentence, false); }
 }
