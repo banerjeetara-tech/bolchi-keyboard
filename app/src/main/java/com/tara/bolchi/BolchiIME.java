@@ -4385,7 +4385,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         final int job = tidyJob;
         new Thread(new Runnable() { @Override public void run() {
             String got;
-            try { got = Converter.tidy(said.replaceFirst("^[\\s.\u0964]+", "").trim(), key); } catch (Throwable t) { got = null; }
+            try { got = Converter.tidy(said.replaceFirst("^[\\s.\u0964]+", "").trim(), key, mode == MODE_EN); } catch (Throwable t) { got = null; }
             final String out = got;
             handler.post(new Runnable() { @Override public void run() {
                 tidyBusy = false;

@@ -383,7 +383,11 @@ final class Converter {
         return b.toString();
     }
 
-    static String tidy(String text, String key) throws Exception {
+    /** The speech cleanup as it worked before version 137: no grammar rewriting (used on the Bangla / Hindi chips, where Banglish must stay exactly as spoken). */
+    static String tidy(String text, String key) throws Exception { return tidy(text, key, false); }
+
+    /** `grammar` = also correct English grammar mistakes: only for the English chip (version 137). */
+    static String tidy(String text, String key, boolean grammar) throws Exception {
         return gemini(key,
                 "The user dictated this text by voice on a Bengali/Hindi speech engine. The speaker mixes Bengali (or Hindi) "
                         + "with English. Bengali and Hindi words are written in English letters (Banglish, Hinglish): keep those "
@@ -395,11 +399,11 @@ final class Converter {
                         + "When the speaker corrects themselves (for example 'at five, no sorry, six'), keep only the corrected "
                         + "version. Remove stammering and false starts: a broken piece of a word followed by the full word "
                         + "('wh what's' becomes 'What's', 'I I think' becomes 'I think', 'ami ami jabo' becomes 'ami jabo'), and "
-                        + "filler sounds like 'um', 'uh', 'aa'. Remove accidental repeats. If a sentence is written ENTIRELY in English and the speaker makes a grammar mistake in it (wrong verb form or tense, a missing or wrong article, a wrong plural, a wrong preposition, "
+                        + "filler sounds like 'um', 'uh', 'aa'. Remove accidental repeats. " + (grammar ? "If a sentence is written ENTIRELY in English and the speaker makes a grammar mistake in it (wrong verb form or tense, a missing or wrong article, a wrong plural, a wrong preposition, "
                         + "wrong word order, 'he don't', 'I am go'), quietly correct it so the English is grammatically right, keeping their meaning and as many of their words as possible. "
                         + "BUT a sentence that contains even ONE Bengali or Hindi word is a mixed sentence: for such a sentence change nothing except the spelling of its English words. Words like eta, ota, ami, tumi, ro, o, "
                         + "hoyeche, korechi, bhalo, ar, kintu, ki, na, to, dekho are BENGALI or HINDI written in English letters: never translate them into English, never replace them with an English word and never treat them "
-                        + "as English mistakes. Never change Bengali or Hindi words. Add punctuation and capital letters, choosing each mark from the meaning and tone: a question ends with a question mark, "
+                        + "as English mistakes. Never change Bengali or Hindi words. " : "") + "Add punctuation and capital letters, choosing each mark from the meaning and tone: a question ends with a question mark, "
                         + "excitement or a greeting with an exclamation mark, a list gets commas, a new thought starts a new sentence. Do not add or remove "
                         + "meaning and do not answer the text. Reply with only the cleaned text.",
                 text);
