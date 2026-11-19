@@ -151,10 +151,18 @@ public final class Spoken {
             + "aur lekin ya ka ko se me par liye kyunki agar toh to mera tumhara uska "
             + "ami tumi tui se amra tomra tara main hum tum tu aap woh wo ye yeh ek ekta kuch kichu kichhu sathe saath kache pe mein baad moddhe upor niche bhitor niye "
             + "tobe magar isliye jab jodio tarpor mane jeno");
-    private static final java.util.Set<String> EMBED = set("jani janina janio janiye bujhte bujhlam bujhi bujhechi pata samajh samjha batao bolo bolun poochho puchho");
+    private static final java.util.Set<String> KI_AFTER = set("tumi tui apni tomra ora se eta ota ei oi tara aap tum tu woh wo");
+    private static final java.util.Set<String> EMBED = set("jani janina janio janiye bujhte bujhlam bujhi bujhechi pata samajh samjha batao bolo bolun poochho puchho jaane jaanta jaanti \u099C\u09BE\u09A8\u09BF \u09AC\u09C1\u099D\u09BF");
     private static final java.util.Set<String> FIRST = set("ami amra main mai hum maine amake amar mera meri amader hamara mujhe humein");
     private static final java.util.Set<String> SECOND = set("tumi tui tum tu aap apni aapne tomra tomar tumhara tumhari tomake tumhe tera");
 
+    /** A question after a filler or a greeting ("so what time is the meeting", "hi Tara how are you") is still a question. */
+    private static final java.util.Set<String> LEAD = set("so ok okay and but also well hey then now oh um uh alright anyway like");
+    private static final java.util.Set<String> GREETW = set("hi hello hey dear");
+    /** Words a sentence cannot end on, not even a question: "can you send it and" is not finished. (No prepositions: "what is it for", "are you coming or not" are real questions.) */
+    private static final java.util.Set<String> EN_DANGLE = set("and but or because if as the a an my your his her our their than very also just");
+    private static final java.util.Set<String> EN_AUXEND = set("is are was were am be will would can could should");
+    private static final java.util.Set<String> CLOSERS = set("ok_thanks okay_thanks thank_you see_you got_it will_do no_problem sounds_good me_too of_course not_really you_too take_care");
     private static final java.util.Set<String> EN_WH = set("what why how when where who whom whose which");
     private static final java.util.Set<String> EN_AUX = set("is are am was were can could will would should shall may might must have has had "
             + "isn't aren't wasn't weren't can't couldn't won't wouldn't shouldn't haven't hasn't hadn't");
@@ -163,23 +171,58 @@ public final class Spoken {
             + "someone somebody nobody something anything everything both all each some people");
     private static final java.util.Set<String> EN_ART = set("the a an");
     private static final java.util.Set<String> EN_WH_PRON = set("i we you he she they it the a an my our their this that these those there his her");
-    private static final java.util.Set<String> EN_ADJ = set("nice beautiful wonderful lovely sweet great cute awesome amazing good kind pretty");
+    private static final java.util.Set<String> EN_ADJ = set("nice beautiful wonderful lovely sweet great cute awesome amazing good kind pretty lucky sad happy funny cool");
     private static final java.util.Set<String> NEG_AUX = set("isn't aren't wasn't weren't don't doesn't didn't won't wouldn't can't couldn't shouldn't haven't hasn't hadn't");
     private static final java.util.Set<String> TAG_PRON = set("it you he she they we i there that");
     private static final java.util.Set<String> CHEER1 = set("wow hurray hooray omg yay great awesome amazing wonderful fantastic superb excellent brilliant congratulations congrats cheers "
-            + "darun bah shabash wah badhai mast zabardast kamal chomotkar osadharon");
+            + "darun bah shabash wah badhai mast zabardast chomotkar osadharon");
     private static final java.util.Set<String> WISH = set("mubarak subho shubho shubh badhai abhinandan shubhechha");
     private static final java.util.Set<String> KI = set("ki কি কী");
     private static final java.util.Set<String> KYA = set("kya क्या");
-    private static final java.util.Set<String> KI_EXCL = set("sundor shundor sundar darun bhalo valo moja maja mishti chomotkar khub kando ador osadharon "
+    private static final java.util.Set<String> KI_EXCL = set("sundor shundor sundar darun bhalo valo moja maja mishti chomotkar khub kando ador osadharon bhoyonkor ashchorjo accha achha mast "
             + "সুন্দর দারুণ ভালো মজা");
-    private static final java.util.Set<String> KYA_EXCL = set("baat mast khoob kamal zabardast बात मस्त");
+    private static final java.util.Set<String> KYA_EXCL = set("baat mast khoob kamal zabardast sundar accha achha badhiya gajab pyara \u092C\u093E\u0924 \u092E\u0938\u094D\u0924");
+    private static final java.util.Set<String> EXCL_LEAD = set("koto kitna kitni kitne");
     /** Bangla / Hindi question words that ask whatever the place in the sentence ("tumi kothay acho", "tum kab aaoge"). */
     private static final java.util.Set<String> BN_Q_ANY = set("keno kothay kokhon kemon kobe kivabe kibhabe koto kota kon konta kake kader kyun kyu kyon kaise kaisa kaisi kab kahan kaun kitna kitne kitni "
             + "kidhar kiska kiski kisko naki "
             + "কেন কোথায় কোথায় কখন কেমন কত কবে কোন কোনটা "
             + "কিভাবে কীভাবে কাকে নাকি "
             + "क्यों कैसे कब कहाँ कहां कौन कितना");
+
+    private static final java.util.Set<String> PRON = set("i you we he she they it there this that these those anyone anybody everyone everybody someone somebody nobody");
+    private static final java.util.Set<String> DET = set("the my your his her our their");
+    private static final java.util.Set<String> DO_SUBJ = set("i you we they anyone anybody everyone everybody these those people");
+    private static final java.util.Set<String> HAVE_SUBJ = set("i you we they there anyone anybody everyone everybody people");
+    private static final java.util.Set<String> HAS_SUBJ = set("he she it there this that the anyone anybody everyone everybody someone somebody");
+    private static final java.util.Set<String> HAD_SUBJ = set("i you we he she they it");
+    private static final java.util.Set<String> MAY_SUBJ = set("i we");
+    private static final java.util.Set<String> IMPERATIVE = set("worry dare ever even forget touch");
+
+    /** True when `aux` + `next` is a question word order: "can you", "is the file", "does it", "are they". Imperatives ("do it now", "have a nice day") and statements with the subject left out ("was a great evening") are not. */
+    private static boolean auxSubject(String aux, String next, boolean nameNext) {
+        String a = aux.endsWith("n't") ? aux.substring(0, aux.length() - 3) : aux;
+        if (aux.equals("can't")) a = "can";
+        if (aux.equals("won't")) a = "will";
+        if (a.equals("do")) return DO_SUBJ.contains(next);
+        if (a.equals("have")) return HAVE_SUBJ.contains(next);
+        if (a.equals("has")) return HAS_SUBJ.contains(next) || nameNext;
+        if (a.equals("had")) return HAD_SUBJ.contains(next);
+        if (a.equals("may") || a.equals("might") || a.equals("must")) return MAY_SUBJ.contains(next);
+        return PRON.contains(next) || DET.contains(next) || nameNext;                  // does, did, is, are, was, were, am, can, could, will, would, should, shall
+    }
+
+    private static String restFrom(String[] raw, int from) {
+        StringBuilder b = new StringBuilder();
+        for (int i = from; i < raw.length; i++) { if (b.length() > 0) b.append(' '); b.append(raw[i]); }
+        return b.toString();
+    }
+
+    private static String joinUnderscore(String[] w) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < w.length; i++) { if (i > 0) b.append('_'); b.append(w[i]); }
+        return b.toString();
+    }
 
     /** What a sentence asks for at its end: '?', '!', '.' (a danda in script) or 0 for nothing. `english`: the sentence is entirely English, so no Banglish rules are tried. */
     private static char kind(String t, boolean english) {
@@ -188,13 +231,16 @@ public final class Spoken {
         String[] w = new String[n];
         for (int i = 0; i < n; i++) w[i] = norm(raw[i]);
         String w0 = w[0], w1 = n > 1 ? w[1] : "", last = w[n - 1];
+        if (n >= 3 && LEAD.contains(w0) && kind(restFrom(raw, 1), english) == '?') return '?';
+        if (n >= 4 && GREETW.contains(w0) && kind(restFrom(raw, 2), english) == '?') return '?';
         boolean name1 = n > 1 && !raw[1].isEmpty() && Character.isUpperCase(raw[1].charAt(0)) && !w1.equals("i");
         // an address, a link or a long number at the end: no mark after it (it would become part of it)
         String lr = raw[n - 1];
         if (lr.indexOf('@') >= 0 || lr.indexOf('/') >= 0 || lr.matches("[0-9][0-9-]{4,}") || lr.matches("(?i)[a-z0-9._-]+\\.(com|in|org|net|co|io)")) return 0;
-        boolean bnQ = false, embed = false, first = false, second = false;
+        boolean bnQ = false, embed = false, first = false, second = false, bnWord = false;
         if (!english) {
-            for (String x : w) { if (BN_Q_ANY.contains(x)) bnQ = true; if (EMBED.contains(x)) embed = true; if (FIRST.contains(x)) first = true; if (SECOND.contains(x)) second = true; }
+            for (String x : w) if (EMBED.contains(x)) embed = true;
+            for (int xi = 0; xi < n; xi++) { String x = w[xi]; if (BN_Q_ANY.contains(x) && !((x.equals("kyun") || x.equals("kyu") || x.equals("kyon")) && xi + 1 < n && KI.contains(w[xi + 1]))) { bnQ = true; bnWord = true; } if (EMBED.contains(x)) embed = true; if (FIRST.contains(x)) first = true; if (SECOND.contains(x)) second = true; }
             if (KI.contains(w0) || KYA.contains(w0) || (n >= 2 && (KI.contains(last) || KYA.contains(last)))) bnQ = true;
             if (bnQ && embed) return 0;                                           // "ami jani na kothay gelo": a statement that holds a question word
         }
@@ -203,39 +249,45 @@ public final class Spoken {
         if ((w0.equals("congratulations") || w0.equals("congrats")) && n <= 8) return '!';
         if ((w0.equals("happy") || w0.equals("happiest")) && n <= 6) return '!';
         if (w0.equals("welcome") && n <= 5) return '!';
-        if (w0.equals("good") && n <= 6 && (w1.equals("morning") || w1.equals("afternoon") || w1.equals("evening") || w1.equals("night"))) return '!';
+        if (w0.equals("good") && n <= 6 && (w1.equals("morning") || w1.equals("afternoon") || w1.equals("evening") || w1.equals("night"))) {
+            return n >= 4 && kind(restFrom(raw, 2), english) == '?' ? '?' : '!';           // "good morning how are you" asks
+        }
         if (n <= 4 && ((w0.equals("well") && w1.equals("done")) || (w0.equals("get") && w1.equals("well")) || (w0.equals("best") && w1.equals("wishes")))) return '!';
         if (n >= 3 && n <= 5 && w0.equals("all") && w1.equals("the") && w[2].equals("best")) return '!';
         if (w0.equals("what") && (w1.equals("a") || w1.equals("an")) && n <= 8) return '!';
-        if (w0.equals("how") && n <= 3 && EN_ADJ.contains(w1)) return '!';
+        if (w0.equals("how") && n <= 7 && EN_ADJ.contains(w1) && (n == 2 || !(EN_AUX.contains(w[2]) || EN_DO.contains(w[2])))) return '!';
         if (!english) {
             if (n <= 6 && !bnQ) for (String x : w) if (WISH.contains(x)) return '!';
-            if (n > 1 && n <= 5 && KI.contains(w0) && KI_EXCL.contains(w1)) return '!';          // "ki sundor"
-            if (n > 1 && n <= 5 && KYA.contains(w0) && KYA_EXCL.contains(w1)) return '!';        // "kya baat hai"
+            if (n > 1 && n <= 8 && (KI.contains(w0) || KYA.contains(w0) || EXCL_LEAD.contains(w0)) && (KI_EXCL.contains(w1) || KYA_EXCL.contains(w1))) return '!';     // "ki sundor", "kya baat hai", "koto bhalo", "kitna accha laga"
         }
+        if (n > 1 && (EN_DANGLE.contains(last) || (n <= 3 && EN_AUXEND.contains(last)))) return 0;      // unfinished: no mark, not even "?"
+        if (english && n <= 3 && CLOSERS.contains(joinUnderscore(w))) return '.';                       // "thank you", "see you", "got it": short English closers end in a full stop
         // 2. a question
-        if (EN_WH.contains(w0)) {
+        if (EN_WH.contains(w0) && (w0.equals("when") || w0.equals("where")) && n > 1 && !(EN_AUX.contains(w1) || EN_DO.contains(w1))) {
+            // a statement that begins with when / where
+        } else if (EN_WH.contains(w0)) {
             if (!EN_WH_PRON.contains(w1)) return '?';                                     // "how are you", "what time is it", "who is coming"
             // "when you reach home call me" is a statement; "what you are doing" is a question
             if ((w0.equals("what") || w0.equals("why") || w0.equals("how") || w0.equals("where")) && n > 2 && (EN_AUX.contains(w[2]) || EN_DO.contains(w[2]))) return '?';
         } else if (n > 1 && (EN_AUX.contains(w0) || EN_DO.contains(w0))) {
-            boolean subj = EN_SUBJ.contains(w1) || name1 || (EN_AUX.contains(w0) && EN_ART.contains(w1));
-            if (w0.equals("have") && (w1.equals("a") || w1.equals("an"))) subj = false;     // "Have a nice day"
-            if (subj) return '?';                                                         // "can you send", "is the file ready"; not "do not forget", "will send tomorrow"
+            if (auxSubject(w0, w1, name1) && !(n > 2 && (w0.equals("don't") || w0.equals("do")) && IMPERATIVE.contains(w[2]))) return '?';                                    // "can you send", "is the file ready"; not "do it now", "have a nice day", "was a great evening", "will send tomorrow"
         }
         if (n >= 2 && NEG_AUX.contains(w[n - 2]) && TAG_PRON.contains(last)) return '?';   // "you will come, won't you"
         if (n >= 2 && raw[n - 2].endsWith(",") && (last.equals("right") || last.equals("ok") || last.equals("okay") || (!english && last.equals("na")))) return '?';
-        if (!english) {
-            for (int i = 0; i < n; i++) if (BN_Q_ANY.contains(w[i])) return '?';
+        if (!english && !embed) {
+            if (bnWord) return '?';                                                       // a Bangla / Hindi question word anywhere ("kyun ki" = because does not count)
             if (KI.contains(w0) || KYA.contains(w0)) return '?';                          // "ki korcho", "kya kar rahe ho"
             if (n >= 2 && (KI.contains(last) || KYA.contains(last))) return '?';          // "tumi jabe ki"
-            if (n >= 3 && n <= 6) for (int i = 1; i < n - 1; i++) if (KI.contains(w[i]) || KYA.contains(w[i])) return '?';   // "tumi ki khabe"
+            // "tumi ki khabe": ki right after a "you / he / she / it" word asks. (Hindi "ki" = that, and "X ki shaadi" = of X: not questions.)
+            if (n >= 3 && n <= 6) for (int i = 1; i < n - 1; i++) if (KI.contains(w[i]) && KI_AFTER.contains(w[i - 1])) return '?';
+            if (n >= 3 && n <= 6) for (int i = 1; i < n - 1; i++) if (KYA.contains(w[i]) && !EMBED.contains(w[i - 1])) return '?';
             if (w0.equals("ke") || w0.equals("kar") || w0.equals("কে") || w0.equals("কার")) return '?';
             // ("ami jabo na" is a plain statement: "na" at the end is NOT a question)
         }
         if (!english && second && !first) return 0;      // "tumi bari gechho": a statement or a question? only the voice knows: no mark
         // 3. a plain statement: a whole sentence of 3+ words that does not end on a joining word
-        if (n >= 3 && !OPEN.contains(last)) {
+        // (so / that / then end a finished English sentence: "I think so", "I did that", "see you then")
+        if (n >= 3 && (!OPEN.contains(last) || (english && (last.equals("so") || last.equals("that") || last.equals("then"))))) {
             char lc = t.trim().charAt(t.trim().length() - 1);
             return lc >= 'ऀ' && lc <= '৿' ? '।' : '.';
         }

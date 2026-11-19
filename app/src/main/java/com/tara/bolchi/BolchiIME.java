@@ -4505,7 +4505,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (was) {
             InputConnection ic = getCurrentInputConnection();
             if (ic != null) ic.finishComposingText();
-            if (composing) spokenAll.append(lastPartial);
+            if (composing) { spokenAll.append(lastPartial); stopTail = tailOf(lastPartial); if (ic != null) endSentence(); }     // Stop pressed while the sentence was still showing: it gets its mark now
             else if (stopDue && ic != null) endSentence();      // Stop pressed: the last sentence gets its full stop now
             autoDot = false;
         }
@@ -4561,7 +4561,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String head = said.substring(0, said.length() - said.replaceFirst("^[\\s.\u0964]+", "").length());     // the space / full stop before the first word stays
         // While she is still speaking, the AI must not close the text with a full stop of its own: the last sentence may not be finished.
         // (Stops inside the text, ? and ! stay. The end gets its stop from the silence timer or the Stop button.)
-        if (listening && out.length() > 1 && (out.endsWith(".") || out.endsWith("\u0964")) && !said.endsWith(".") && !said.endsWith("\u0964"))
+        if (listening && out.length() > 1 && said.length() > 0 && ".?!\u0964".indexOf(out.charAt(out.length() - 1)) >= 0 && ".?!\u0964".indexOf(said.charAt(said.length() - 1)) < 0)
             out = out.substring(0, out.length() - 1);
         String clean = head + out;
         String rest = all.substring(said.length());
@@ -4598,7 +4598,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     @Override public void onEvent(int eventType, Bundle params) { }
 
     /** A space before new speech unless we're at the start or already after a space. */
-    private boolean stopDue;      // the last spoken stretch looks like a whole sentence but has no full stop yet
+    private boolean stopDue;      // the sentence just spoken wants a mark (full stop, ? or !) but has none yet
+    private boolean armTail;      // a round ended without a final text after a partial: the silence timer is armed for what was shown
     private long roundEndAt;
 
     /**
@@ -4626,31 +4627,52 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     private static String tailOf(String s) { return s.length() > 12 ? s.substring(s.length() - 12) : s; }
 
-    /** Writes the mark that fits the sentence just spoken (? for a question, ! for a cheer, a full stop otherwise), judged on the WHOLE sentence since the last mark. */
-    private boolean endSentence() {
-        InputConnection ic = getCurrentInputConnection();
-        if (ic == null) return false;
+    /** A letter, a digit or a vowel sign: the end of a word in any script (Bangla / Hindi words end in vowel signs). */
+    private static boolean wordEnd(char c) {
+        int t = Character.getType(c);
+        return Character.isLetterOrDigit(c) || t == Character.NON_SPACING_MARK || t == Character.COMBINING_SPACING_MARK;
+    }
+
+    /**
+     * The mark the sentence just spoken would get now ("" when none): the WHOLE sentence since the last mark is judged (? for a question, ! for a cheer, a full stop otherwise),
+     * only while the cursor still stands right after it, never into the middle of a word, and never after she tapped somewhere else.
+     */
+    private String pendingMark(InputConnection ic) {
         CharSequence b = ic.getTextBeforeCursor(240, 0);
-        if (b == null || b.length() == 0) return false;
+        if (b == null || b.length() == 0) return "";
         String t = b.toString();
-        if (!Character.isLetterOrDigit(t.charAt(t.length() - 1))) return false;
+        if (!wordEnd(t.charAt(t.length() - 1))) return "";
         // She tapped somewhere else in the text after speaking (for example into a word, to repair it): the mark must not be written there.
-        // It goes only at the end of the sentence just spoken, and never into the middle of a word.
         CharSequence aft = ic.getTextAfterCursor(1, 0);
-        if (aft != null && aft.length() == 1 && Character.isLetterOrDigit(aft.charAt(0))) return false;
-        if (!stopTail.isEmpty() && !t.endsWith(stopTail)) return false;
+        if (aft != null && aft.length() == 1 && Character.isLetterOrDigit(aft.charAt(0))) return "";
+        if (stopTail.isEmpty() || !t.endsWith(stopTail)) return "";
         int from = 0;
         for (int i = t.length() - 1; i >= 0; i--) {
             char c = t.charAt(i);
+            if (c == '.' && i + 1 < t.length() && !Character.isWhitespace(t.charAt(i + 1))) continue;       // a dot inside 3.5, 10.30 or an address is not a full stop
             if (c == '.' || c == '?' || c == '!' || c == '\u0964' || c == '\n') { from = i + 1; break; }
         }
         String sentence = t.substring(from);
         // entirely English: full punctuation; Banglish / Hinglish: only the mark the tone asks for (a question word gives ?, a cheer gives !)
-        String mark = Spoken.markFor(sentence, SentenceFix.isTotalEnglish(sentence));
+        return Spoken.markFor(sentence, SentenceFix.isTotalEnglish(sentence));
+    }
+
+    /** Writes the mark that fits the sentence just spoken. True when one was written. */
+    private boolean endSentence() {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return false;
+        String mark = pendingMark(ic);
         if (mark.isEmpty()) return false;
         ic.commitText(mark, 1);
         spokenAll.append(mark);
         return true;
+    }
+
+    /** Arms the silence timer when the sentence as a whole now wants a mark (judged on the whole sentence, so a short continuation such as "kal" after "ami office jabo" does not cancel it). */
+    private void armStop(InputConnection ic) {
+        handler.removeCallbacks(writeStop);
+        stopDue = ic != null && !pendingMark(ic).isEmpty();
+        if (stopDue) handler.postDelayed(writeStop, 3000);
     }
 
     /** What goes before a new spoken stretch (a space). She is speaking again, so the stretch before it is not closed with a full stop any more. */
@@ -4730,18 +4752,19 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 rememberAlternatives(results, said);
                 findSuspects(said);
                 lastVoiceAt = System.currentTimeMillis();
-                stopDue = !Spoken.markFor(said, SentenceFix.isTotalEnglish(said)).isEmpty();      // also a short question / cheer ("tumi kothay", "wow") gets its mark after the silence
                 roundEndAt = System.currentTimeMillis();
-                handler.removeCallbacks(writeStop);
-                if (stopDue) handler.postDelayed(writeStop, 3000);
                 ic.setComposingText(roundLead + said, 1);
                 spokenAll.append(roundLead).append(said);
                 stopTail = tailOf(roundLead + said);
             } else if (composing) {
                 spokenAll.append(lastPartial);      // the round ended without a final text: what was shown while she spoke stays, and is counted as written
+                stopTail = tailOf(lastPartial);
+                armTail = true;
             }
             ic.finishComposingText();
+            if (!heard.isEmpty() || armTail) armStop(ic);       // also a short question / cheer ("tumi kothay", "wow") gets its mark after the silence
         }
+        armTail = false;
         composing = false;
         lastPartial = "";
         tidyApply();
@@ -4762,7 +4785,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         hushBeep();
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) ic.finishComposingText();
-        if (composing) spokenAll.append(lastPartial);
+        if (composing) {
+            spokenAll.append(lastPartial);
+            stopTail = tailOf(lastPartial);
+            if (ic != null) armStop(ic);
+        }
         composing = false;
         lastPartial = "";
         tidyApply();
