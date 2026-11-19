@@ -159,7 +159,11 @@ final class Converter {
                     String r = n.equals("Google") ? googleTranslateTo(text, from, to) : n.equals("Edge") ? edgeTranslate(text, from, to)
                             : n.equals("GoogleAlt") ? googleAltTranslate(text, from, to) : lingvaTranslate(text, from, to);
                     if (r != null && !r.trim().isEmpty()) return r;
-                } catch (Exception e) { mark(n, n.equals("Google") ? 15 * 60 * 1000L : 5 * 60 * 1000L); why.append(n).append(": ").append(shortWhy(e)).append(". "); }
+                } catch (Exception e) {
+                    // Google's doors answered 429 (too many requests), Edge's sign-in is gone (404) and Lingva's volunteers were slow: do not ask again soon
+                    mark(n, n.equals("Edge") ? 6 * 3600 * 1000L : n.equals("Lingva") ? 30 * 60 * 1000L : 15 * 60 * 1000L);
+                    why.append(n).append(": ").append(shortWhy(e)).append(". ");
+                }
             }
             if (tried) break;
         }
@@ -221,11 +225,14 @@ final class Converter {
         if (text.length() > 1200) throw new UserMessage("text too long for Lingva");
         String q = java.net.URLEncoder.encode(text, "UTF-8").replace("+", "%20");
         String last = "no instance answered";
-        for (String h : LINGVA) {
+        long t0 = System.currentTimeMillis();
+        for (int i = 0; i < 2 && i < LINGVA.length; i++) {            // two instances at most, 7 s at most: the volunteers' servers can hang for a long time
+            String h = LINGVA[i];
+            if (System.currentTimeMillis() - t0 > 7000) break;
             try {
                 HttpURLConnection c = (HttpURLConnection) new URL(h + "/api/v1/" + from + "/" + to + "/" + q).openConnection();
-                c.setConnectTimeout(3000);
-                c.setReadTimeout(5000);
+                c.setConnectTimeout(2500);
+                c.setReadTimeout(3500);
                 int code = c.getResponseCode();
                 if (code != 200) { last = "answered " + code; continue; }
                 String t = new JSONObject(read(c.getInputStream())).optString("translation", "");
@@ -298,7 +305,7 @@ final class Converter {
             catch (Busy bz) { throw new UserMessage("busy, Google answered " + bz.code + " " + (lastDetail == null ? "" : lastDetail)); }
             catch (ModelMissing mm) { throw new UserMessage("model name not found (404)"); }
         } }));
-        for (final Prov p : new Prov[]{GROQ, CEREBRAS, MISTRAL, OPENROUTER, LLM7, POLLINATIONS}) {
+        for (final Prov p : new Prov[]{GROQ, CEREBRAS, MISTRAL, OPENROUTER, POLLINATIONS}) {
             if (p.key.isEmpty()) { b.append("- ").append(p.name).append(": no key saved\n"); continue; }
             b.append(probe(p.name + (p.key.equals("unused") || p.key.equals("none") ? " (no key)" : ""), new Probe() { public String run() throws Exception {
                 String[] ms = p.listUrl == null ? p.fallback : discover(p.listUrl, p.key, p.prefer, p.freeOnly);
@@ -403,7 +410,7 @@ final class Converter {
     static final Prov POLLINATIONS = new Prov("Pollinations", "https://text.pollinations.ai/openai", null, new String[0], new String[]{"openai"}, false);
     static { LLM7.key = "unused"; POLLINATIONS.key = "none"; }
     private static final Prov[] FAST = {GROQ, CEREBRAS, MISTRAL};
-    private static final Prov[] LAST = {OPENROUTER, LLM7, POLLINATIONS};
+    private static final Prov[] LAST = {OPENROUTER, POLLINATIONS};       // LLM7 now wants a key (401 on her test): left out
 
     static volatile String groqKey = "", openrouterKey = "";
     /** Reads the keys she saved in the Bolchi app (all optional). */

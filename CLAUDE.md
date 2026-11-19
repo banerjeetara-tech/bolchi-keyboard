@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 130 = build-195** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 131 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -558,6 +558,11 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   (token from edge.microsoft.com/translate/auth), Google's Chrome-extension door (clients5.google.com), Lingva instances (open-source Google front ends). (3) The AI chain (`Converter.gemini`) now has providers as data (`Prov`): FAST Groq, Cerebras, Mistral (keys optional, boxes in the Bolchi app, model lists asked live),
   then Gemini, then OpenRouter (free models), LLM7 and Pollinations (NO key needed). (4) A service that failed is left alone for 3-15 minutes (`down` / `mark`, `clearDown` in the test) so a dead door costs a few seconds once, not every time. "Test all connections" now lists every door and provider.
   The AI-only features (grammar, rewrite, tone, replies, voice AI fix) cannot be offline: only the many online providers protect them. Not tested on a phone; the first build with the ML Kit dependency (APK is larger) must compile on GitHub.
+
+- Version 131 (Tara, 19 Nov 23:20, "Test all connections" on version 130: "But download offline translate button is not working"). The test itself shows `On the phone (en->bn) ✓ 150 ms: সুপ্রভাত`, so English and Bengali WERE on the phone; the button had no live progress (the report came only after all three
+  languages, `Tasks.await` 6 min each) so it looked dead, and Hindi may have been missing. Now `Offline.downloadAll(Progress)` polls every 2 s ("Downloading Hindi… 14 s"), waits up to 15 min per language, reports each language, and the Bolchi app shows "On your phone now: English ✓ Hindi ✗ Bengali ✓" (`Offline.status`, refreshed on open).
+  The same test: Google Translate 429, Google other door 429, Edge "no token (404)" (its sign-in endpoint is gone: left in the list but not asked again for 6 h after a failure), Lingva socket timeout after 23 s (now 2 instances, 7 s at most, not asked again for 30 min), MyMemory ✓ (good for "good morning", poor for "hello"),
+  Gemini ✓ 7.6 s, Groq ✓ 1 s, Cerebras "model list answered 401" (the key she pasted is refused or wrong), OpenRouter 429, LLM7 "key refused (401)" (it now wants a key: removed from the chain), Pollinations ✓ without any key (7 s, last resort). Not tested on a phone.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:

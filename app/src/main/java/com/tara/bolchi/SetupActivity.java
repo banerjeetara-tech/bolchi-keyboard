@@ -224,14 +224,21 @@ public class SetupActivity extends Activity {
         col.addView(text("Translator on your phone (free, never runs out)", 17, INK));
         col.addView(text("Download once (about 90 MB, needs internet this one time). After that Translate to English / Hindi / Bengali also works with no internet at all, "
                 + "and it is the last helper if every online service fails.", 14, MUTED));
-        final TextView offOut = text("", 13, MUTED);
+        offView = text("Checking\u2026", 13, MUTED);
+        final TextView offOut = offView;
         TextView offBtn = button("Download offline translator");
         offBtn.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
-                offOut.setText("Downloading English, Hindi and Bengali\u2026 this can take a few minutes. You can leave this screen open.");
+                if (downloadingOffline) return;
+                downloadingOffline = true;
+                offOut.setText("Starting\u2026 keep this screen open and stay online.");
                 new Thread(new Runnable() { @Override public void run() {
-                    final String r = Offline.downloadAll();
-                    runOnUiThread(new Runnable() { @Override public void run() { offOut.setText(r); } });
+                    final String r = Offline.downloadAll(new Offline.Progress() {
+                        @Override public void say(final String text) { runOnUiThread(new Runnable() { @Override public void run() { offOut.setText(text); } }); }
+                    });
+                    downloadingOffline = false;
+                    final String st = Offline.status();
+                    runOnUiThread(new Runnable() { @Override public void run() { offOut.setText(r + "\n" + st); } });
                 } }).start();
             }
         });
@@ -450,6 +457,8 @@ public class SetupActivity extends Activity {
         refresh();
     }
 
+    private TextView offView;
+    private volatile boolean downloadingOffline;
     private TextView diagView;
 
     /** The "Installed version" block: version, Auto-correct, why the last word was not corrected, and what the next-word guesses did. Always shows the next-word line. */
@@ -468,6 +477,12 @@ public class SetupActivity extends Activity {
 
     private void refresh() {
         if (diagView != null && diagView.getText().toString().startsWith("Installed version")) diagView.setText(diagText());
+        if (offView != null && !downloadingOffline) {
+            new Thread(new Runnable() { @Override public void run() {
+                final String st = Offline.status();
+                runOnUiThread(new Runnable() { @Override public void run() { if (offView != null && !downloadingOffline) offView.setText(st); } });
+            } }).start();
+        }
         boolean mic = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
         micBtn.setText(mic ? "✓ Microphone allowed" : "Allow microphone");
         micBtn.setBackground(box(mic ? OK : ACCENT, 0, 12));
