@@ -71,7 +71,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     /** Chat apps where the keyboard starts on Bangla (Banglish speaking, Bangla typing keys); every other app starts on English. */
     private static final java.util.Set<String> CHAT_APPS = new java.util.HashSet<>(java.util.Arrays.asList(
             "com.whatsapp", "com.whatsapp.w4b", "org.telegram.messenger", "org.telegram.messenger.web", "org.thoughtcrime.securesms",
-            "com.facebook.orca", "com.facebook.mlite", "com.instagram.android", "com.snapchat.android", "com.google.android.apps.messaging",
+            "com.facebook.orca", "com.facebook.mlite", "com.facebook.katana", "com.facebook.lite", "com.instagram.android", "com.instagram.lite", "com.instagram.barcelona", "com.snapchat.android", "com.google.android.apps.messaging",
             "com.samsung.android.messaging", "com.android.mms", "com.viber.voip", "jp.naver.line.android", "com.imo.android.imoim", "com.truecaller"));
     private static final String[] MODE_LABEL = {"Bangla", "Hindi", "English"};
     private static final String[] MODE_LANG = {"bn-IN", "hi-IN", "en-IN"};
