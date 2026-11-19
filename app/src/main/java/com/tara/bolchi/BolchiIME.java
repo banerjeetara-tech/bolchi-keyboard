@@ -3987,9 +3987,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         // everywhere else. Inside the same app her last choice stays, so it does not flip while she chats.
         if (!restarting && !listening && !curApp.equals(prevApp)) {
             boolean chat = CHAT_APPS.contains(curApp);
-            int want = chat ? MODE_BN : MODE_EN;
+            int want = MODE_BN;                    // speaking: the Bangla listener everywhere (it understands her mixed Bengali + English; the English listener wrote "Claude" as "Court")
             if (mode != want) { mode = want; prefs().edit().putInt("mode", want).apply(); }
-            if (chat && voiceScript[0]) { voiceScript[0] = false; prefs().edit().putBoolean("bnScript", false).apply(); }
+            if (voiceScript[0]) { voiceScript[0] = false; prefs().edit().putBoolean("bnScript", false).apply(); }
             paintChips();
             setLayoutTo(chat ? (layout == 3 ? 3 : 1) : 0);
         }

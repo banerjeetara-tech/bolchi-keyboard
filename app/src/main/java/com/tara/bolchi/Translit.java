@@ -73,7 +73,11 @@ public final class Translit {
             // English words that end in -v / -ve (spoken Bengali writes the v as ভ): they came out as "imprubh", "remubh"
             "ইম্প্রুভ","improve","ইমপ্রুভ","improve","ইম্প্রুভস","improves","ইম্প্রুভিং","improving","ইম্প্রুভড","improved","ইমপ্রুভড","improved","ইম্প্রুভমেন্ট","improvement","ইমপ্রুভমেন্ট","improvement",
             "অ্যাপ্রুভ","approve","এপ্রুভ","approve","অ্যাপ্রুভড","approved","এপ্রুভড","approved","অ্যাপ্রুভাল","approval","এপ্রুভাল","approval","রিমুভ","remove","রিমুভড","removed","মুভ","move","মুভড","moved",
-            "রিসিভ","receive","রিসিভড","received","রিসিভিং","receiving","রিজার্ভ","reserve","রিজার্ভেশন","reservation","প্রুভ","prove","প্রুভড","proved","সলভ","solve","সলভড","solved","রিভাইজ","revise","রিভাইজড","revised"
+            "রিসিভ","receive","রিসিভড","received","রিসিভিং","receiving","রিজার্ভ","reserve","রিজার্ভেশন","reservation","প্রুভ","prove","প্রুভড","proved","সলভ","solve","সলভড","solved","রিভাইজ","revise","রিভাইজড","revised",
+            // names she says: the Bangla listener writes them by sound ("ক্লড" came out as "cloud" instead of Claude)
+            "ক্লড","Claude","ক্লোড","Claude","ক্লদ","Claude","জেমিনি","Gemini","জেমিনী","Gemini","জেমিনাই","Gemini","চ্যাটজিপিটি","ChatGPT","জিপিটি","GPT","জিমেইল","Gmail","জীমেইল","Gmail","আউটলুক","Outlook",
+            "ওপেনএআই","OpenAI","কোপাইলট","Copilot","এআই","AI","পেটিএম","Paytm","ফোনপে","PhonePe","লিংকডইন","LinkedIn","লিঙ্কডইন","LinkedIn","টেলিগ্রাম","Telegram","অ্যামাজন","Amazon","আমাজন","Amazon",
+            "ফ্লিপকার্ট","Flipkart","সুইগি","Swiggy","জোম্যাটো","Zomato","উবার","Uber","নেটফ্লিক্স","Netflix","স্পটিফাই","Spotify","পাওয়ারপয়েন্ট","PowerPoint","এক্সেল","Excel","ওয়ার্ড","Word"
         };
         for (int i = 0; i + 1 < e.length; i += 2) { String k = norm(e[i]); if (!DICT.containsKey(k)) DICT.put(k, e[i + 1]); LOAN.add(k); }
     }
