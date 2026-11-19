@@ -3983,6 +3983,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (mode != MODE_BN) { mode = MODE_BN; prefs().edit().putInt("mode", MODE_BN).apply(); }
             if (voiceScript[0]) { voiceScript[0] = false; prefs().edit().putBoolean("bnScript", false).apply(); }
             paintChips();
+            setLayoutTo(layout == 3 ? 3 : 1);     // writing too: Bangla typing keys (English letters in, Bangla words out); the full Bengali keys stay if she chose them
         }
         lastWord = "";
         justEnded = "";
