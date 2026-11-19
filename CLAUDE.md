@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 132 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 132 = build-201** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -574,6 +574,8 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   The AI features (grammar, rewrite, tone, replies, voice fix) use Groq first only because it is the fastest of her working services; Groq is NOT needed for translating any more. Her Cerebras test said 401 (wrong / incomplete key) and Mistral had no key saved. Not tested on a phone.
   Also in 132 (Tara: "in your new build the button keys Hindi changed into हिंदी"): the Bangla / Hindi tabs changed their LABEL to বাংলা / हिंदी when Speak's script switch was on (a second tap on the tab, `toggleVoiceScript`), which she did not want. The tabs now always read Bangla / Hindi
   (`paintChips`), what Speak writes is shown on the space bar when a tab is tapped and in the Bolchi app, and both script switches were reset to Banglish / Hinglish once (pref `scriptReset132`).
+  Released as build-201 (19 Nov). Tara then said Cerebras and Mistral both ask for a credit balance. Web check (Nov 2026): Cerebras has no standing free tier any more (a payment method buys a $5 trial credit that expires in 30 days);
+  Mistral's free plan needs only a verified phone number but may be asking her for billing in its new console. Do not push these two keys; Groq + the on-phone translator + Gemini + Pollinations are enough. Only other no-card idea: Cloudflare Workers AI (needs account id + token, not built).
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
