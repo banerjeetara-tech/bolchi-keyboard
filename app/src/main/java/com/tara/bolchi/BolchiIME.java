@@ -3975,7 +3975,15 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         voiceScript[1] = prefs().getBoolean("hiScript", false);
         paintChips();
         if (!restarting) desiRecent = 0;       // a new box starts fresh: Banglish typed in the last chat must not hold back corrections here
+        final String prevApp = curApp;
         curApp = info == null || info.packageName == null ? "" : info.packageName;
+        // version 140 (Tara: "make this setting default"): in a different app the keyboard starts on the Bangla chip and Speak writes Banglish
+        // (Bengali in English letters, English words in English). Inside the same app her last choice stays, so it does not flip while she chats.
+        if (!restarting && !listening && !curApp.equals(prevApp)) {
+            if (mode != MODE_BN) { mode = MODE_BN; prefs().edit().putInt("mode", MODE_BN).apply(); }
+            if (voiceScript[0]) { voiceScript[0] = false; prefs().edit().putBoolean("bnScript", false).apply(); }
+            paintChips();
+        }
         lastWord = "";
         justEnded = "";
         deletedBuf.setLength(0);
