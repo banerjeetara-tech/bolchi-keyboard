@@ -69,7 +69,11 @@ public final class Translit {
             "প্রেডিকশন","prediction","ট্রান্সপারেন্ট","transparent","কম্বিনেশন","combination","ভয়েস","voice","টেক্সট","text","মেনশন","mention","সাবসিডিয়ারি","subsidiary","কনট্যাক্ট","contact","কন্টাক্ট","contact","অ্যাড্রেস","address","অ্যাটাচ","attach","অ্যাটাচমেন্ট","attachment","ড্রাফট","draft","সাবজেক্ট","subject",
             "সিগনেচার","signature","পটি","potty","পজ","pause","পস","pause","পোজ","pause","কেটলি","kettle","ডায়মন্ড","diamond","উইথড্র","withdraw","ভাউচার","voucher","রিভিউ","review","পেরোল","payroll","টেবিল","table","অপরচুনিটি","opportunity","ইনক্রিমেন্ট","increment","ফরওয়ার্ডিং","forwarding","অফিস","office","মিটিং","meeting","ফোন","phone","ক্লাস","class","স্কুল","school","কলেজ","college","রিপোর্ট","report","মেসেজ","message","কল","call","টাইম","time","মেইল","mail","ইমেইল","email","ফাইল","file",
             "লিংক","link","গ্রুপ","group","ভিডিও","video","ফটো","photo","ট্রেন","train","টিকিট","ticket","লাঞ্চ","lunch","ডিনার","dinner","পার্টি","party","প্ল্যান","plan","প্রবলেম","problem","টেনশন","tension","ব্যাংক","bank","ব্যাঙ্ক","bank",
-            "মোবাইল","mobile","নাম্বার","number","নম্বর","number","পেমেন্ট","payment","অ্যাপ","app","ডকুমেন্ট","document","অর্ডার","order","ডেলিভারি","delivery","হসপিটাল","hospital","সিনেমা","cinema","বুকিং","booking","লোকেশন","location","আপডেট","update"
+            "মোবাইল","mobile","নাম্বার","number","নম্বর","number","পেমেন্ট","payment","অ্যাপ","app","ডকুমেন্ট","document","অর্ডার","order","ডেলিভারি","delivery","হসপিটাল","hospital","সিনেমা","cinema","বুকিং","booking","লোকেশন","location","আপডেট","update",
+            // English words that end in -v / -ve (spoken Bengali writes the v as ভ): they came out as "imprubh", "remubh"
+            "ইম্প্রুভ","improve","ইমপ্রুভ","improve","ইম্প্রুভস","improves","ইম্প্রুভিং","improving","ইম্প্রুভড","improved","ইমপ্রুভড","improved","ইম্প্রুভমেন্ট","improvement","ইমপ্রুভমেন্ট","improvement",
+            "অ্যাপ্রুভ","approve","এপ্রুভ","approve","অ্যাপ্রুভড","approved","এপ্রুভড","approved","অ্যাপ্রুভাল","approval","এপ্রুভাল","approval","রিমুভ","remove","রিমুভড","removed","মুভ","move","মুভড","moved",
+            "রিসিভ","receive","রিসিভড","received","রিসিভিং","receiving","রিজার্ভ","reserve","রিজার্ভেশন","reservation","প্রুভ","prove","প্রুভড","proved","সলভ","solve","সলভড","solved","রিভাইজ","revise","রিভাইজড","revised"
         };
         for (int i = 0; i + 1 < e.length; i += 2) { String k = norm(e[i]); if (!DICT.containsKey(k)) DICT.put(k, e[i + 1]); LOAN.add(k); }
     }
