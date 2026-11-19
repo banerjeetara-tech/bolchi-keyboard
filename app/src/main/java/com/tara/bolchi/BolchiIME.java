@@ -1216,7 +1216,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
         // a date, the time or a sum is showing in the word row: GIFs must not cover it
         // (after an auto-correct the GIF row carries the two choices itself: her word and the corrected word come first in it)
-        maybeGifs(slotMoney || slotDate[2] || slotCalc[1] || uriBox || sugKeepsTyped || slotUndo[0] ? "" : ew);
+        refreshGifChips();
+        boolean otherRow = contactScroll != null && contactScroll.getVisibility() == View.VISIBLE;      // phone book names, money, repair choices use the word row's place: GIFs must not cover them
+        maybeGifs(otherRow || slotMoney || slotDate[2] || slotCalc[1] || uriBox || sugKeepsTyped || slotUndo[0] ? "" : ew);
     }
 
     private static String join3(List<String> w) {
@@ -2127,9 +2129,24 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     private String gifTyped = "";      // the word as she typed it, for which the GIFs on show were found
     private int gifJob;
     private Runnable gifAsk;
+    private TextView[] gifChips;     // the word row's three places, repeated at the front of the GIF row
+
+    /** Keeps the three word-row places inside the GIF row in step with the word row (same words, bold middle, quotes round her own word). Emoji have their own chips in the GIF row. */
+    private void refreshGifChips() {
+        if (gifChips == null || gifScroll == null || gifScroll.getVisibility() != View.VISIBLE) return;
+        for (int i = 0; i < 3; i++) {
+            TextView c = gifChips[i];
+            if (c == null) continue;
+            CharSequence t = sug[i].getText();
+            boolean show = t != null && t.length() > 0 && !slotEmoji[i];
+            c.setVisibility(show ? View.VISIBLE : View.GONE);
+            if (show) { c.setText(t); c.setTypeface(sug[i].getTypeface()); }
+        }
+    }
 
     private void hideGifs() {
         gifJob++;
+        gifChips = null;
         gifFor = "";
         if (gifAsk != null) handler.removeCallbacks(gifAsk);
         if (gifScroll != null) {
@@ -2173,48 +2190,25 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 handler.post(new Runnable() { @Override public void run() {
                     if (job != gifJob) return;
                     gifBox.removeAllViews();
-                    // emojis first, then the GIFs: one row of the same height as the word row it replaces
-                    if (slotFix[0] && slotFix[1] && fixShownTyped != null && fixShownDone != null) {
-                        // an auto-correct was just made: her word and the corrected word stay first in the row, so she can still pick
-                        for (int c = 0; c < 2; c++) {
-                            final int which = c;
-                            TextView ft = new TextView(BolchiIME.this);
-                            ft.setText(c == 0 ? "\u201C" + fixShownTyped + "\u201D" : fixShownDone);
-                            ft.setTextColor(cInk);
-                            ft.setTextSize(17);
-                            if (c == 1) ft.setTypeface(Typeface.DEFAULT_BOLD);
-                            ft.setGravity(Gravity.CENTER);
-                            ft.setPadding(dp(12), 0, dp(12), 0);
-                            ft.setBackground(box(cKey, 8));
-                            ft.setOnClickListener(new View.OnClickListener() {
-                                @Override public void onClick(View v) { tick(v); try { pickSug(which); } catch (Exception ex) { saveProblem(ex); } }
-                            });
-                            LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
-                            flp.setMargins(0, 0, dp(4), 0);
-                            gifBox.addView(ft, flp);
-                        }
-                    }
-                    if (word.length() == 0 && !plainField) {
-                        // the word row is hidden by this row: her usual next words stay in it, first
-                        List<String> cws = nextContext();
-                        List<String> nxs = cws.isEmpty() ? new ArrayList<String>() : Words.nextAfterCtx(cws, 3);
-                        for (int c = 0; c < nxs.size(); c++) {
-                            final String nw = nxs.get(c);
-                            TextView nt = new TextView(BolchiIME.this);
-                            nt.setText(nw);
-                            nt.setTextColor(cInk);
-                            nt.setTextSize(17);
-                            if (c == 0) nt.setTypeface(Typeface.DEFAULT_BOLD);
-                            nt.setGravity(Gravity.CENTER);
-                            nt.setPadding(dp(12), 0, dp(12), 0);
-                            nt.setBackground(box(cFn, 8));
-                            nt.setOnClickListener(new View.OnClickListener() {
-                                @Override public void onClick(View v) { tick(v); try { writeNextWord(nw); } catch (Exception ex) { saveProblem(ex); } }
-                            });
-                            LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
-                            nlp.setMargins(0, 0, dp(4), 0);
-                            gifBox.addView(nt, nlp);
-                        }
+                    // the GIF row covers the word row, so it starts with the SAME three places (her word, the corrected / predicted word in bold, her memory / next words)
+                    // and keeps them in step with every repaint (refreshGifChips); then the emojis, then the GIFs. One row of the same height as the word row it replaces.
+                    gifChips = new TextView[3];
+                    for (int c = 0; c < 3; c++) {
+                        final int which = c;
+                        TextView ct = new TextView(BolchiIME.this);
+                        ct.setTextColor(cInk);
+                        ct.setTextSize(17);
+                        ct.setGravity(Gravity.CENTER);
+                        ct.setSingleLine(true);
+                        ct.setPadding(dp(12), 0, dp(12), 0);
+                        ct.setBackground(box(c == 1 ? cFn : cKey, 8));
+                        ct.setOnClickListener(new View.OnClickListener() {
+                            @Override public void onClick(View v) { tick(v); try { pickSug(which); } catch (Exception ex) { saveProblem(ex); } }
+                        });
+                        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
+                        clp.setMargins(0, 0, dp(4), 0);
+                        gifBox.addView(ct, clp);
+                        gifChips[c] = ct;
                     }
                     String[] ems = EmojiHints.get(q);
                     for (int k = 0; ems != null && k < ems.length && k < 3; k++) {
@@ -2257,6 +2251,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                     }
                     gifScroll.scrollTo(0, 0);
                     gifScroll.setVisibility(View.VISIBLE);
+                    refreshGifChips();
                     if (sugRow != null) sugRow.setVisibility(View.GONE);   // same height as the word row: the keys do not move
                 } });
             } }).start();

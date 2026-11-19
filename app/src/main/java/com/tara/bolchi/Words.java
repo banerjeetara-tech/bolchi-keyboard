@@ -589,6 +589,65 @@ public final class Words {
         for (String x : new String[]{"hes", "fro", "si", "ti", "fo", "ot", "form", "meeting", "alright", "defiantly"}) FIXED.remove(x);
     }
 
+    static {
+        // version 144: chat spellings found missing by the sentence tests
+        String[] f = {"thanx", "thanks", "thre", "there", "dint", "didn't", "nxt", "next", "mnts", "minutes", "thru", "through", "whts", "what's", "wats", "what's"};
+        for (int i = 0; i + 1 < f.length; i += 2) FIXED.put(f[i], f[i + 1]);
+    }
+
+    /**
+     * Version 144: words that are right as they are and must never be "corrected": office short forms, everyday Indian / tech brands and names of companies,
+     * and a few real words that the word list is missing (the tests turned timings into timing, finalise into finalist, eod into end, ppt into put, infosys into informs).
+     */
+    private static final Set<String> PROTECT = new HashSet<>(Arrays.asList((
+            "eod eta otp ppt pptx wfh kyc neft rtgs xls xlsx csv devops upi gst tds emi cc bcc fyi asap pdf doc docx hr ceo cfo coo cto kpi roi sla sop mom ctc lop wip tbd tba nda faq uat api sql aws apk url sms atm ifsc "
+            + "lol omg btw brb idk imo imho tbh np ty yw hmm hmmm umm ohh ahh oops yay yep yup nope nah wanna gonna gotta kinda sorta "
+            + "infosys wipro tcs accenture freshworks salesforce myntra nykaa phonepe paytm jio blinkit realme canva zomato swiggy flipkart amazon google gmail outlook excel powerpoint zoom slack jira github "
+            + "linkedin whatsapp instagram facebook youtube netflix spotify uber ola emami bolchi gemini chatgpt claude openai copilot microsoft apple samsung oneplus xiaomi oppo vivo kolkata mumbai delhi "
+            + "timings reschedule rescheduled rescheduling finalise finalised finalising finalize finalized prepone preponed passcode timesheet timesheets needful payslip payslips onboarding offboarding "
+            + "deliverable deliverables remittance backend frontend logout canteen invoice invoices auditor auditors revert reverted reverting upskill workflow workflows stakeholder stakeholders "
+            + "reimbursement reimbursements appraisal appraisals annexure addendum").split(" ")));
+
+    /** True for a word on the protected list (office short forms, brands): never changed, and not given a capital letter by itself. */
+    public static boolean isProtected(String w) {
+        return w != null && PROTECT.contains(w.toLowerCase(Locale.ROOT));
+    }
+
+    /** True for a spelling that is in the table of known slips (even a chat short form): used to let it through where other guesses are held back. */
+    public static boolean isFixedEntry(String w) {
+        return w != null && FIXED.containsKey(w.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * True when `typed` differs from `fixed` the way FINGERS slip: one neighbouring key, two letters swapped, one letter left out, or a letter typed twice.
+     * A name or brand is rarely one of those away from an ordinary word ("suman" and "susan" differ by a letter that is nowhere near on the keys).
+     */
+    public static boolean typoShape(String typed, String fixed) {
+        if (typed == null || fixed == null) return false;
+        String a = typed.toLowerCase(Locale.ROOT), b = fixed.toLowerCase(Locale.ROOT);
+        int n = a.length(), m = b.length();
+        if (n == m) {
+            int i = 0;
+            while (i < n && a.charAt(i) == b.charAt(i)) i++;
+            if (i == n) return true;
+            if (a.substring(i + 1).equals(b.substring(i + 1))) return near(a.charAt(i), b.charAt(i));                  // one key brushed instead of the right one
+            return i + 1 < n && a.charAt(i) == b.charAt(i + 1) && a.charAt(i + 1) == b.charAt(i) && a.substring(i + 2).equals(b.substring(i + 2));     // swapped
+        }
+        if (m == n + 1) {                                                                                               // a letter left out
+            int i = 0;
+            while (i < n && a.charAt(i) == b.charAt(i)) i++;
+            return a.substring(i).equals(b.substring(i + 1));
+        }
+        if (n == m + 1) {                                                                                               // a letter typed too many: doubled, or a neighbour key brushed
+            int i = 0;
+            while (i < m && a.charAt(i) == b.charAt(i)) i++;
+            if (!a.substring(i + 1).equals(b.substring(i))) return false;
+            char x = a.charAt(i);
+            return (i > 0 && a.charAt(i - 1) == x) || (i + 1 < n && a.charAt(i + 1) == x) || (i > 0 && near(x, a.charAt(i - 1))) || (i + 1 < n && near(x, a.charAt(i + 1)));
+        }
+        return false;
+    }
+
     private static volatile int[] masks = new int[0];
 
     public static void load(InputStream in) throws IOException {
@@ -908,7 +967,7 @@ public final class Words {
 
     public static boolean known(String w) {
         String l = w.toLowerCase(Locale.ROOT);
-        if (DESI.contains(l) || rank.containsKey(l) || isContact(l) || isKept(l)) return true;
+        if (DESI.contains(l) || rank.containsKey(l) || isContact(l) || isKept(l) || PROTECT.contains(l)) return true;
         synchronized (own) { return own.contains(l); }
     }
 
@@ -1159,7 +1218,7 @@ public final class Words {
             char c = w.charAt(i);
             if (!(c >= 'a' && c <= 'z') && c != '\'') return null;
         }
-        if (DESI.contains(w) || isContact(w) || (!ignoreKept && isKept(w))) return null;   // only words she explicitly kept are left alone
+        if (DESI.contains(w) || PROTECT.contains(w) || isContact(w) || (!ignoreKept && isKept(w))) return null;   // only words she explicitly kept are left alone
         if (looksBanglish(w) && !rank.containsKey(w) && !FIXED.containsKey(w)) return null;   // Bangla/Hindi in English letters is not an English typo
         String f = FIXED.get(w);
         if (f != null) return f.equals(typed) ? null : (f.startsWith("I") ? f : matchCase(typed, f));

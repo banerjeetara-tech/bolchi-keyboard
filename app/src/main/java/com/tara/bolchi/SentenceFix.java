@@ -159,25 +159,46 @@ public final class SentenceFix {
 
     private static boolean allCaps(String w) { return w.length() > 1 && w.equals(w.toUpperCase(Locale.ROOT)); }
 
-    /** A lower-case word that no dictionary, name list or correction knows: probably Banglish / Hinglish, a name or slang. */
-    private static boolean unknown(Tok k) {
-        String w = k.core;
-        if (w.indexOf('\'') >= 0 || allCaps(w) || Character.isUpperCase(w.charAt(0))) return false;
-        if (Words.known(w)) return false;
-        return Words.fix(w, false) == null;
+    /**
+     * Hindi / Bangla words that are not English although the word list holds them (or a word one slip away from them): a sentence with one of these is NOT English.
+     * (The tests turned "kitne baje meeting hai" into "Kite base meeting hai" because none of these was known as Hinglish.)
+     */
+    private static final Set<String> DESI_EXTRA = new HashSet<>(Arrays.asList(("ta ti hai hain hoon hu uska uski unka unki kitne kitna kitni baje pathao pathiye asbe asbo dekhbe dekhunga dekhna bolna chalna "
+            + "koto kader tader moddhe shudhu sudhu bondho bondhura kisi kuchh dibe dure gussa hasi kanna mausam naukri garmi sardi zyada jyada kahin kaha humein hamari tumhari "
+            + "subho mishti maja pori upor ese gele mubarak nahi nahin nai kya kyun kyu kab kahan kaise kaisa kaun bhi toh tumhara aapka aapki apka apki unhe unko isko usko na ka ke ki ko pe").split(" ")));
+    /** Small Hindi / Bangla words that are also English words: one is not enough to decide, two (or one beside a doubtful word) mean the sentence is not English. */
+    private static final Set<String> DESI_WEAK = new HashSet<>(Arrays.asList(("ho ye yeh wo woh hum tum tu mere mera meri tha thi tai kobe koi").split(" ")));
+    /** An out-of-dictionary word with a Bangla / Hindi verb ending ("dekhbe", "korchi", "gelam", "pathabo"). */
+    private static final java.util.regex.Pattern DESI_END = java.util.regex.Pattern.compile(".*(be|bo|bi|chi|cho|che|chhi|chho|chhe|lam|lem|ben|ibe|abo|ebo|iye|echi|echhi|ilam)$");
+
+    private static boolean desiLike(String core) {
+        if (core.indexOf('\'') >= 0) return false;
+        String l = core.toLowerCase(Locale.ROOT);
+        if (DESI_EXTRA.contains(l)) return true;
+        if (Words.isFixedEntry(l) && !DESI_WEAK.contains(l)) return false;                        // "nite", "gud", "u": chat short forms of English words
+        if (Words.isDesi(core)) return true;
+        return l.length() >= 4 && !Words.known(l) && !Words.knownSlip(l) && DESI_END.matcher(l).matches();
     }
 
     private static boolean totalEnglish(List<Tok> toks, boolean foreign) {
         if (!Words.ready || foreign) return false;
-        int words = 0, desi = 0, unk = 0;
+        int words = 0, desi = 0, unk = 0, weak = 0, guess = 0;
         for (Tok k : toks) {
             if (!k.plain) continue;
             words++;
-            if (k.core.indexOf('\'') < 0 && Words.isDesi(k.core)) desi++;
-            else if (unknown(k)) unk++;
+            String w = k.core;
+            if (desiLike(w)) { desi++; continue; }
+            String l = w.toLowerCase(Locale.ROOT);
+            if (DESI_WEAK.contains(l)) weak++;
+            if (w.indexOf('\'') >= 0 || allCaps(w) || Character.isUpperCase(w.charAt(0)) || Words.known(w)) continue;
+            String fx = Words.fix(w, false);
+            if (fx == null) unk++;                                                    // no dictionary, no name list, no correction knows it: Banglish, a name or slang
+            else if (!Words.knownSlip(w) && !Words.typoShape(w, fx)) guess++;         // only a distance guess ("kitne" -> "kite"): as likely Banglish as a typo
         }
         if (words == 0 || desi > 0) return false;
-        return !(unk >= 2 || (unk == 1 && words <= 3));
+        if (weak >= 2 || (weak >= 1 && unk + guess >= 1)) return false;
+        if (unk >= 2 || (unk == 1 && words <= 3)) return false;
+        return unk + guess < (words <= 4 ? 2 : 3);
     }
 
     /** True when the sentence is entirely English: no Bangla / Hindi letters, no Banglish / Hinglish word, hardly a word the dictionary does not know. */
@@ -186,6 +207,39 @@ public final class SentenceFix {
         List<Tok> toks = new ArrayList<>();
         boolean foreign = tokenize(sentence, 0, sentence.length(), toks);
         return totalEnglish(toks, foreign);
+    }
+
+    private static boolean adjacent(String t, int from, int to) {
+        if (to < from || to - from > 3) return false;
+        for (int i = from; i < to; i++) if (!Character.isWhitespace(t.charAt(i))) return false;
+        return to > from;
+    }
+
+    private static boolean commaBetween(String t, int from, int to) {
+        for (int i = from; i < to && i < t.length(); i++) { char c = t.charAt(i); if (c == ',' || c == ';' || c == ':') return true; }
+        return false;
+    }
+
+    private static Set<String> set(String s) { return new HashSet<>(Arrays.asList(s.split(" "))); }
+
+    private static final Set<String> GREET = set("hi hello hey dear ask tell call ping cc bcc thanks thank regards");
+    private static final Set<String> HONOR = set("ji bhai da di babu sir madam maam");
+    private static final Set<String> BASE_VERBS = set("meet go start discuss continue catch do see talk check plan finish wait try have make take get move begin call leave stop celebrate review order pay eat sit watch decide");
+    private static final Set<String> ITS_NEXT = set("not a an been going raining very so too just really ok okay fine time working done late good bad true my your better best easy hard important possible clear wrong right enough nice great worse gone here there still always already never");
+    private static final Set<String> CONTEXT = set("its lets ill ur hes");
+    private static final Set<String> ILL_NEXT = set("be do send call check let come try see get take talk share reply revert update go have make meet");
+    private static final Set<String> UR_NEXT = set("going coming welcome free right late not doing being here there so very too");
+    private static final Set<String> BEFORE_LETS = set("so and but ok okay then yes no hey sure");
+    private static final Set<String> NOT_BEFORE_ILL = set("is was feel feels felt very so too been get got fell fall become became");
+
+    /** Real words that are often meant as a short form of something else, decided by the word next to them ("its not" is "it's not", "its name" stays). */
+    private static String contextWord(String w, String prev, String next, boolean first) {
+        if (w.equals("its") && ITS_NEXT.contains(next)) return "it's";
+        if (w.equals("hes") && ITS_NEXT.contains(next)) return "he's";
+        if (w.equals("lets") && BASE_VERBS.contains(next) && (first || BEFORE_LETS.contains(prev))) return "let's";
+        if (w.equals("ill") && ILL_NEXT.contains(next) && !NOT_BEFORE_ILL.contains(prev) && (first || BEFORE_LETS.contains(prev))) return "I'll";
+        if (w.equals("ur") && UR_NEXT.contains(next)) return "you're";
+        return null;
     }
 
     private static String capital(String w) { return w.isEmpty() ? w : Character.toUpperCase(w.charAt(0)) + w.substring(1); }
@@ -219,19 +273,33 @@ public final class SentenceFix {
                 boolean first = k == 0 && noWordBefore(text, s, tk.s);
                 boolean cap = Character.isUpperCase(core.charAt(0));
                 String result = null;
+                String prevW = k > 0 && adjacent(text, toks.get(k - 1).e, tk.s) ? toks.get(k - 1).core.toLowerCase(Locale.ROOT) : "";
+                String nextW = k + 1 < toks.size() && adjacent(text, tk.e, toks.get(k + 1).s) ? toks.get(k + 1).core.toLowerCase(Locale.ROOT) : "";
                 if (tk.edit) {
                     boolean autoCap = first && cap && (core.length() == 1 || core.substring(1).equals(core.substring(1).toLowerCase(Locale.ROOT)));
                     boolean inside = tk.s < cursor && cursor < tk.e;                 // she is editing this word right now
-                    boolean tail = tk.e == n && cursor == n;                          // the word the cursor touches at the very end: maybe still being typed
                     if (!inside) {
-                        String fx = Words.fix(core, autoCap);
-                        if (fx != null && !fx.equals(core)) {
-                            boolean ok;
-                            // a capital first word may be a name, and the word the cursor touches at the end may still be typed: only plain slips, or a long word that is surely wrong
-                            if ((first && cap) || tail) ok = Words.knownSlip(core) || (core.length() >= 4 && Words.confidentFix(core, fx))
-                                    || (tail && !cap && core.length() >= 6 && Words.sureFix(core) && Words.autoReplaceOk(core));
-                            else ok = Words.sureFix(core) && Words.autoReplaceOk(core);
-                            if (ok) result = fx;
+                        String lw = core.toLowerCase(Locale.ROOT);
+                        boolean clauseStart = first || (k > 0 && commaBetween(text, toks.get(k - 1).e, tk.s));
+                        String cx = CONTEXT.contains(lw) ? contextWord(lw, prevW, nextW, clauseStart) : null;          // "its not" -> "it's not", "ur doing" -> "you're doing"
+                        if (cx != null) result = Words.matchCase(core, cx);
+                        else {
+                            String fx = Words.fix(core, autoCap);
+                            if (fx != null && !fx.equals(core)) {
+                                boolean ok;
+                                if (first && cap) {
+                                    ok = Words.knownSlip(core) || Words.isFixedEntry(core) || (core.length() >= 4 && Words.confidentFix(core, fx));       // a capital first word may be a name
+                                } else if (Words.knownSlip(core) || Words.isFixedEntry(core)) {
+                                    ok = true;                                            // "teh", "recieve", "u", "plz": always right
+                                } else {
+                                    ok = Words.sureFix(core) && Words.autoReplaceOk(core);
+                                    // a short word is changed only when the slip is a finger slip (neighbour key, swap, dropped or doubled letter): "suman" is not a typo of "susan"
+                                    if (ok && core.length() <= 5 && !Words.typoShape(core, fx)) ok = false;
+                                    // a lower-case name after "hi", "dear", "call" ... or before "ji", "bhai" ... is a name
+                                    if (ok && !cap && core.length() <= 6 && (GREET.contains(prevW) || HONOR.contains(nextW))) ok = false;
+                                }
+                                if (ok) result = fx;
+                            }
                         }
                     }
                 } else if (core.indexOf('\'') >= 0 && !allCaps(core)) {
@@ -240,7 +308,7 @@ public final class SentenceFix {
                 }
                 String shownWord = result != null ? result : core;
                 // the first word of a sentence starts with a capital letter (like the keyboard's own auto-capital does while typing)
-                if (first && !cap && Character.isLowerCase(shownWord.charAt(0)) && inDict(shownWord)) shownWord = capital(shownWord);
+                if (first && !cap && Character.isLowerCase(shownWord.charAt(0)) && inDict(shownWord) && !Words.isProtected(shownWord)) shownWord = capital(shownWord);
                 if (!shownWord.equals(core)) {
                     edits.add(new Edit(tk.s, tk.e, shownWord));
                     r.fixed++;

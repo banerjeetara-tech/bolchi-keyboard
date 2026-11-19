@@ -148,7 +148,12 @@ public final class Spoken {
             "and but or so to the a an of in on at for with from by because that which who if when then than as is are was were am be will would can could should "
             + "my your his her our their not very also just into "
             + "ar ebong kintu je ki ke er te theke jonno karon tai jodi tokhon amar tomar tar amader tahole "
-            + "aur lekin ya ka ko se me par liye kyunki agar toh to mera tumhara uska");
+            + "aur lekin ya ka ko se me par liye kyunki agar toh to mera tumhara uska "
+            + "ami tumi tui se amra tomra tara main hum tum tu aap woh wo ye yeh ek ekta kuch kichu kichhu sathe saath kache pe mein baad moddhe upor niche bhitor niye "
+            + "tobe magar isliye jab jodio tarpor mane jeno");
+    private static final java.util.Set<String> EMBED = set("jani janina janio janiye bujhte bujhlam bujhi bujhechi pata samajh samjha batao bolo bolun poochho puchho");
+    private static final java.util.Set<String> FIRST = set("ami amra main mai hum maine amake amar mera meri amader hamara mujhe humein");
+    private static final java.util.Set<String> SECOND = set("tumi tui tum tu aap apni aapne tomra tomar tumhara tumhari tomake tumhe tera");
 
     private static final java.util.Set<String> EN_WH = set("what why how when where who whom whose which");
     private static final java.util.Set<String> EN_AUX = set("is are am was were can could will would should shall may might must have has had "
@@ -184,6 +189,15 @@ public final class Spoken {
         for (int i = 0; i < n; i++) w[i] = norm(raw[i]);
         String w0 = w[0], w1 = n > 1 ? w[1] : "", last = w[n - 1];
         boolean name1 = n > 1 && !raw[1].isEmpty() && Character.isUpperCase(raw[1].charAt(0)) && !w1.equals("i");
+        // an address, a link or a long number at the end: no mark after it (it would become part of it)
+        String lr = raw[n - 1];
+        if (lr.indexOf('@') >= 0 || lr.indexOf('/') >= 0 || lr.matches("[0-9][0-9-]{4,}") || lr.matches("(?i)[a-z0-9._-]+\\.(com|in|org|net|co|io)")) return 0;
+        boolean bnQ = false, embed = false, first = false, second = false;
+        if (!english) {
+            for (String x : w) { if (BN_Q_ANY.contains(x)) bnQ = true; if (EMBED.contains(x)) embed = true; if (FIRST.contains(x)) first = true; if (SECOND.contains(x)) second = true; }
+            if (KI.contains(w0) || KYA.contains(w0) || (n >= 2 && (KI.contains(last) || KYA.contains(last)))) bnQ = true;
+            if (bnQ && embed) return 0;                                           // "ami jani na kothay gelo": a statement that holds a question word
+        }
         // 1. a cheer, a wish, a greeting, "what a ..." is an exclamation
         if (n <= 4 && CHEER1.contains(w0)) return '!';
         if ((w0.equals("congratulations") || w0.equals("congrats")) && n <= 8) return '!';
@@ -195,7 +209,7 @@ public final class Spoken {
         if (w0.equals("what") && (w1.equals("a") || w1.equals("an")) && n <= 8) return '!';
         if (w0.equals("how") && n <= 3 && EN_ADJ.contains(w1)) return '!';
         if (!english) {
-            if (n <= 6) for (String x : w) if (WISH.contains(x)) return '!';
+            if (n <= 6 && !bnQ) for (String x : w) if (WISH.contains(x)) return '!';
             if (n > 1 && n <= 5 && KI.contains(w0) && KI_EXCL.contains(w1)) return '!';          // "ki sundor"
             if (n > 1 && n <= 5 && KYA.contains(w0) && KYA_EXCL.contains(w1)) return '!';        // "kya baat hai"
         }
@@ -219,6 +233,7 @@ public final class Spoken {
             if (w0.equals("ke") || w0.equals("kar") || w0.equals("কে") || w0.equals("কার")) return '?';
             // ("ami jabo na" is a plain statement: "na" at the end is NOT a question)
         }
+        if (!english && second && !first) return 0;      // "tumi bari gechho": a statement or a question? only the voice knows: no mark
         // 3. a plain statement: a whole sentence of 3+ words that does not end on a joining word
         if (n >= 3 && !OPEN.contains(last)) {
             char lc = t.trim().charAt(t.trim().length() - 1);
@@ -237,7 +252,7 @@ public final class Spoken {
         String t = sentence.trim();
         if (t.isEmpty()) return "";
         char lastCh = t.charAt(t.length() - 1);
-        if (!Character.isLetterOrDigit(lastCh)) return "";            // already ends in a mark, a comma, a bracket, an emoji ...
+        if (!Character.isLetterOrDigit(lastCh) && Character.getType(lastCh) != Character.NON_SPACING_MARK && Character.getType(lastCh) != Character.COMBINING_SPACING_MARK) return "";            // already ends in a mark, a comma, a bracket, an emoji ...
         char k = kind(t, english);
         return k == 0 ? "" : String.valueOf(k);
     }
