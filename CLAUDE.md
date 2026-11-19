@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 128 = build-191** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 129 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -544,6 +544,12 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   `/api/v1/models` for OpenRouter, only free ones there; speech / guard models skipped; preferred names first; kept 6 hours); the old fixed names are only the fallback. `chatCompat` now reports the service's own error text ("404 model_not_found ..."), messages are one short phrase per step
   ("Gemini: no connection (SocketTimeout). Groq: 404 ... OpenRouter: ..."), Gemini's read timeout is 14 s (was 20) so the backups still get time. NEW in the Bolchi app: "Test all connections" (`Converter.testAll`): Google Translate, MyMemory, inputtools, Gemini, Groq (chosen model + its answer), OpenRouter,
   each with milliseconds and the exact error. If most of them fail on Wi-Fi, ask her to try the same button on MOBILE DATA (office / home Wi-Fi filters, a VPN, Private DNS or a data-saver rule for Bolchi can block AI and translation hosts while browsing works). Not tested on a phone.
+
+- Version 129 (Tara, 19 Nov 22:37-22:38, two "Test all connections" results on version 128, Wi-Fi and 5G): Google Translate ✗ 429 on BOTH (the free `client=gtx` door is shut for her: it is not her network); MyMemory ✓ (but "hello" -> "ami tomake chai": poor, last resort only); inputtools ✓;
+  Gemini ✗ timeout 20 s on one run and ✓ but 18 s for the single word "ok" on the other (flash-lite-latest is far too slow for her); Groq ✓ (picked `openai/gpt-oss-120b` from the live model list: 0.85 s on 5G, 6.5 s on Wi-Fi); OpenRouter ✗ 429 / timeout (free models are crowded). Also in the same screenshots:
+  "Last voice error: client error (code 5), English, not listening" = ERROR_CLIENT after we stopped, harmless (no network voice error was recorded); the learning works (pairs 219 of 1037, phrases 194 of 2407 seen 2+ times; "Learned lately" shows what was read).
+  Changes: (1) `Converter.gemini` tries GROQ FIRST when a Groq key is saved (`viaGroq`), then the Gemini models, then OpenRouter (`viaOpenRouter`): this also speeds up the voice AI tidy, grammar, tone, replies and translating (the AI step). (2) After a 429 from Google Translate it is not asked again for 15 minutes
+  (`googleTranslateBlockedUntil`), so Translate goes straight to the AI (2 s wasted once, not every time); the test button asks it again. Speak: she has not said what happens when she taps it; if it still fails ask for the exact message on the space bar and the "Last voice error" line.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:

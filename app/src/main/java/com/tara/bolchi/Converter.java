@@ -56,8 +56,11 @@ final class Converter {
         return googleTranslateTo(text, lang, "en");
     }
 
+    private static volatile long googleTranslateBlockedUntil;
+
     /** Google Translate from `lang` (or "auto") into the language `to` ("en", "hi", "bn"). */
     static String googleTranslateTo(String text, String lang, String to) throws Exception {
+        if (System.currentTimeMillis() < googleTranslateBlockedUntil) throw new UserMessage("Google Translate refused (429), not asked again for a while");
         String q = java.net.URLEncoder.encode(text, "UTF-8");
         String[] hosts = {"https://translate.google.com", "https://translate.googleapis.com"};
         Exception last = null;
@@ -69,6 +72,7 @@ final class Converter {
                 c.setConnectTimeout(5000);
                 c.setReadTimeout(8000);
                 int rc = c.getResponseCode();
+                if (rc == 429) googleTranslateBlockedUntil = System.currentTimeMillis() + 15 * 60 * 1000L;       // its free door is shut for her phone: go straight to the next service
                 if (rc != 200) { last = new UserMessage("Google Translate didn't answer (" + rc + " from " + h.replace("https://", "") + ")"); continue; }
                 JSONArray j = new JSONArray(read(c.getInputStream()));
                 JSONArray parts = j.getJSONArray(0);
@@ -196,6 +200,7 @@ final class Converter {
     /** One report for the Bolchi app: which of the services the keyboard uses can be reached from this phone right now, how long each took, and why not. */
     static String testAll(final String key) {
         StringBuilder b = new StringBuilder("Connection test\n");
+        googleTranslateBlockedUntil = 0;
         b.append(probe("Google Translate", new Probe() { public String run() throws Exception { return googleTranslateTo("hello", "en", "bn"); } }));
         b.append(probe("MyMemory (no key)", new Probe() { public String run() throws Exception { return myMemory("hello", "en", "bn"); } }));
         b.append(probe("Bangla letters (inputtools)", new Probe() { public String run() throws Exception { return Phonetic.suggest("ami", false).get(0); } }));
@@ -302,6 +307,9 @@ final class Converter {
         java.io.IOException net = null;
         UserMessage keyMsg = null;
         boolean haveGoogle = key != null && !key.trim().isEmpty();
+        // Groq answers in about a second where Google's AI took 18-20 s on her phone: it goes FIRST when she has saved a key for it
+        String first = viaGroq(instruction, text);
+        if (first != null) return first;
         if (haveGoogle) {
             for (String m : MODELS) {
                 if (System.currentTimeMillis() - t0 > 16000) break;       // the keyboard gives up after 30 s: leave time for the backups
@@ -321,7 +329,7 @@ final class Converter {
                 }
             }
         }
-        String alt = viaOtherServices(instruction, text);
+        String alt = viaOpenRouter(instruction, text);
         if (alt != null) return alt;
         if (!haveGoogle && groqKey.isEmpty() && openrouterKey.isEmpty()) throw new UserMessage("Add your Google AI Studio key in the Bolchi app first");
         String g;
@@ -331,7 +339,7 @@ final class Converter {
         else if (busyCode == 429) g = "Gemini: free limit (429)";
         else if (busyCode != 0) g = "Gemini: busy (" + busyCode + ")";
         else g = "Gemini: model not available";
-        throw new UserMessage((g.isEmpty() ? "" : g + ". ") + altWhy);
+        throw new UserMessage((g.isEmpty() ? "" : g + ". ") + (groqWhy + " " + altWhy).trim());
     }
 
     // model names change over time: ask the service which models exist (kept for 6 hours), the fixed lists are only the fallback
@@ -397,27 +405,31 @@ final class Converter {
         return m.length() > 70 ? m.substring(0, 70) : m;
     }
 
-    /** The free backup services (only the ones she saved a key for). Null when none answered; `altWhy` then says why (one short phrase for each). */
-    private static String viaOtherServices(String instruction, String text) {
+    private static volatile String groqWhy = "";
+
+    /** Groq (free, fast): the models it has today, best first. Null when there is no key or none answered; `groqWhy` then says why. */
+    private static String viaGroq(String instruction, String text) {
+        groqWhy = "";
+        if (groqKey.isEmpty()) return null;
+        String last = "";
+        for (String m : groqModels()) {
+            try { stage = "asking Groq"; return chatCompat("https://api.groq.com/openai/v1/chat/completions", groqKey, m, instruction, text); }
+            catch (Exception e) { last = shortWhy(e); if (last.startsWith("key refused") || last.contains("no connection")) break; }
+        }
+        groqWhy = "Groq: " + last + ".";
+        return null;
+    }
+
+    /** OpenRouter (free models): the last backup. Null when there is no key or none answered; `altWhy` then says why. */
+    private static String viaOpenRouter(String instruction, String text) {
         altWhy = "";
-        StringBuilder why = new StringBuilder();
-        if (!groqKey.isEmpty()) {
-            String last = "";
-            for (String m : groqModels()) {
-                try { stage = "asking Groq"; return chatCompat("https://api.groq.com/openai/v1/chat/completions", groqKey, m, instruction, text); }
-                catch (Exception e) { last = shortWhy(e); if (last.startsWith("key refused") || last.contains("no connection")) break; }
-            }
-            why.append("Groq: ").append(last).append(". ");
+        if (openrouterKey.isEmpty()) return null;
+        String last = "";
+        for (String m : openrouterModels()) {
+            try { stage = "asking OpenRouter"; return chatCompat("https://openrouter.ai/api/v1/chat/completions", openrouterKey, m, instruction, text); }
+            catch (Exception e) { last = shortWhy(e); if (last.startsWith("key refused")) break; }
         }
-        if (!openrouterKey.isEmpty()) {
-            String last = "";
-            for (String m : openrouterModels()) {
-                try { stage = "asking OpenRouter"; return chatCompat("https://openrouter.ai/api/v1/chat/completions", openrouterKey, m, instruction, text); }
-                catch (Exception e) { last = shortWhy(e); if (last.startsWith("key refused")) break; }
-            }
-            why.append("OpenRouter: ").append(last).append(". ");
-        }
-        altWhy = why.toString().trim();
+        altWhy = "OpenRouter: " + last + ".";
         return null;
     }
 
