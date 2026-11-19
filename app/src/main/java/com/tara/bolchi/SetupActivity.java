@@ -214,6 +214,24 @@ public class SetupActivity extends Activity {
         });
         col.addView(saveExtra);
 
+        final TextView allOut = text("", 13, MUTED);
+        TextView allBtn = button("Test all connections");
+        allBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                prefs.edit().putString("aikey", keyBox.getText().toString().trim())
+                        .putString("groqKey", groqBox.getText().toString().trim()).putString("openrouterKey", orBox.getText().toString().trim()).apply();
+                Converter.useExtraKeys(prefs);
+                allOut.setText("Testing, wait up to 40 seconds\u2026");
+                final String k = keyBox.getText().toString().trim();
+                new Thread(new Runnable() { @Override public void run() {
+                    final String r = Converter.testAll(k);
+                    runOnUiThread(new Runnable() { @Override public void run() { allOut.setText(r); } });
+                } }).start();
+            }
+        });
+        col.addView(allBtn);
+        col.addView(allOut);
+
         // test the AI key, and show which version is installed
         final TextView testOut = text(diagText(), 14, MUTED);
         diagView = testOut;

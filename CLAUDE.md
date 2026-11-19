@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 127 = build-189** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 128 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -537,6 +537,13 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   in the Bolchi app ("Backup AI keys"): Groq (`api.groq.com/openai/v1`, llama-3.3-70b-versatile then llama-3.1-8b-instant, prefs `groqKey`) and OpenRouter (free models `:free`, pref `openrouterKey`), through `Converter.chatCompat`; `Converter.useExtraKeys(prefs)`. Translating also
   ends with MyMemory (`api.mymemory.translated.net`, no key, ~500 letters per request, daily limit, source language from the letters) after Google Translate and the AI. Network errors (`IOException`) skip the other Gemini models at once and go to the backups. The messages list every step that failed.
   Do not release more builds than needed: she pays for the tokens of every build cycle (fix first, one build, one release).
+
+- Version 128 (Tara, 19 Nov 22:09, screenshot on version 127 with both backup keys saved: "saved both keys but it's not working"; Translate to English shows "Google Translate didn't answer (429 from translate.googleapis.com). AI: Could not reach Google's AI (SocketTimeoutException). Groq: answered 404. OpenRouter: answered 404 ..."):
+  from HER network: Google Translate = 429 (the free `translate_a/single?client=gtx` endpoint refuses her IP: too many requests), Gemini = socket timeout (so the earlier 503 was also this path), and Groq / OpenRouter = 404 for BOTH models each.
+  A 404 from both most likely means the model names I wrote from memory are gone (it is Nov 2026; names change) or a filter in front of those hosts. Fixed what can be fixed: `Converter.discover` asks each service for its CURRENT model list (`/openai/v1/models` for Groq,
+  `/api/v1/models` for OpenRouter, only free ones there; speech / guard models skipped; preferred names first; kept 6 hours); the old fixed names are only the fallback. `chatCompat` now reports the service's own error text ("404 model_not_found ..."), messages are one short phrase per step
+  ("Gemini: no connection (SocketTimeout). Groq: 404 ... OpenRouter: ..."), Gemini's read timeout is 14 s (was 20) so the backups still get time. NEW in the Bolchi app: "Test all connections" (`Converter.testAll`): Google Translate, MyMemory, inputtools, Gemini, Groq (chosen model + its answer), OpenRouter,
+  each with milliseconds and the exact error. If most of them fail on Wi-Fi, ask her to try the same button on MOBILE DATA (office / home Wi-Fi filters, a VPN, Private DNS or a data-saver rule for Bolchi can block AI and translation hosts while browsing works). Not tested on a phone.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:

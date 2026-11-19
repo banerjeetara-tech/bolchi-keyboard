@@ -96,7 +96,7 @@ final class Converter {
             try { return translate(text, key); }
             catch (Exception e2) {
                 try { return myMemoryAuto(text, "en"); }
-                catch (Exception e3) { throw new UserMessage(first + ". AI: " + (e2.getMessage() == null ? e2.getClass().getSimpleName() : e2.getMessage()) + ". MyMemory: " + (e3.getMessage() == null ? e3.getClass().getSimpleName() : e3.getMessage())); }
+                catch (Exception e3) { throw new UserMessage(shortWhy(e) + ". " + shortAi(e2) + ". MyMemory: " + shortWhy(e3)); }
             }
         }
     }
@@ -132,7 +132,7 @@ final class Converter {
                     try { return romanToScript(text, false); } catch (Exception ignored) { /* try MyMemory next */ }
                 }
                 try { return myMemoryAuto(text, "bn"); }
-                catch (Exception e3) { throw new UserMessage((e.getMessage() == null ? "Google Translate failed" : e.getMessage()) + ". AI: " + (e2.getMessage() == null ? e2.getClass().getSimpleName() : e2.getMessage())); }
+                catch (Exception e3) { throw new UserMessage(shortWhy(e) + ". " + shortAi(e2) + ". MyMemory: " + shortWhy(e3)); }
             }
         }
     }
@@ -149,7 +149,7 @@ final class Converter {
                                 + "Reply with only the translation, nothing else.", text);
             } catch (Exception e2) {
                 try { return myMemoryAuto(text, "hi"); }
-                catch (Exception e3) { throw new UserMessage((e.getMessage() == null ? "Google Translate failed" : e.getMessage()) + ". AI: " + (e2.getMessage() == null ? e2.getClass().getSimpleName() : e2.getMessage())); }
+                catch (Exception e3) { throw new UserMessage(shortWhy(e) + ". " + shortAi(e2) + ". MyMemory: " + shortWhy(e3)); }
             }
         }
     }
@@ -176,6 +176,46 @@ final class Converter {
             String why = lastDetail.isEmpty() ? t.getClass().getSimpleName() + ": " + t.getMessage() : lastDetail;
             return "AI did NOT work.\n" + why;
         }
+    }
+
+    private interface Probe { String run() throws Exception; }
+
+    private static String probe(String name, Probe p) {
+        long t0 = System.currentTimeMillis();
+        try {
+            String r = p.run();
+            if (r != null && r.length() > 40) r = r.substring(0, 40);
+            return "\u2713 " + name + " (" + (System.currentTimeMillis() - t0) + " ms): " + (r == null ? "" : r.replace('\n', ' ')) + "\n";
+        } catch (Throwable t) {
+            String m = t.getMessage() == null ? "" : t.getMessage();
+            if (m.length() > 120) m = m.substring(0, 120);
+            return "\u2717 " + name + " (" + (System.currentTimeMillis() - t0) + " ms): " + t.getClass().getSimpleName() + (m.isEmpty() ? "" : " - " + m) + "\n";
+        }
+    }
+
+    /** One report for the Bolchi app: which of the services the keyboard uses can be reached from this phone right now, how long each took, and why not. */
+    static String testAll(final String key) {
+        StringBuilder b = new StringBuilder("Connection test\n");
+        b.append(probe("Google Translate", new Probe() { public String run() throws Exception { return googleTranslateTo("hello", "en", "bn"); } }));
+        b.append(probe("MyMemory (no key)", new Probe() { public String run() throws Exception { return myMemory("hello", "en", "bn"); } }));
+        b.append(probe("Bangla letters (inputtools)", new Probe() { public String run() throws Exception { return Phonetic.suggest("ami", false).get(0); } }));
+        if (key == null || key.trim().isEmpty()) b.append("- Gemini: no key saved\n");
+        else b.append(probe("Gemini", new Probe() { public String run() throws Exception {
+            try { return gemini(MODEL, key, "Reply with the single word ok", "hello"); }
+            catch (Busy bz) { throw new UserMessage("busy, Google answered " + bz.code + " " + (lastDetail == null ? "" : lastDetail)); }
+            catch (ModelMissing mm) { throw new UserMessage("model name not found (404)"); }
+        } }));
+        if (groqKey.isEmpty()) b.append("- Groq: no key saved\n");
+        else b.append(probe("Groq", new Probe() { public String run() throws Exception {
+            String[] ms = discover("https://api.groq.com/openai/v1/models", groqKey, GROQ_PREFER, false);
+            return ms[0] + " -> " + chatCompat("https://api.groq.com/openai/v1/chat/completions", groqKey, ms[0], "Reply with the single word ok", "hello");
+        } }));
+        if (openrouterKey.isEmpty()) b.append("- OpenRouter: no key saved\n");
+        else b.append(probe("OpenRouter", new Probe() { public String run() throws Exception {
+            String[] ms = discover("https://openrouter.ai/api/v1/models", openrouterKey, OPENROUTER_PREFER, true);
+            return ms[0] + " -> " + chatCompat("https://openrouter.ai/api/v1/chat/completions", openrouterKey, ms[0], "Reply with the single word ok", "hello");
+        } }));
+        return b.toString();
     }
 
     static String tidy(String text, String key) throws Exception {
@@ -284,31 +324,98 @@ final class Converter {
         String alt = viaOtherServices(instruction, text);
         if (alt != null) return alt;
         if (!haveGoogle && groqKey.isEmpty() && openrouterKey.isEmpty()) throw new UserMessage("Add your Google AI Studio key in the Bolchi app first");
-        String more = altWhy.isEmpty() ? "" : " " + altWhy;
-        if (keyMsg != null) throw new UserMessage(keyMsg.getMessage() + more);
-        if (net != null) throw new UserMessage("Could not reach Google's AI (" + net.getClass().getSimpleName() + ")." + more);
-        String why = lastDetail == null ? "" : lastDetail.replace('\n', ' ');
-        if (why.length() > 140) why = why.substring(0, 140);
-        if (busyCode == 429) throw new UserMessage("Free AI limit reached for now. Try again in a minute." + more);
-        if (busyCode != 0) throw new UserMessage("Google's AI is busy right now (" + busyCode + "), every model was tried. Try again in a minute. " + why + more);
-        throw new UserMessage("The AI model is not available. Try again later." + more);
+        String g;
+        if (!haveGoogle) g = "";
+        else if (keyMsg != null) g = "Gemini: " + keyMsg.getMessage();
+        else if (net != null) g = "Gemini: no connection (" + net.getClass().getSimpleName().replace("Exception", "") + ")";
+        else if (busyCode == 429) g = "Gemini: free limit (429)";
+        else if (busyCode != 0) g = "Gemini: busy (" + busyCode + ")";
+        else g = "Gemini: model not available";
+        throw new UserMessage((g.isEmpty() ? "" : g + ". ") + altWhy);
     }
 
-    /** The free backup services (only the ones she saved a key for). Null when none answered; `altWhy` then says why. */
+    // model names change over time: ask the service which models exist (kept for 6 hours), the fixed lists are only the fallback
+    private static volatile String[] groqPicked, openrouterPicked;
+    private static volatile long groqPickedAt, openrouterPickedAt;
+    private static final String[] GROQ_PREFER = {"llama-3.3-70b", "gpt-oss-120b", "llama-4-maverick", "llama-4-scout", "qwen", "llama-3.1-8b", "gpt-oss-20b", "gemma"};
+    private static final String[] OPENROUTER_PREFER = {"llama-3.3-70b", "gpt-oss-120b", "qwen", "gemma", "mistral", "deepseek", "llama"};
+    private static final String[] NOT_CHAT = {"whisper", "guard", "tts", "orpheus", "embed", "moderation", "image", "audio", "safeguard", "playai", "allam"};
+
+    /** The ids from a "list models" answer, best first: preferred names in order, no speech / guard models, and for OpenRouter only free ones. */
+    private static String[] discover(String url, String key, String[] prefer, boolean freeOnly) throws Exception {
+        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        current = c;
+        c.setConnectTimeout(5000);
+        c.setReadTimeout(8000);
+        c.setRequestProperty("Authorization", "Bearer " + key);
+        int code = c.getResponseCode();
+        String resp = read(code >= 400 ? c.getErrorStream() : c.getInputStream());
+        if (code >= 400) throw new UserMessage("model list answered " + code);
+        JSONArray data = new JSONObject(resp).getJSONArray("data");
+        java.util.List<String> ok = new java.util.ArrayList<>();
+        for (int i = 0; i < data.length(); i++) {
+            JSONObject m = data.getJSONObject(i);
+            String id = m.optString("id", "");
+            String low = id.toLowerCase(Locale.ROOT);
+            boolean bad = id.isEmpty();
+            for (String n : NOT_CHAT) if (low.contains(n)) bad = true;
+            if (freeOnly) {
+                JSONObject pr = m.optJSONObject("pricing");
+                boolean free = low.endsWith(":free") || (pr != null && "0".equals(pr.optString("prompt")) && "0".equals(pr.optString("completion")));
+                if (!free) bad = true;
+            } else if (m.has("active") && !m.optBoolean("active", true)) bad = true;
+            if (!bad) ok.add(id);
+        }
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (String p : prefer) for (String id : ok) if (id.toLowerCase(Locale.ROOT).contains(p) && !out.contains(id) && out.size() < 4) out.add(id);
+        if (out.isEmpty()) for (String id : ok) { if (out.size() < 3) out.add(id); }
+        if (out.isEmpty()) throw new UserMessage("no usable model in the list");
+        return out.toArray(new String[0]);
+    }
+
+    private static String[] groqModels() {
+        long now = System.currentTimeMillis();
+        if (groqPicked != null && now - groqPickedAt < 6 * 3600 * 1000L) return groqPicked;
+        try { groqPicked = discover("https://api.groq.com/openai/v1/models", groqKey, GROQ_PREFER, false); groqPickedAt = now; return groqPicked; }
+        catch (Exception e) { return GROQ_MODELS; }
+    }
+
+    private static String[] openrouterModels() {
+        long now = System.currentTimeMillis();
+        if (openrouterPicked != null && now - openrouterPickedAt < 6 * 3600 * 1000L) return openrouterPicked;
+        try { openrouterPicked = discover("https://openrouter.ai/api/v1/models", openrouterKey, OPENROUTER_PREFER, true); openrouterPickedAt = now; return openrouterPicked; }
+        catch (Exception e) { return OPENROUTER_MODELS; }
+    }
+
+    private static String shortAi(Exception e) {
+        String m = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+        return m.length() > 150 ? m.substring(0, 150) : m;
+    }
+
+    private static String shortWhy(Exception e) {
+        String m = e.getMessage() == null ? e.getClass().getSimpleName().replace("Exception", "") : e.getMessage();
+        return m.length() > 70 ? m.substring(0, 70) : m;
+    }
+
+    /** The free backup services (only the ones she saved a key for). Null when none answered; `altWhy` then says why (one short phrase for each). */
     private static String viaOtherServices(String instruction, String text) {
         altWhy = "";
         StringBuilder why = new StringBuilder();
         if (!groqKey.isEmpty()) {
-            for (String m : GROQ_MODELS) {
+            String last = "";
+            for (String m : groqModels()) {
                 try { stage = "asking Groq"; return chatCompat("https://api.groq.com/openai/v1/chat/completions", groqKey, m, instruction, text); }
-                catch (Exception e) { why.setLength(0); why.append("Groq: ").append(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()).append(". "); }
+                catch (Exception e) { last = shortWhy(e); if (last.startsWith("key refused") || last.contains("no connection")) break; }
             }
+            why.append("Groq: ").append(last).append(". ");
         }
         if (!openrouterKey.isEmpty()) {
-            for (String m : OPENROUTER_MODELS) {
+            String last = "";
+            for (String m : openrouterModels()) {
                 try { stage = "asking OpenRouter"; return chatCompat("https://openrouter.ai/api/v1/chat/completions", openrouterKey, m, instruction, text); }
-                catch (Exception e) { why.append("OpenRouter: ").append(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()).append(". "); }
+                catch (Exception e) { last = shortWhy(e); if (last.startsWith("key refused")) break; }
             }
+            why.append("OpenRouter: ").append(last).append(". ");
         }
         altWhy = why.toString().trim();
         return null;
@@ -326,7 +433,7 @@ final class Converter {
         current = c;
         c.setRequestMethod("POST");
         c.setConnectTimeout(5000);
-        c.setReadTimeout(20000);
+        c.setReadTimeout(14000);
         c.setDoOutput(true);
         c.setRequestProperty("Content-Type", "application/json");
         c.setRequestProperty("Authorization", "Bearer " + key);
@@ -336,9 +443,14 @@ final class Converter {
         os.close();
         int code = c.getResponseCode();
         String resp = read(code >= 400 ? c.getErrorStream() : c.getInputStream());
-        if (code == 401 || code == 403) throw new UserMessage("key refused (" + code + ")");
-        if (code == 429) throw new UserMessage("limit reached (429)");
-        if (code >= 400) throw new UserMessage("answered " + code);
+        if (code >= 400) {
+            String detail = "";
+            try { detail = new JSONObject(resp).getJSONObject("error").optString("message", ""); } catch (Throwable ignored) { detail = resp == null ? "" : resp.replace('\n', ' '); }
+            if (detail.length() > 60) detail = detail.substring(0, 60);
+            if (code == 401 || code == 403) throw new UserMessage("key refused (" + code + ")");
+            if (code == 429) throw new UserMessage("limit reached (429)");
+            throw new UserMessage(code + " " + detail);
+        }
         JSONArray ch = new JSONObject(resp).optJSONArray("choices");
         if (ch == null || ch.length() == 0) throw new UserMessage("no answer");
         String out = ch.getJSONObject(0).getJSONObject("message").optString("content", "").trim();
