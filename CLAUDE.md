@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 142 = build-224** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 143 = build-226** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -624,6 +624,9 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Restored (as in versions 140 / 141): different app than the last one -> chat apps (`CHAT_APPS`) start on the Bangla chip + Banglish + Bangla typing keys; EVERY other app starts on the English chip + English keys (speaking and writing). Side-effect fixes for the English listener: (1) `beginRound` passes `android.speech.extra.BIASING_STRINGS` (Android 13+; used only by engines that support it)
   with brand names (Claude, Gemini, ChatGPT, Gmail, Outlook, WhatsApp ...) and her saved words from `myWords` (Latin only); (2) a wrong word she repairs is stored in `voiceFix` and replaced in later dictation in every chip (`applyVoiceFix` runs in `convert` for English too), so she can teach "Court" -> "Claude" by tapping the word and choosing the right one (needs the engine's other guesses to contain it).
   The version-142 name list in `Translit` (ক্লড -> Claude ...) stays: it helps on the Bangla chip. Not tested on a phone; if "Claude" is still heard as "Court" on the English chip, the engine ignores biasing: then she can switch to the Bangla chip for that sentence.
+  Version 143 = build-226 (20 Nov). Tara then asked whether she should start a NEW CHAT because she felt "you are hallucinating": this session is very long and was summarised several times, which is how the version-142 mistake (undoing her English-default rule) happened.
+  Advice given: yes, start a fresh session for new work; this CLAUDE.md holds the state. A new session should read the newest version blocks (136-143) and her standing rules first: (1) keep a start-up / default rule she gives, (2) colour sets in batches of 100-200, soft, each different, picture first,
+  (3) one build and one release per request, (4) short simple replies with the APK link, (5) say plainly what is untested on a phone.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
