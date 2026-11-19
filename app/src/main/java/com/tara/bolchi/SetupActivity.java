@@ -371,6 +371,7 @@ public class SetupActivity extends Activity {
                 + "\nAuto-correct: " + (p.getBoolean("autoFix", true) ? "ON" : "OFF (hold the Auto key on the keyboard to turn it on)")
                 + (p.getString("fixWhy", "").isEmpty() ? "" : "\nLast word not corrected: " + p.getString("fixWhy", ""))
                 + (p.getString("learnLog", "").isEmpty() ? "" : "\nLearned lately (words before > word):\n" + p.getString("learnLog", ""))
+                + (p.getString("voiceWhy", "").isEmpty() ? "" : "\nLast voice error: " + p.getString("voiceWhy", ""))
                 + "\nNext-word guesses: " + (next.isEmpty()
                     ? "nothing noted yet. Type a few words with spaces in any app (English keys), then open this app again. If this stays empty, the keyboard installed is older than version 120."
                     : next);

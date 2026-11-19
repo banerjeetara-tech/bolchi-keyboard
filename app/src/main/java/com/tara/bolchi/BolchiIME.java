@@ -4495,6 +4495,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     @Override
     public void onError(int error) {
+        try {
+            // for the Bolchi app screen: the last real answer of the phone's voice service (a pause with no speech is normal and not noted)
+            if (error != SpeechRecognizer.ERROR_NO_MATCH && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT)
+                prefs().edit().putString("voiceWhy", "[" + new java.text.SimpleDateFormat("HH:mm", java.util.Locale.ENGLISH).format(new java.util.Date()) + "] "
+                        + voiceErrorName(error) + " (code " + error + "), " + MODE_LABEL[mode] + (listening ? "" : ", not listening")).apply();
+        } catch (Throwable ignored) { /* a help only */ }
         if (!listening) return;
         hushBeep();
         InputConnection ic = getCurrentInputConnection();
@@ -4512,8 +4518,10 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 break;
             case SpeechRecognizer.ERROR_NETWORK:
             case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
+                stopListening("Voice could not reach Google (code " + error + ")");
+                break;
             case SpeechRecognizer.ERROR_SERVER:
-                stopListening("Voice needs internet");
+                stopListening("Google's voice service had a problem (code " + error + "). Try again");
                 break;
             case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
                 stopListening("Allow the mic in the Bolchi app");
@@ -4524,6 +4532,25 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 } else {
                     retryLater();
                 }
+        }
+    }
+
+    private static String voiceErrorName(int e) {
+        switch (e) {
+            case 1: return "network timeout";
+            case 2: return "network error";
+            case 3: return "audio problem";
+            case 4: return "Google's voice server error";
+            case 5: return "client error";
+            case 6: return "no speech heard";
+            case 7: return "nothing recognised";
+            case 8: return "recogniser busy";
+            case 9: return "microphone not allowed";
+            case 10: return "too many requests";
+            case 11: return "server disconnected";
+            case 12: return "language not supported";
+            case 13: return "language not available";
+            default: return "voice error";
         }
     }
 

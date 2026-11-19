@@ -231,12 +231,26 @@ final class Converter {
                 text);
     }
 
+    /** The models tried one after the other when Google's AI is busy (503 / 500 / 502 / 504), over its free limit (429: each model has its own limit) or a name is not known (404). */
+    private static final String[] MODELS = {MODEL, MODEL_BACKUP, "gemini-2.5-flash-lite", "gemini-2.5-flash"};
+
     private static String gemini(String key, String instruction, String text) throws Exception {
-        try {
-            return gemini(MODEL, key, instruction, text);
-        } catch (ModelMissing m) {
-            return gemini(MODEL_BACKUP, key, instruction, text);
+        long t0 = System.currentTimeMillis();
+        int busyCode = 0;
+        for (String m : MODELS) {
+            if (System.currentTimeMillis() - t0 > 18000) break;       // the keyboard gives up after 30 s: leave time for the answer
+            try {
+                return gemini(m, key, instruction, text);
+            } catch (ModelMissing mm) {
+                continue;
+            } catch (Busy b) {
+                busyCode = b.code;
+                try { Thread.sleep(400); } catch (InterruptedException ie) { break; }
+            }
         }
+        if (busyCode == 429) throw new UserMessage("Free AI limit reached for now. Try again in a minute");
+        if (busyCode != 0) throw new UserMessage("Google's AI is busy right now (" + busyCode + "), every model was tried. Try again in a minute");
+        throw new UserMessage("The AI model is not available. Try again later");
     }
 
     private static String gemini(String model, String key, String instruction, String text) throws Exception {
@@ -269,7 +283,7 @@ final class Converter {
             throw new UserMessage(resp.contains("API_KEY") || resp.contains("API key")
                     ? "Your AI key isn't working. Check it in the Bolchi app" : "The AI service refused this request");
         }
-        if (code == 429) throw new UserMessage("Free AI limit reached for now. Try again in a minute");
+        if (code == 429 || code == 500 || code == 502 || code == 503 || code == 504) throw new Busy(code);        // the next model may answer
         if (code >= 400) throw new UserMessage("AI service problem (" + code + "). Try again");
         JSONObject j = new JSONObject(resp);
         JSONArray cands = j.optJSONArray("candidates");
@@ -536,6 +550,7 @@ final class Converter {
     }
 
     static final class ModelMissing extends Exception {}
+    static final class Busy extends Exception { final int code; Busy(int c) { code = c; } }
 
     /** An error with a message meant for the person, not a crash. */
     static final class UserMessage extends Exception {
