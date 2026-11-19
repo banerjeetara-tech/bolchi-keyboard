@@ -628,6 +628,25 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Advice given: yes, start a fresh session for new work; this CLAUDE.md holds the state. A new session should read the newest version blocks (136-143) and her standing rules first: (1) keep a start-up / default rule she gives, (2) colour sets in batches of 100-200, soft, each different, picture first,
   (3) one build and one release per request, (4) short simple replies with the APK link, (5) say plainly what is untested on a phone.
 
+- Version 144 (Tara, 19 Nov, by voice: WhatsApp / Facebook / Instagram start in Banglish, other apps in English [already built in 140-143, re-checked]; "if I make any error it will autocorrect the entered sentence ... when I switch in WhatsApp
+  from Bengali to English, manually, speaking or writing"; then "correction should only work in total English"; then "punctuation will also work when speaking or writing in English; for Bengali English it will understand the tone and give only the
+  appropriate punctuation"; then "sometimes words come before they are changed, the GIF tab is covering it"; "use your agents to check all the code; nothing to rebuild now"). My reading, ask her to confirm:
+  - `SentenceFix.java` (pure Java, PC-testable): fixes the WHOLE message in the box. Triggers (BolchiIME): switching Bangla / Hindi -> English tab (`setMode`, only when Auto-correct is on), the layout key landing on EN, and tapping the English tab
+    AGAIN while English is on (`fixMessageTap`, always runs, also while listening). Spelling, chat short forms (u, plz), "i" -> "I", sentence-start capital and "its / lets / ill / ur" by context are fixed ONLY in sentences that are ENTIRELY English
+    (`totalEnglish`: no Bangla / Hindi script, no Banglish / Hinglish word, hardly any word the dictionary does not know; lists `DESI_EXTRA` / `DESI_WEAK`, `Words.isDesi`). A sentence with any such word keeps every letter. Never touched: words with digits / @ / . / - / ' next to them,
+    ALL CAPS, capitalised names, `Words.PROTECT` (office short forms eod / otp / ppt, brands, timings / finalise ...), the word the cursor stands inside. Short words (5 letters or less) change only for a finger-slip shape (`Words.typoShape`) or a known slip.
+    Only the changed part is replaced (`setSelection` + `commitText`), the cursor is put back, and BACKSPACE right after the fix puts the old text back (`undoMessageFix`, only while box text and cursor are unchanged, 60 s). The space bar says "N fixed + ? ... backspace = undo".
+    The Bolchi app shows "Last whole-message fix" (pref `msgFix`).
+  - Punctuation (`Spoken.markFor(sentence, english)`, `kind`): the last sentence of the message gets ". ? !" when entirely English; Banglish / Hinglish gets only what the words say: question words (kothay, keno, ki at the end / middle, kya ...) -> "?", cheers / wishes -> "!", a full stop only for a
+    finished statement (not when the sentence says "tumi ..." without "ami": no mark; not after an address / link / long number; "ami jabo na" is a statement, `na` is NOT a question word). Voice: `stopDue` now also fires for 1-2 word questions / cheers; `endSentence` judges the whole sentence with `SentenceFix.isTotalEnglish`.
+    Typed text gets its mark only through the English-tab gesture above (no mark on every Enter).
+  - GIF row (`maybeGifs`): it now repeats the word row's three places at its front (`gifChips`, refreshed on every `paintSugs` by `refreshGifChips`: her word in quotes, the corrected word in bold, completions / memory / next words) so it can no longer cover them; it also stays away
+    while the phone-book names / money / repair row is showing. Replaces the earlier special cases (correction chips, next-word chips).
+  - Per-app start: chat apps also reset `hiScript` (Hindi speaks Hinglish) like `bnScript`.
+  - Words: `Words.PROTECT`, `typoShape`, `isFixedEntry`, `isProtected`; ~50 office words added to `words.txt` at rank ~9000 (timings, finalise, reschedule, prepone, passcode ...); FIXED got thanx / thre / dint / nxt / mnts / thru / whts.
+  - Tested on a PC only (agents wrote ~1200 test messages): Banglish / Hinglish messages with changed letters 31 -> 0 of ~450; English typo set 178 -> 189 of 200 exact. NOT tested on a phone: the setSelection-based replace, backspace undo, GIF mirror, voice marks.
+  - Known gaps: "pleas" / "cal" (real words), "aa" typos (pleaae), apostrophe typos (does'nt), digits in chat words (2day, b4), the sentence-final "?" for tone only the voice knows. Typed Banglish gets a final "." only through the English-tab gesture.
+
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
   - The row that points at a doubtful word after speaking (version 104) was wiped the moment it appeared: the dictation's own text update reached `onUpdateSelection` as
