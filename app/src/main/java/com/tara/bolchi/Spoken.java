@@ -157,7 +157,7 @@ public final class Spoken {
     private static final java.util.Set<String> SECOND = set("tumi tui tum tu aap apni aapne tomra tomar tumhara tumhari tomake tumhe tera");
 
     /** A question after a filler or a greeting ("so what time is the meeting", "hi Tara how are you") is still a question. */
-    private static final java.util.Set<String> LEAD = set("so ok okay and but also well hey then now oh um uh alright anyway like");
+    private static final java.util.Set<String> LEAD = set("so ok okay and but also well hey then now oh um uh alright anyway like btw sir madam bro");
     private static final java.util.Set<String> GREETW = set("hi hello hey dear");
     /** Words a sentence cannot end on, not even a question: "can you send it and" is not finished. (No prepositions: "what is it for", "are you coming or not" are real questions.) */
     private static final java.util.Set<String> EN_DANGLE = set("and but or because if as the a an my your his her our their than very also just");
@@ -232,7 +232,8 @@ public final class Spoken {
         for (int i = 0; i < n; i++) w[i] = norm(raw[i]);
         String w0 = w[0], w1 = n > 1 ? w[1] : "", last = w[n - 1];
         if (n >= 3 && LEAD.contains(w0) && kind(restFrom(raw, 1), english) == '?') return '?';
-        if (n >= 4 && GREETW.contains(w0) && kind(restFrom(raw, 2), english) == '?') return '?';
+        if (n >= 3 && GREETW.contains(w0) && kind(restFrom(raw, 1), english) == '?') return '?';          // "hello how are you"
+        if (n >= 4 && GREETW.contains(w0) && kind(restFrom(raw, 2), english) == '?') return '?';          // "hi Tara how are you"
         boolean name1 = n > 1 && !raw[1].isEmpty() && Character.isUpperCase(raw[1].charAt(0)) && !w1.equals("i");
         // an address, a link or a long number at the end: no mark after it (it would become part of it)
         String lr = raw[n - 1];

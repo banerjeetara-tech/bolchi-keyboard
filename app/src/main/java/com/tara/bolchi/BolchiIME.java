@@ -1739,7 +1739,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         onPress(k, cFn, new Runnable() { @Override public void run() {
             int was = layout;
             setLayoutTo((layout + 1) % LAYOUT_KEY.length);
-            if (was != 0 && layout == 0) fixMessage(false);       // version 144: back on the English keys, the English sentences of the message are put right
+            if (was != 0 && layout == 0) {                        // version 144: back on the English keys, the English sentences of the message are put right
+                boolean wasListening = listening;
+                if (wasListening) stopListening(null);            // (the voice text still being shown must be finished first)
+                fixMessage(false);
+                if (wasListening) startListening();
+            }
         } });
         return k;
     }
@@ -3054,11 +3059,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (et != null && et.text != null && et.text.length() > 0 && et.startOffset == 0) {
             String t = et.text.toString();
             cursor[0] = Math.max(0, Math.min(et.selectionStart, t.length()));
-            return t.length() > 8000 ? null : t;
+            return t.length() > 3000 ? null : t;
         }
         CharSequence b = ic.getTextBeforeCursor(4000, 0), a = ic.getTextAfterCursor(4000, 0);      // some apps answer with no text: read around the cursor
         String bs = b == null ? "" : b.toString(), as = a == null ? "" : a.toString();
-        if (bs.length() >= 4000 || as.length() >= 4000) return null;
+        if (bs.length() + as.length() > 3000) return null;
         cursor[0] = bs.length();
         return bs + as;
     }
@@ -3073,6 +3078,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (!manual && !autoFix) return;
             InputConnection ic = getCurrentInputConnection();
             if (ic == null) return;
+            flushPhon(false);                           // letters waiting to become Bangla / Hindi are written as typed first
             if (composing) { ic.finishComposingText(); composing = false; }
             CharSequence sel = ic.getSelectedText(0);
             boolean isSel = sel != null && sel.length() > 0;
@@ -3081,7 +3087,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (text == null) { if (manual) flashSpace("Message too long to check"); return; }
             if (isSel) cur[0] = text.length();
             if (text.trim().isEmpty()) return;
-            SentenceFix.Result r = SentenceFix.fix(text, cur[0], !isSel);
+            // switching by itself never closes a sentence she may still be writing: the end mark only comes when she taps the English tab (manual);
+            // and the word she may still be typing at the cursor is left alone then
+            SentenceFix.Result r = SentenceFix.fix(text, cur[0], !isSel && manual, !manual);
             if (!r.changed()) {
                 if (manual) flashSpace(r.english == 0 && r.left > 0 ? "Not all English: left as it is" : "No mistakes found ✓");
                 return;
@@ -3127,6 +3135,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         String old = sfOld, neu = sfNew;
         sfOld = sfNew = null;
         if (System.currentTimeMillis() - sfAt > 60000) return false;
+        CharSequence selNow = ic.getSelectedText(0);
+        if (selNow != null && selNow.length() > 0) return false;                      // a selection is deleted by backspace, not undone
         int[] cur = new int[1];
         String now = boxText(ic, cur);
         if (now == null || !now.equals(neu) || cur[0] != sfCursorNew) return false;      // she typed or moved on: backspace is an ordinary backspace
@@ -4105,11 +4115,12 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (chat && voiceScript[0]) { voiceScript[0] = false; prefs().edit().putBoolean("bnScript", false).apply(); }
             if (chat && voiceScript[1]) { voiceScript[1] = false; prefs().edit().putBoolean("hiScript", false).apply(); }
             paintChips();
+            emoBackLayout = 0;               // an emoji search left open in the last app must not bring its layout back here: the start rule decides
             setLayoutTo(chat ? (layout == 3 ? 3 : 1) : 0);
         }
         lastWord = "";
         justEnded = "";
-        sfOld = sfNew = null;          // the undo of a whole-message fix belongs to the box it was made in
+        if (!restarting) sfOld = sfNew = null;          // the undo of a whole-message fix belongs to the box it was made in
         deletedBuf.setLength(0);
         // a message that was taken out of the box when a GIF was sent is offered back here, once, in the same app
         // (not in the "Add a caption" box of the GIF preview: there it would go along with the GIF after all)

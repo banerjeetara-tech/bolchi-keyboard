@@ -245,7 +245,10 @@ public final class SentenceFix {
     private static String capital(String w) { return w.isEmpty() ? w : Character.toUpperCase(w.charAt(0)) + w.substring(1); }
 
     /** `punctuate`: also give the last sentence its mark. `cursor`: where the cursor stands (a word it stands inside is never touched). */
-    public static Result fix(String text, int cursor, boolean punctuate) {
+    public static Result fix(String text, int cursor, boolean punctuate) { return fix(text, cursor, punctuate, false); }
+
+    /** keepCursorWord: the word that ends exactly at the cursor is left alone too (automatic use: she may still be typing it). */
+    public static Result fix(String text, int cursor, boolean punctuate, boolean keepCursorWord) {
         Result r = new Result();
         if (text == null) text = "";
         int n = text.length();
@@ -277,7 +280,7 @@ public final class SentenceFix {
                 String nextW = k + 1 < toks.size() && adjacent(text, tk.e, toks.get(k + 1).s) ? toks.get(k + 1).core.toLowerCase(Locale.ROOT) : "";
                 if (tk.edit) {
                     boolean autoCap = first && cap && (core.length() == 1 || core.substring(1).equals(core.substring(1).toLowerCase(Locale.ROOT)));
-                    boolean inside = tk.s < cursor && cursor < tk.e;                 // she is editing this word right now
+                    boolean inside = tk.s < cursor && (cursor < tk.e || (keepCursorWord && cursor == tk.e));                 // she is editing this word right now
                     if (!inside) {
                         String lw = core.toLowerCase(Locale.ROOT);
                         boolean clauseStart = first || (k > 0 && commaBetween(text, toks.get(k - 1).e, tk.s));
@@ -322,6 +325,8 @@ public final class SentenceFix {
             if (restIsBlank(text, ls[1])) {
                 String sent = applyRange(text, edits, ls[0], ls[1]);
                 String mark = sent.isEmpty() ? "" : Spoken.markFor(sent, lastEnglish);
+                // Banglish / Hinglish / script text gets only what the tone asks for (? or !): a typed message without a full stop stays that way
+                if (!lastEnglish && (mark.equals(".") || mark.equals("\u0964"))) mark = "";
                 if (!mark.isEmpty()) {
                     edits.add(new Edit(ls[1], ls[1], mark));
                     r.marked = true;
