@@ -186,14 +186,15 @@ public class SetupActivity extends Activity {
 
         // free backup AI keys: used automatically when Google's AI is busy or cannot be reached
         col.addView(text("Backup AI keys (free, optional)", 17, INK));
-        col.addView(text("If Google's AI is busy, Bolchi tries these. Groq: console.groq.com \u2192 API Keys. OpenRouter: openrouter.ai \u2192 Keys. Paste, then tap Save.", 14, MUTED));
-        final EditText groqBox = new EditText(this);
-        final EditText orBox = new EditText(this);
-        final String[] hints = {"Paste your Groq key (starts with gsk_)", "Paste your OpenRouter key (starts with sk-or-)"};
-        final String[] prefNames = {"groqKey", "openrouterKey"};
-        final EditText[] boxes = {groqBox, orBox};
-        for (int bi = 0; bi < 2; bi++) {
-            EditText b = boxes[bi];
+        col.addView(text("If Google's AI is busy, Bolchi tries these, fastest first. Groq: console.groq.com \u2192 API Keys. Cerebras: cloud.cerebras.ai \u2192 API Keys. "
+                + "Mistral: console.mistral.ai \u2192 API Keys. OpenRouter: openrouter.ai \u2192 Keys. Any one is enough; paste, then tap Save. "
+                + "Without any key Bolchi still tries free services that need none.", 14, MUTED));
+        final String[] hints = {"Groq key (starts with gsk_)", "Cerebras key (starts with csk-)", "Mistral key", "OpenRouter key (starts with sk-or-)"};
+        final String[] prefNames = {"groqKey", "cerebrasKey", "mistralKey", "openrouterKey"};
+        final EditText[] boxes = new EditText[4];
+        for (int bi = 0; bi < 4; bi++) {
+            EditText b = new EditText(this);
+            boxes[bi] = b;
             b.setHint(hints[bi]);
             b.setSingleLine(true);
             b.setTextColor(INK);
@@ -204,23 +205,45 @@ public class SetupActivity extends Activity {
             b.setText(prefs.getString(prefNames[bi], ""));
             col.addView(b, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         }
+        final Runnable saveBackups = new Runnable() { @Override public void run() {
+            SharedPreferences.Editor ed = prefs.edit();
+            for (int i = 0; i < 4; i++) ed.putString(prefNames[i], boxes[i].getText().toString().trim());
+            ed.apply();
+            Converter.useExtraKeys(prefs);
+        } };
         TextView saveExtra = button("Save backup keys");
         saveExtra.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
-                prefs.edit().putString("groqKey", groqBox.getText().toString().trim()).putString("openrouterKey", orBox.getText().toString().trim()).apply();
-                Converter.useExtraKeys(prefs);
+                saveBackups.run();
                 Toast.makeText(SetupActivity.this, "Backup keys saved", Toast.LENGTH_SHORT).show();
             }
         });
         col.addView(saveExtra);
 
+        // the translator that lives on the phone: free, no limit, works with no internet once downloaded
+        col.addView(text("Translator on your phone (free, never runs out)", 17, INK));
+        col.addView(text("Download once (about 90 MB, needs internet this one time). After that Translate to English / Hindi / Bengali also works with no internet at all, "
+                + "and it is the last helper if every online service fails.", 14, MUTED));
+        final TextView offOut = text("", 13, MUTED);
+        TextView offBtn = button("Download offline translator");
+        offBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                offOut.setText("Downloading English, Hindi and Bengali\u2026 this can take a few minutes. You can leave this screen open.");
+                new Thread(new Runnable() { @Override public void run() {
+                    final String r = Offline.downloadAll();
+                    runOnUiThread(new Runnable() { @Override public void run() { offOut.setText(r); } });
+                } }).start();
+            }
+        });
+        col.addView(offBtn);
+        col.addView(offOut);
+
         final TextView allOut = text("", 13, MUTED);
         TextView allBtn = button("Test all connections");
         allBtn.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
-                prefs.edit().putString("aikey", keyBox.getText().toString().trim())
-                        .putString("groqKey", groqBox.getText().toString().trim()).putString("openrouterKey", orBox.getText().toString().trim()).apply();
-                Converter.useExtraKeys(prefs);
+                prefs.edit().putString("aikey", keyBox.getText().toString().trim()).apply();
+                saveBackups.run();
                 allOut.setText("Testing, wait up to 40 seconds\u2026");
                 final String k = keyBox.getText().toString().trim();
                 new Thread(new Runnable() { @Override public void run() {

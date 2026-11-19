@@ -87,22 +87,37 @@ final class Converter {
         throw last != null ? last : new UserMessage("Google Translate didn't answer");
     }
 
-    /** Translate without a key; falls back to the AI only if a key is saved and Google Translate fails. */
-    static String translateFree(String text, int voiceMode, String key) throws Exception {
-        try {
-            if (hasScript(text)) return googleTranslate(text, "auto");
-            if (voiceMode == 2) return googleTranslate(text, "auto");
-            boolean hindi = voiceMode == 1;
-            String script = romanToScript(text, hindi);
-            return googleTranslate(script, hindi ? "hi" : "bn");
-        } catch (Exception e) {
-            String first = e.getMessage() == null ? "Google Translate failed" : e.getMessage();
-            try { return translate(text, key); }
-            catch (Exception e2) {
-                try { return myMemoryAuto(text, "en"); }
-                catch (Exception e3) { throw new UserMessage(shortWhy(e) + ". " + shortAi(e2) + ". MyMemory: " + shortWhy(e3)); }
-            }
+    private static final String EN_PROMPT = "Translate the user's message into natural, simple English. The message may be Bengali or Hindi "
+            + "written in English letters (Banglish or Hinglish), Bengali or Hindi script, or mixed with English. "
+            + "Keep names, numbers and emojis as they are. Reply with only the translation, nothing else.";
+    private static final String BN_PROMPT = "Translate the user's message into natural, simple Bengali written in Bengali script. The message may be English, Hindi "
+            + "(Devanagari), or Bengali or Hindi in English letters. Keep names, numbers, emojis and links as they are. Reply with only the translation, nothing else.";
+    private static final String HI_PROMPT = "Translate the user's message into natural, simple Hindi written in Devanagari script. The message may be English, "
+            + "Bengali, or Bengali or Hindi in English letters. Keep names, numbers, emojis and links as they are. Reply with only the translation, nothing else.";
+
+    /**
+     * Translate `text` into `to` ("en", "hi", "bn"). In this order: the free translators that need no key (several, Google's among them), then the AI services,
+     * then the translator that lives ON the phone (works without internet once its languages are downloaded), then MyMemory.
+     */
+    private static String translateChain(String text, String from, String to, String prompt, String key, boolean useDoors) throws Exception {
+        StringBuilder why = new StringBuilder();
+        if (useDoors) {
+            try { return translateDoors(text, from, to); } catch (Exception e) { why.append(shortAi(e)).append(" "); }
         }
+        try { return gemini(key, prompt, text); } catch (Exception e) { why.append(shortAi(e)).append(" "); }
+        try { return offlineTranslate(text, to); } catch (Throwable e) { why.append("On the phone: ").append(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()).append(". "); }
+        try { return myMemoryAuto(text, to); } catch (Exception e) { why.append("MyMemory: ").append(shortWhy(e)); }
+        throw new UserMessage(why.toString().trim());
+    }
+
+    /** Translate to English. Banglish / Hinglish typed in English letters is first written in its own script, then translated. */
+    static String translateFree(String text, int voiceMode, String key) throws Exception {
+        if (hasScript(text) || voiceMode == 2) return translateChain(text, "auto", "en", EN_PROMPT, key, true);
+        boolean hindi = voiceMode == 1;
+        String script = null;
+        try { script = romanToScript(text, hindi); } catch (Exception ignored) { /* the AI can read Banglish itself */ }
+        if (script != null) return translateChain(script, hindi ? "hi" : "bn", "en", EN_PROMPT, key, true);
+        return translateChain(text, "auto", "en", EN_PROMPT, key, false);
     }
 
     static boolean hasDevanagari(String s) {
@@ -116,46 +131,115 @@ final class Converter {
     }
 
     /**
-     * Translate into Bengali (Bengali script). Google Translate first (English, Hindi script, Bengali script all work). Banglish typed in English letters is
-     * ALREADY Bengali, so when Google leaves it unchanged it is only written in Bengali letters (`romanToScript`); the AI is the last fallback if a key is saved.
+     * Translate into Bengali (Bengali script). Banglish typed in English letters is ALREADY Bengali: when a translator leaves it unchanged it is only
+     * written in Bengali letters (`romanToScript`).
      */
     static String translateToBengali(String text, String key) throws Exception {
-        try {
-            String out = googleTranslateTo(text, "auto", "bn");
-            if (hasBengali(out)) return out;
-            if (!hasScript(text)) return romanToScript(text, false);       // Banglish: only the letters change
-            return out;
-        } catch (Exception e) {
-            try {
-                return gemini(key,
-                        "Translate the user's message into natural, simple Bengali written in Bengali script. The message may be English, Hindi "
-                                + "(Devanagari), or Bengali or Hindi in English letters. Keep names, numbers, emojis and links as they are. "
-                                + "Reply with only the translation, nothing else.", text);
-            } catch (Exception e2) {
-                if (!hasScript(text)) {
-                    try { return romanToScript(text, false); } catch (Exception ignored) { /* try MyMemory next */ }
-                }
-                try { return myMemoryAuto(text, "bn"); }
-                catch (Exception e3) { throw new UserMessage(shortWhy(e) + ". " + shortAi(e2) + ". MyMemory: " + shortWhy(e3)); }
-            }
-        }
+        String out = translateChain(text, "auto", "bn", BN_PROMPT, key, true);
+        if (hasBengali(out)) return out;
+        if (!hasScript(text)) return romanToScript(text, false);       // Banglish: only the letters change
+        return out;
     }
 
-    /** Translate into Hindi (Devanagari). Google Translate first, the AI only if that fails and a key is saved. */
+    /** Translate into Hindi (Devanagari). */
     static String translateToHindi(String text, String key) throws Exception {
-        try {
-            return googleTranslateTo(text, "auto", "hi");
-        } catch (Exception e) {
-            try {
-                return gemini(key,
-                        "Translate the user's message into natural, simple Hindi written in Devanagari script. The message may be English, "
-                                + "Bengali, or Bengali or Hindi in English letters. Keep names, numbers, emojis and links as they are. "
-                                + "Reply with only the translation, nothing else.", text);
-            } catch (Exception e2) {
-                try { return myMemoryAuto(text, "hi"); }
-                catch (Exception e3) { throw new UserMessage(shortWhy(e) + ". " + shortAi(e2) + ". MyMemory: " + shortWhy(e3)); }
+        return translateChain(text, "auto", "hi", HI_PROMPT, key, true);
+    }
+
+    // ---------- the free translators that need no key: each is tried in turn, and one that failed is left alone for a few minutes ----------
+    static String translateDoors(String text, String from, String to) throws Exception {
+        StringBuilder why = new StringBuilder();
+        String[] names = {"Google", "Edge", "GoogleAlt", "Lingva"};
+        for (int pass = 0; pass < 2; pass++) {
+            boolean tried = false;
+            for (String n : names) {
+                if (pass == 0 && down(n)) { why.append(n).append(": skipped. "); continue; }
+                tried = true;
+                try {
+                    String r = n.equals("Google") ? googleTranslateTo(text, from, to) : n.equals("Edge") ? edgeTranslate(text, from, to)
+                            : n.equals("GoogleAlt") ? googleAltTranslate(text, from, to) : lingvaTranslate(text, from, to);
+                    if (r != null && !r.trim().isEmpty()) return r;
+                } catch (Exception e) { mark(n, n.equals("Google") ? 15 * 60 * 1000L : 5 * 60 * 1000L); why.append(n).append(": ").append(shortWhy(e)).append(". "); }
             }
+            if (tried) break;
         }
+        throw new UserMessage(why.toString().trim());
+    }
+
+    private static volatile String edgeToken;
+    private static volatile long edgeTokenAt;
+
+    /** Microsoft Edge's built-in translator (no key; the same door the browser uses). */
+    private static String edgeTranslate(String text, String from, String to) throws Exception {
+        long now = System.currentTimeMillis();
+        if (edgeToken == null || now - edgeTokenAt > 8 * 60 * 1000L) {
+            HttpURLConnection a = (HttpURLConnection) new URL("https://edge.microsoft.com/translate/auth").openConnection();
+            a.setConnectTimeout(4000);
+            a.setReadTimeout(5000);
+            if (a.getResponseCode() != 200) throw new UserMessage("no token (" + a.getResponseCode() + ")");
+            edgeToken = read(a.getInputStream()).trim();
+            edgeTokenAt = now;
+        }
+        String url = "https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&to=" + to + (from.equals("auto") ? "" : "&from=" + from);
+        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        c.setRequestMethod("POST");
+        c.setConnectTimeout(4000);
+        c.setReadTimeout(8000);
+        c.setDoOutput(true);
+        c.setRequestProperty("Content-Type", "application/json");
+        c.setRequestProperty("Authorization", "Bearer " + edgeToken);
+        OutputStream os = c.getOutputStream();
+        os.write(new JSONArray().put(new JSONObject().put("Text", text)).toString().getBytes("UTF-8"));
+        os.close();
+        int code = c.getResponseCode();
+        if (code != 200) { edgeToken = null; throw new UserMessage("answered " + code); }
+        JSONArray r = new JSONArray(read(c.getInputStream()));
+        return r.getJSONObject(0).getJSONArray("translations").getJSONObject(0).getString("text");
+    }
+
+    /** Google's other translate door (the one its Chrome extension uses). */
+    private static String googleAltTranslate(String text, String from, String to) throws Exception {
+        HttpURLConnection c = (HttpURLConnection) new URL("https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=" + from + "&tl=" + to
+                + "&q=" + java.net.URLEncoder.encode(text, "UTF-8")).openConnection();
+        c.setConnectTimeout(4000);
+        c.setReadTimeout(7000);
+        int code = c.getResponseCode();
+        if (code != 200) throw new UserMessage("answered " + code);
+        Object o = new org.json.JSONTokener(read(c.getInputStream())).nextValue();
+        if (o instanceof JSONArray && ((JSONArray) o).length() > 0) {
+            Object f = ((JSONArray) o).get(0);
+            if (f instanceof String) return (String) f;
+            if (f instanceof JSONArray) return ((JSONArray) f).getString(0);
+        }
+        throw new UserMessage("unknown answer");
+    }
+
+    private static final String[] LINGVA = {"https://lingva.ml", "https://lingva.garudalinux.org", "https://translate.plausibility.cloud", "https://lingva.lunar.icu"};
+
+    /** Lingva: open-source front doors to Google Translate run by volunteers (no key). Short texts only; the first two that answer are enough. */
+    private static String lingvaTranslate(String text, String from, String to) throws Exception {
+        if (text.length() > 1200) throw new UserMessage("text too long for Lingva");
+        String q = java.net.URLEncoder.encode(text, "UTF-8").replace("+", "%20");
+        String last = "no instance answered";
+        for (String h : LINGVA) {
+            try {
+                HttpURLConnection c = (HttpURLConnection) new URL(h + "/api/v1/" + from + "/" + to + "/" + q).openConnection();
+                c.setConnectTimeout(3000);
+                c.setReadTimeout(5000);
+                int code = c.getResponseCode();
+                if (code != 200) { last = "answered " + code; continue; }
+                String t = new JSONObject(read(c.getInputStream())).optString("translation", "");
+                if (!t.isEmpty()) return t;
+            } catch (Exception e) { last = e.getClass().getSimpleName().replace("Exception", ""); }
+        }
+        throw new UserMessage(last);
+    }
+
+    /** The translator ON the phone (Google's on-device model, free, no limit, works without internet once downloaded from the Bolchi app). */
+    private static String offlineTranslate(String text, String to) throws Exception {
+        String from = hasDevanagari(text) ? "hi" : hasBengali(text) ? "bn" : "en";
+        if (from.equals(to)) throw new UserMessage("nothing to translate");
+        return Offline.translate(text, from, to);
     }
 
     // ---------- AI: translate / Bangla script ----------
@@ -199,10 +283,14 @@ final class Converter {
 
     /** One report for the Bolchi app: which of the services the keyboard uses can be reached from this phone right now, how long each took, and why not. */
     static String testAll(final String key) {
+        clearDown();
         StringBuilder b = new StringBuilder("Connection test\n");
-        googleTranslateBlockedUntil = 0;
         b.append(probe("Google Translate", new Probe() { public String run() throws Exception { return googleTranslateTo("hello", "en", "bn"); } }));
-        b.append(probe("MyMemory (no key)", new Probe() { public String run() throws Exception { return myMemory("hello", "en", "bn"); } }));
+        b.append(probe("Edge translator", new Probe() { public String run() throws Exception { return edgeTranslate("hello", "en", "bn"); } }));
+        b.append(probe("Google (other door)", new Probe() { public String run() throws Exception { return googleAltTranslate("hello", "en", "bn"); } }));
+        b.append(probe("Lingva", new Probe() { public String run() throws Exception { return lingvaTranslate("hello", "en", "bn"); } }));
+        b.append(probe("MyMemory", new Probe() { public String run() throws Exception { return myMemory("good morning", "en", "bn"); } }));
+        b.append(probe("On the phone (en->bn)", new Probe() { public String run() throws Exception { return Offline.translate("good morning", "en", "bn"); } }));
         b.append(probe("Bangla letters (inputtools)", new Probe() { public String run() throws Exception { return Phonetic.suggest("ami", false).get(0); } }));
         if (key == null || key.trim().isEmpty()) b.append("- Gemini: no key saved\n");
         else b.append(probe("Gemini", new Probe() { public String run() throws Exception {
@@ -210,16 +298,13 @@ final class Converter {
             catch (Busy bz) { throw new UserMessage("busy, Google answered " + bz.code + " " + (lastDetail == null ? "" : lastDetail)); }
             catch (ModelMissing mm) { throw new UserMessage("model name not found (404)"); }
         } }));
-        if (groqKey.isEmpty()) b.append("- Groq: no key saved\n");
-        else b.append(probe("Groq", new Probe() { public String run() throws Exception {
-            String[] ms = discover("https://api.groq.com/openai/v1/models", groqKey, GROQ_PREFER, false);
-            return ms[0] + " -> " + chatCompat("https://api.groq.com/openai/v1/chat/completions", groqKey, ms[0], "Reply with the single word ok", "hello");
-        } }));
-        if (openrouterKey.isEmpty()) b.append("- OpenRouter: no key saved\n");
-        else b.append(probe("OpenRouter", new Probe() { public String run() throws Exception {
-            String[] ms = discover("https://openrouter.ai/api/v1/models", openrouterKey, OPENROUTER_PREFER, true);
-            return ms[0] + " -> " + chatCompat("https://openrouter.ai/api/v1/chat/completions", openrouterKey, ms[0], "Reply with the single word ok", "hello");
-        } }));
+        for (final Prov p : new Prov[]{GROQ, CEREBRAS, MISTRAL, OPENROUTER, LLM7, POLLINATIONS}) {
+            if (p.key.isEmpty()) { b.append("- ").append(p.name).append(": no key saved\n"); continue; }
+            b.append(probe(p.name + (p.key.equals("unused") || p.key.equals("none") ? " (no key)" : ""), new Probe() { public String run() throws Exception {
+                String[] ms = p.listUrl == null ? p.fallback : discover(p.listUrl, p.key, p.prefer, p.freeOnly);
+                return ms[0] + " -> " + chatCompat(p.chatUrl, p.key, ms[0], "Reply with the single word ok", "hello");
+            } }));
+        }
         return b.toString();
     }
 
@@ -289,30 +374,66 @@ final class Converter {
                 text);
     }
 
-    /** Backup AI keys (free): Groq and OpenRouter. Set from the saved settings; used only when Google's AI cannot answer. */
-    static volatile String groqKey = "", openrouterKey = "";
-    static void useExtraKeys(android.content.SharedPreferences p) {
-        try { groqKey = p.getString("groqKey", "").trim(); openrouterKey = p.getString("openrouterKey", "").trim(); } catch (Throwable ignored) { /* keep what we had */ }
+    // ---------- the AI services: every one that can answer is tried, the fast ones first; a service that failed is left alone for a few minutes ----------
+    private static final java.util.HashMap<String, Long> DOWN = new java.util.HashMap<>();
+    private static synchronized boolean down(String name) { Long t = DOWN.get(name); return t != null && System.currentTimeMillis() < t; }
+    private static synchronized void mark(String name, long ms) { DOWN.put(name, System.currentTimeMillis() + ms); }
+    static synchronized void clearDown() { DOWN.clear(); googleTranslateBlockedUntil = 0; }
+
+    /** A service that speaks the common "chat completions" format. Keyless ones have a fixed key. `listUrl` = where it names its models (null: fixed names). */
+    private static final class Prov {
+        final String name, chatUrl, listUrl; final String[] prefer, fallback; final boolean freeOnly;
+        volatile String key = ""; volatile String[] picked; volatile long pickedAt;
+        Prov(String n, String base, String list, String[] prefer, String[] fallback, boolean freeOnly) {
+            name = n; chatUrl = base; listUrl = list; this.prefer = prefer; this.fallback = fallback; this.freeOnly = freeOnly;
+        }
     }
-    private static volatile String altWhy = "";
+    private static final String[] NOT_CHAT = {"whisper", "guard", "tts", "orpheus", "embed", "moderation", "image", "audio", "safeguard", "playai", "allam", "-ocr"};
+    static final Prov GROQ = new Prov("Groq", "https://api.groq.com/openai/v1/chat/completions", "https://api.groq.com/openai/v1/models",
+            new String[]{"llama-3.3-70b", "gpt-oss-120b", "llama-4-maverick", "llama-4-scout", "qwen", "llama-3.1-8b", "gpt-oss-20b", "gemma"}, new String[]{"llama-3.3-70b-versatile", "llama-3.1-8b-instant"}, false);
+    static final Prov CEREBRAS = new Prov("Cerebras", "https://api.cerebras.ai/v1/chat/completions", "https://api.cerebras.ai/v1/models",
+            new String[]{"gpt-oss-120b", "llama-3.3-70b", "qwen", "llama"}, new String[]{"llama3.1-8b"}, false);
+    static final Prov MISTRAL = new Prov("Mistral", "https://api.mistral.ai/v1/chat/completions", "https://api.mistral.ai/v1/models",
+            new String[]{"mistral-small", "mistral-medium", "open-mistral", "ministral"}, new String[]{"mistral-small-latest"}, false);
+    static final Prov OPENROUTER = new Prov("OpenRouter", "https://openrouter.ai/api/v1/chat/completions", "https://openrouter.ai/api/v1/models",
+            new String[]{"llama-3.3-70b", "gpt-oss-120b", "qwen", "gemma", "mistral", "deepseek", "llama"}, new String[]{"meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free"}, true);
+    // no key at all: open projects that answer anyone (they can be slow or busy, so they come last)
+    static final Prov LLM7 = new Prov("LLM7", "https://api.llm7.io/v1/chat/completions", "https://api.llm7.io/v1/models",
+            new String[]{"gpt-4.1", "deepseek", "llama", "qwen", "mistral"}, new String[]{"gpt-4.1-nano-2025-04-14"}, false);
+    static final Prov POLLINATIONS = new Prov("Pollinations", "https://text.pollinations.ai/openai", null, new String[0], new String[]{"openai"}, false);
+    static { LLM7.key = "unused"; POLLINATIONS.key = "none"; }
+    private static final Prov[] FAST = {GROQ, CEREBRAS, MISTRAL};
+    private static final Prov[] LAST = {OPENROUTER, LLM7, POLLINATIONS};
+
+    static volatile String groqKey = "", openrouterKey = "";
+    /** Reads the keys she saved in the Bolchi app (all optional). */
+    static void useExtraKeys(android.content.SharedPreferences p) {
+        try {
+            GROQ.key = p.getString("groqKey", "").trim(); groqKey = GROQ.key;
+            CEREBRAS.key = p.getString("cerebrasKey", "").trim();
+            MISTRAL.key = p.getString("mistralKey", "").trim();
+            OPENROUTER.key = p.getString("openrouterKey", "").trim(); openrouterKey = OPENROUTER.key;
+        } catch (Throwable ignored) { /* keep what we had */ }
+    }
 
     /** The models tried one after the other when Google's AI is busy (503 / 500 / 502 / 504), over its free limit (429: each model has its own limit) or a name is not known (404). */
     private static final String[] MODELS = {MODEL, MODEL_BACKUP, "gemini-2.5-flash-lite", "gemini-2.5-flash"};
-    private static final String[] GROQ_MODELS = {"llama-3.3-70b-versatile", "llama-3.1-8b-instant"};
-    private static final String[] OPENROUTER_MODELS = {"meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free"};
 
     private static String gemini(String key, String instruction, String text) throws Exception {
         long t0 = System.currentTimeMillis();
+        StringBuilder why = new StringBuilder();
+        for (Prov p : FAST) {
+            if (System.currentTimeMillis() - t0 > 22000) break;
+            String r = viaProv(p, why, instruction, text);
+            if (r != null) return r;
+        }
         int busyCode = 0;
         java.io.IOException net = null;
         UserMessage keyMsg = null;
         boolean haveGoogle = key != null && !key.trim().isEmpty();
-        // Groq answers in about a second where Google's AI took 18-20 s on her phone: it goes FIRST when she has saved a key for it
-        String first = viaGroq(instruction, text);
-        if (first != null) return first;
-        if (haveGoogle) {
+        if (haveGoogle && !down("Gemini")) {
             for (String m : MODELS) {
-                if (System.currentTimeMillis() - t0 > 16000) break;       // the keyboard gives up after 30 s: leave time for the backups
+                if (System.currentTimeMillis() - t0 > 22000) break;
                 try {
                     return gemini(m, key, instruction, text);
                 } catch (ModelMissing mm) {
@@ -321,34 +442,47 @@ final class Converter {
                     busyCode = b.code;
                     try { Thread.sleep(400); } catch (InterruptedException ie) { break; }
                 } catch (java.io.IOException io) {
-                    net = io;                                              // Google cannot be reached at all: do not try every model
+                    net = io;                                              // Google's AI cannot be reached at all: do not try every model
                     break;
                 } catch (UserMessage um) {
-                    keyMsg = um;                                           // key refused: the backups may still answer
+                    keyMsg = um;                                           // key refused: the others may still answer
                     break;
                 }
             }
+            mark("Gemini", 5 * 60 * 1000L);
+            if (keyMsg != null) why.append("Gemini: ").append(keyMsg.getMessage()).append(". ");
+            else if (net != null) why.append("Gemini: no connection (").append(net.getClass().getSimpleName().replace("Exception", "")).append("). ");
+            else if (busyCode == 429) why.append("Gemini: free limit (429). ");
+            else if (busyCode != 0) why.append("Gemini: busy (").append(busyCode).append("). ");
+            else why.append("Gemini: model not available. ");
+        } else if (haveGoogle) why.append("Gemini: skipped (failed lately). ");
+        for (Prov p : LAST) {
+            if (System.currentTimeMillis() - t0 > 26000) break;
+            String r = viaProv(p, why, instruction, text);
+            if (r != null) return r;
         }
-        String alt = viaOpenRouter(instruction, text);
-        if (alt != null) return alt;
-        if (!haveGoogle && groqKey.isEmpty() && openrouterKey.isEmpty()) throw new UserMessage("Add your Google AI Studio key in the Bolchi app first");
-        String g;
-        if (!haveGoogle) g = "";
-        else if (keyMsg != null) g = "Gemini: " + keyMsg.getMessage();
-        else if (net != null) g = "Gemini: no connection (" + net.getClass().getSimpleName().replace("Exception", "") + ")";
-        else if (busyCode == 429) g = "Gemini: free limit (429)";
-        else if (busyCode != 0) g = "Gemini: busy (" + busyCode + ")";
-        else g = "Gemini: model not available";
-        throw new UserMessage((g.isEmpty() ? "" : g + ". ") + (groqWhy + " " + altWhy).trim());
+        throw new UserMessage(why.toString().trim());
+    }
+
+    /** One service: its models best first. Null when it has no key, was left alone, or none answered (`why` gets one short phrase). */
+    private static String viaProv(Prov p, StringBuilder why, String instruction, String text) {
+        if (p.key.isEmpty()) return null;
+        if (down(p.name)) { why.append(p.name).append(": skipped (failed lately). "); return null; }
+        String last = "";
+        for (String m : modelsFor(p)) {
+            try { stage = "asking " + p.name; return chatCompat(p.chatUrl, p.key, m, instruction, text); }
+            catch (Exception e) {
+                last = shortWhy(e);
+                if (last.startsWith("key refused")) { mark(p.name, 30 * 60 * 1000L); break; }
+                if (last.startsWith("limit reached")) { mark(p.name, 10 * 60 * 1000L); break; }
+            }
+        }
+        if (!down(p.name)) mark(p.name, 3 * 60 * 1000L);
+        why.append(p.name).append(": ").append(last).append(". ");
+        return null;
     }
 
     // model names change over time: ask the service which models exist (kept for 6 hours), the fixed lists are only the fallback
-    private static volatile String[] groqPicked, openrouterPicked;
-    private static volatile long groqPickedAt, openrouterPickedAt;
-    private static final String[] GROQ_PREFER = {"llama-3.3-70b", "gpt-oss-120b", "llama-4-maverick", "llama-4-scout", "qwen", "llama-3.1-8b", "gpt-oss-20b", "gemma"};
-    private static final String[] OPENROUTER_PREFER = {"llama-3.3-70b", "gpt-oss-120b", "qwen", "gemma", "mistral", "deepseek", "llama"};
-    private static final String[] NOT_CHAT = {"whisper", "guard", "tts", "orpheus", "embed", "moderation", "image", "audio", "safeguard", "playai", "allam"};
-
     /** The ids from a "list models" answer, best first: preferred names in order, no speech / guard models, and for OpenRouter only free ones. */
     private static String[] discover(String url, String key, String[] prefer, boolean freeOnly) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
@@ -381,18 +515,12 @@ final class Converter {
         return out.toArray(new String[0]);
     }
 
-    private static String[] groqModels() {
+    private static String[] modelsFor(Prov p) {
+        if (p.listUrl == null) return p.fallback;
         long now = System.currentTimeMillis();
-        if (groqPicked != null && now - groqPickedAt < 6 * 3600 * 1000L) return groqPicked;
-        try { groqPicked = discover("https://api.groq.com/openai/v1/models", groqKey, GROQ_PREFER, false); groqPickedAt = now; return groqPicked; }
-        catch (Exception e) { return GROQ_MODELS; }
-    }
-
-    private static String[] openrouterModels() {
-        long now = System.currentTimeMillis();
-        if (openrouterPicked != null && now - openrouterPickedAt < 6 * 3600 * 1000L) return openrouterPicked;
-        try { openrouterPicked = discover("https://openrouter.ai/api/v1/models", openrouterKey, OPENROUTER_PREFER, true); openrouterPickedAt = now; return openrouterPicked; }
-        catch (Exception e) { return OPENROUTER_MODELS; }
+        if (p.picked != null && now - p.pickedAt < 6 * 3600 * 1000L) return p.picked;
+        try { p.picked = discover(p.listUrl, p.key, p.prefer, p.freeOnly); p.pickedAt = now; return p.picked; }
+        catch (Exception e) { return p.fallback; }
     }
 
     private static String shortAi(Exception e) {
@@ -403,34 +531,6 @@ final class Converter {
     private static String shortWhy(Exception e) {
         String m = e.getMessage() == null ? e.getClass().getSimpleName().replace("Exception", "") : e.getMessage();
         return m.length() > 70 ? m.substring(0, 70) : m;
-    }
-
-    private static volatile String groqWhy = "";
-
-    /** Groq (free, fast): the models it has today, best first. Null when there is no key or none answered; `groqWhy` then says why. */
-    private static String viaGroq(String instruction, String text) {
-        groqWhy = "";
-        if (groqKey.isEmpty()) return null;
-        String last = "";
-        for (String m : groqModels()) {
-            try { stage = "asking Groq"; return chatCompat("https://api.groq.com/openai/v1/chat/completions", groqKey, m, instruction, text); }
-            catch (Exception e) { last = shortWhy(e); if (last.startsWith("key refused") || last.contains("no connection")) break; }
-        }
-        groqWhy = "Groq: " + last + ".";
-        return null;
-    }
-
-    /** OpenRouter (free models): the last backup. Null when there is no key or none answered; `altWhy` then says why. */
-    private static String viaOpenRouter(String instruction, String text) {
-        altWhy = "";
-        if (openrouterKey.isEmpty()) return null;
-        String last = "";
-        for (String m : openrouterModels()) {
-            try { stage = "asking OpenRouter"; return chatCompat("https://openrouter.ai/api/v1/chat/completions", openrouterKey, m, instruction, text); }
-            catch (Exception e) { last = shortWhy(e); if (last.startsWith("key refused")) break; }
-        }
-        altWhy = "OpenRouter: " + last + ".";
-        return null;
     }
 
     /** One request to a service that speaks the common "chat completions" format (Groq, OpenRouter). */

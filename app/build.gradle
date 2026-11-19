@@ -8,8 +8,8 @@ android {
         applicationId 'com.tara.bolchi'
         minSdk 24
         targetSdk 34
-        versionCode 129
-        versionName '129.0'
+        versionCode 130
+        versionName '130.0'
     }
     signingConfigs {
         debug {
@@ -27,4 +27,9 @@ android {
         abortOnError false
         checkReleaseBuilds false
     }
+}
+
+dependencies {
+    // Google's on-device translation (free, no key, works without internet once the languages are downloaded)
+    implementation 'com.google.mlkit:translate:17.0.3'
 }

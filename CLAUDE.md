@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 129 = build-193** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 130 = build-? (check Actions run number)** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -550,6 +550,14 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   "Last voice error: client error (code 5), English, not listening" = ERROR_CLIENT after we stopped, harmless (no network voice error was recorded); the learning works (pairs 219 of 1037, phrases 194 of 2407 seen 2+ times; "Learned lately" shows what was read).
   Changes: (1) `Converter.gemini` tries GROQ FIRST when a Groq key is saved (`viaGroq`), then the Gemini models, then OpenRouter (`viaOpenRouter`): this also speeds up the voice AI tidy, grammar, tone, replies and translating (the AI step). (2) After a 429 from Google Translate it is not asked again for 15 minutes
   (`googleTranslateBlockedUntil`), so Translate goes straight to the AI (2 s wasted once, not every time); the test button asks it again. Speak: she has not said what happens when she taps it; if it still fails ask for the exact message on the space bar and the "Last voice error" line.
+
+- Version 130 (Tara, 19 Nov: "why is Google Translate / Gemini suddenly failing? add as many open source / free services as possible, something completely free that never fails; Groq may fail too"). WHY: Google Translate's `client=gtx` is an UNOFFICIAL free door that Google
+  closes per IP address (429; phone networks share one public IP among very many users) and the free Gemini tier is shared capacity (503 / timeouts / 18 s answers): neither is a fault of her phone and either can recur. No online free service can promise "never fails", so:
+  (1) the only thing that cannot fail that way is the translator ON the phone: `Offline.java` (ML Kit on-device translation, `com.google.mlkit:translate:17.0.3` in app/build.gradle; English / Hindi / Bengali, ~30 MB each, downloaded once from a button in the Bolchi app "Download offline translator";
+  needs Google Play services). It is the step after the AI services in `translateChain` (translators with no key -> AI chain -> on-phone -> MyMemory) and fails fast when the languages are not downloaded. (2) Several keyless translators in turn (`translateDoors`): Google gtx, Microsoft Edge's translator
+  (token from edge.microsoft.com/translate/auth), Google's Chrome-extension door (clients5.google.com), Lingva instances (open-source Google front ends). (3) The AI chain (`Converter.gemini`) now has providers as data (`Prov`): FAST Groq, Cerebras, Mistral (keys optional, boxes in the Bolchi app, model lists asked live),
+  then Gemini, then OpenRouter (free models), LLM7 and Pollinations (NO key needed). (4) A service that failed is left alone for 3-15 minutes (`down` / `mark`, `clearDown` in the test) so a dead door costs a few seconds once, not every time. "Test all connections" now lists every door and provider.
+  The AI-only features (grammar, rewrite, tone, replies, voice AI fix) cannot be offline: only the many online providers protect them. Not tested on a phone; the first build with the ML Kit dependency (APK is larger) must compile on GitHub.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
