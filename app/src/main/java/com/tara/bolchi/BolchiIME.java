@@ -3987,9 +3987,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         // everywhere else. Inside the same app her last choice stays, so it does not flip while she chats.
         if (!restarting && !listening && !curApp.equals(prevApp)) {
             boolean chat = CHAT_APPS.contains(curApp);
-            int want = MODE_BN;                    // speaking: the Bangla listener everywhere (it understands her mixed Bengali + English; the English listener wrote "Claude" as "Court")
+            int want = chat ? MODE_BN : MODE_EN;   // she asked for it (twice): English chip + English keys in Google, email, websites; Bangla in chat apps
             if (mode != want) { mode = want; prefs().edit().putInt("mode", want).apply(); }
-            if (voiceScript[0]) { voiceScript[0] = false; prefs().edit().putBoolean("bnScript", false).apply(); }
+            if (chat && voiceScript[0]) { voiceScript[0] = false; prefs().edit().putBoolean("bnScript", false).apply(); }
             paintChips();
             setLayoutTo(chat ? (layout == 3 ? 3 : 1) : 0);
         }
@@ -4349,6 +4349,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 i.putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_SWITCH, RecognizerIntent.LANGUAGE_SWITCH_BALANCED);
                 i.putStringArrayListExtra(RecognizerIntent.EXTRA_LANGUAGE_SWITCH_ALLOWED_LANGUAGES,
                         new ArrayList<>(java.util.Arrays.asList(lang, "en-IN")));
+            }
+            // names and words she uses: the engine is told to expect them (Android 13+, only some engines use it): "Claude" came out as "Court" on the English listener
+            if (Build.VERSION.SDK_INT >= 33) {
+                ArrayList<String> bias = new ArrayList<>(java.util.Arrays.asList("Claude", "Gemini", "ChatGPT", "Gmail", "Outlook", "Bolchi", "WhatsApp", "Google", "OpenAI", "Copilot",
+                        "Excel", "PowerPoint", "Teams", "Zoom", "LinkedIn", "Paytm", "PhonePe", "Instagram", "Facebook", "YouTube"));
+                try {
+                    for (String line : prefs().getString("myWords", "").split("\\n")) {
+                        String w = line.trim();
+                        if (!w.isEmpty() && w.length() <= 30 && w.matches("[A-Za-z0-9 .'@_-]+") && !bias.contains(w) && bias.size() < 60) bias.add(w);
+                    }
+                } catch (Throwable ignored) { /* the built-in list is enough */ }
+                i.putStringArrayListExtra("android.speech.extra.BIASING_STRINGS", bias);
             }
             recognizer.startListening(i);
         } catch (Exception e) {
