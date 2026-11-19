@@ -3036,14 +3036,18 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         ic.endBatchEdit();
     }
 
-    private TextView panelBox(String label, String body, boolean strong) {
+    private TextView panelBox(String label, CharSequence body, boolean strong) {
         TextView t = new TextView(this);
-        t.setText(label + "\n" + body);
+        t.setMovementMethod(new android.text.method.ScrollingMovementMethod());      // a long text scrolls inside the box (drag up / down)
+        t.setText(TextUtils.concat(label + "\n", body));
         t.setTextColor(cInk);
         t.setTextSize(15);
         if (strong) t.setTypeface(Typeface.DEFAULT_BOLD);
-        t.setMaxLines(4);
-        t.setEllipsize(TextUtils.TruncateAt.END);
+        t.setVerticalScrollBarEnabled(true);
+        t.setOnTouchListener(new View.OnTouchListener() { @Override public boolean onTouch(View v, MotionEvent e) {
+            if (e.getAction() == MotionEvent.ACTION_DOWN && v.getParent() != null) v.getParent().requestDisallowInterceptTouchEvent(true);
+            return false;
+        } });
         t.setPadding(dp(10), dp(6), dp(10), dp(6));
         t.setBackground(keyFace(cKey));
         return t;
@@ -3194,16 +3198,44 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         }
 
         String label = isSel[0] ? "Selected text" : "Your text";
-        TextView srcBox = panelBox(label, src.isEmpty() ? "Type or speak a message first" : src, false);
+        // grammar / rewrite / tone: show WHAT changed. New or changed words in the answer are highlighted, words that were taken out of her text are struck through in red.
+        CharSequence srcShow = src.isEmpty() ? "Type or speak a message first" : src;
+        CharSequence resShow = convResult != null ? convResult : src.isEmpty() ? "" : "Working\u2026";
+        String changeNote = "";
+        if ((convOption == 4 || convOption == 5 || convOption == 12) && convResult != null && !convResult.startsWith("\u26A0")
+                && !src.isEmpty() && FontStyles.detect(src) < 0) {
+            try {
+                TextDiff d = TextDiff.compare(src, convResult);
+                if (d != null) {
+                    android.text.SpannableStringBuilder sa = new android.text.SpannableStringBuilder(src);
+                    android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder(convResult);
+                    for (int i = 0; i < d.aChanged.length; i++) if (d.aChanged[i]) {
+                        sa.setSpan(new android.text.style.ForegroundColorSpan(0xFFC62828), d.aStart[i], d.aEnd[i], android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        sa.setSpan(new android.text.style.StrikethroughSpan(), d.aStart[i], d.aEnd[i], android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    }
+                    for (int j = 0; j < d.bChanged.length; j++) if (d.bChanged[j]) {
+                        sb.setSpan(new android.text.style.BackgroundColorSpan(0xFFFFE082), d.bStart[j], d.bEnd[j], android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        sb.setSpan(new android.text.style.ForegroundColorSpan(0xFF1E1E1E), d.bStart[j], d.bEnd[j], android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        sb.setSpan(new android.text.style.StyleSpan(Typeface.BOLD), d.bStart[j], d.bEnd[j], android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    }
+                    srcShow = sa; resShow = sb;
+                    changeNote = (d.added == 0 && d.removed == 0) ? "nothing to change \u2713" : d.added + " new or changed, highlighted";
+                    if (d.removed > 0) label = label + "   \u00B7   red struck-out = taken out";
+                }
+            } catch (Throwable ignored) { /* the plain texts are shown */ }
+        }
+        TextView srcBox = panelBox(label, srcShow, false);
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 8));
         keysBox.addView(srcBox, slp);
 
-        final TextView resBox = panelBox("Result" + (convNote == null || convResult == null ? "" : "   \u00B7   " + convNote), convResult != null ? convResult
-                : src.isEmpty() ? "" : "Working\u2026", true);
+        String resLabel = "Result" + (convNote == null || convResult == null ? "" : "   \u00B7   " + convNote)
+                + (changeNote.isEmpty() ? "" : "   \u00B7   " + changeNote)
+                + (convResult != null && convResult.length() > 90 ? "   \u00B7   drag to scroll" : "");
+        final TextView resBox = panelBox(resLabel, resShow, true);
         convResBox = resBox;
         keysBox.addView(resBox, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H + 8)));
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(KEY_H * 2 + 8)));
 
         LinearLayout act = row();
         TextView back = makeKey("Back to keys", 1f, cFn, cInk, 14);
