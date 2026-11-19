@@ -601,6 +601,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Same build (Tara: "if I speak wrong English the app corrects by itself sometimes ... fix this: if I am making some mistake, autocorrect while speaking" - my reading: she wants spoken English mistakes corrected EVERY time; ask if she meant the opposite): the AI speech cleanup (`Converter.tidy`) now also corrects English grammar mistakes
   (verb form, tense, articles, plurals, prepositions; never Bengali / Hindi words). Why it was only "sometimes": (1) one failed AI call set `tidyFailed` for the whole dictation (now `tidyFailedAt`, tried again after 12 s); (2) it skipped under 3 words (now 2); (3) the prompt fixed spelling / punctuation but not grammar.
   It still runs after each spoken round (about 5 s of silence) and needs the AI key + AI fix on (hold Speak toggles it).
+  Tara (20 Nov): "always give some small numbers like 17-20, not a huge chunk of it" = when adding themes or other lists, add a small batch (about 17-20) per release, never dozens.
 
 - Version 116 (Tara, 17 Nov: "check everything, whether each build is properly done; flag any issue and correct it; one go; final version"). AUDIT of versions 71-115:
   `BolchiIME.java` read end to end, the pure-Java parts tested on a PC. NOTHING here is seen on her phone. Faults found and fixed:
