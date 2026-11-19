@@ -523,6 +523,9 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
         if (mode < 0 || mode > 2) mode = MODE_BN;
         layout = p.getInt("layout", 0);
         if (layout < 0 || layout > 4) layout = 0;
+        if (!p.getBoolean("scriptReset132", false)) {          // once: a second tap on the Hindi tab had switched Speak to Devanagari letters by accident
+            p.edit().putBoolean("bnScript", false).putBoolean("hiScript", false).putBoolean("scriptReset132", true).apply();
+        }
         voiceScript[0] = p.getBoolean("bnScript", false);
         voiceScript[1] = p.getBoolean("hiScript", false);
         autoFix = p.getBoolean("autoFix", true);
@@ -4051,8 +4054,8 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
 
     private void paintChips() {
         if (chips.size() == 3) {
-            chips.get(0).setText(voiceScript[0] ? "\u09ac\u09be\u0982\u09b2\u09be" : "Bangla");
-            chips.get(1).setText(voiceScript[1] ? "\u0939\u093f\u0902\u0926\u0940" : "Hindi");
+            chips.get(0).setText("Bangla");            // the tabs always keep their English names; what Speak writes is shown when a tab is tapped and in the Bolchi app
+            chips.get(1).setText("Hindi");
         }
         for (int i = 0; i < chips.size(); i++) {
             TextView c = chips.get(i);
