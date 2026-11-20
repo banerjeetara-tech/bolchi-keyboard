@@ -12,7 +12,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
 - Signed with the fixed key `app/bolchi.keystore` (password `bolchi123`), so new builds install over old ones.
 - Bump `versionCode`/`versionName` in `app/build.gradle` for each release. GitHub's build number runs ahead of the app version.
 - No Android SDK in Claude's workspace: only GitHub can compile. Pure-Java parts (`Words`, `EmojiHints`, `Calc`, `Spoken`, translit) can be tested locally with `javac`.
-- Latest release: **app version 143 = build-226** (17 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
+- Latest release: **app version 144 = build-232** (20 Nov 2026). Link pattern: `https://github.com/banerjeetara-tech/bolchi-keyboard/releases/download/build-N/bolchi-keyboard.apk`.
 - Cloud sessions work on their own branch (`ccr-...`). To compile-check without a release, run the workflow on that branch (GitHub Actions `workflow_dispatch`
   of `build.yml`, about 1 minute). To release, fast-forward `main` to the branch. A head commit with `[skip ci]` makes NO build, so the last commit pushed to `main` must not carry it.
 
@@ -628,7 +628,7 @@ Repo: github.com/banerjeetara-tech/bolchi-keyboard (branch `main`).
   Advice given: yes, start a fresh session for new work; this CLAUDE.md holds the state. A new session should read the newest version blocks (136-143) and her standing rules first: (1) keep a start-up / default rule she gives, (2) colour sets in batches of 100-200, soft, each different, picture first,
   (3) one build and one release per request, (4) short simple replies with the APK link, (5) say plainly what is untested on a phone.
 
-- Version 144 (Tara, 19 Nov, by voice: WhatsApp / Facebook / Instagram start in Banglish, other apps in English [already built in 140-143, re-checked]; "if I make any error it will autocorrect the entered sentence ... when I switch in WhatsApp
+- Version 144 = build-232 (released 20 Nov after Tara said "Push") (Tara, 19 Nov, by voice: WhatsApp / Facebook / Instagram start in Banglish, other apps in English [already built in 140-143, re-checked]; "if I make any error it will autocorrect the entered sentence ... when I switch in WhatsApp
   from Bengali to English, manually, speaking or writing"; then "correction should only work in total English"; then "punctuation will also work when speaking or writing in English; for Bengali English it will understand the tone and give only the
   appropriate punctuation"; then "sometimes words come before they are changed, the GIF tab is covering it"; "use your agents to check all the code; nothing to rebuild now"). My reading, ask her to confirm:
   - `SentenceFix.java` (pure Java, PC-testable): fixes the WHOLE message in the box. Triggers (BolchiIME): switching Bangla / Hindi -> English tab (`setMode`, only when Auto-correct is on), the layout key landing on EN, and tapping the English tab
