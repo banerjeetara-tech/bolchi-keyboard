@@ -4116,7 +4116,11 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             if (chat && voiceScript[1]) { voiceScript[1] = false; prefs().edit().putBoolean("hiScript", false).apply(); }
             paintChips();
             emoBackLayout = 0;               // an emoji search left open in the last app must not bring its layout back here: the start rule decides
-            setLayoutTo(chat ? (layout == 3 ? 3 : 1) : 0);
+            setLayoutTo(0);      // English keys everywhere: in chats they type Banglish (English letters); the Bangla keys (layout 1) write Bengali SCRIPT, which she does not want as the start
+        }
+        if (!restarting && CHAT_APPS.contains(curApp)) {      // chats always speak Banglish / Hinglish (English letters) when a box opens, whatever was switched before
+            if (voiceScript[0]) { voiceScript[0] = false; prefs().edit().putBoolean("bnScript", false).apply(); }
+            if (voiceScript[1]) { voiceScript[1] = false; prefs().edit().putBoolean("hiScript", false).apply(); }
         }
         lastWord = "";
         justEnded = "";
