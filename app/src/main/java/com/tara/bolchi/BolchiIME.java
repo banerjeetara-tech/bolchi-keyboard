@@ -1089,7 +1089,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
             }
         }
         // she is typing digits and they begin one of her numbers: offer the whole number
-        if (numTyped.length() >= 3) {
+        if (numTyped.length() >= 2) {
             List<String> nums = numbersStartingWith(numTyped.toString());
             int[] order = {1, 0, 2};
             for (int k = 0; k < nums.size() && k < 3; k++) { v[order[k]] = nums.get(k); slotNumFill[order[k]] = true; ownSlot[order[k]] = true; }
@@ -2102,7 +2102,7 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
     /** Her numbers that begin with the digits typed (with or without +91), as saved. */
     private List<String> numbersStartingWith(String t) {
         List<String> out = new ArrayList<>();
-        if (t.length() < 3) return out;
+        if (t.length() < 2) return out;
         for (String n : allMyNumbers()) {
             String d = digitsOf(n);
             String national = d.length() > 10 && d.startsWith("91") ? d.substring(d.length() - 10) : d;
@@ -2117,13 +2117,15 @@ public class BolchiIME extends InputMethodService implements RecognitionListener
                 && !allMyNumbers().isEmpty();
     }
     private static final java.util.Set<String> NUM_WORDS = new java.util.HashSet<>(java.util.Arrays.asList(
-            "phone", "mobile", "number", "whatsapp", "contact", "mob", "cell", "tel", "num"));
+            "phone", "mobile", "number", "whatsapp", "contact", "mob", "cell", "tel", "num", "aadhaar", "aadhar", "adhar", "aadhaar", "adhaar", "aadhr", "uan", "account"));
 
     private List<String> allMyNumbers() {
         List<String> out = new ArrayList<>();
         java.util.Set<String> seen = new java.util.HashSet<>();
         for (String n : myNumbers) { String d = n.replaceAll("[^0-9]", ""); if (!d.isEmpty() && seen.add(d)) out.add(n); }
         for (String n : meNumbers) { String d = n.replaceAll("[^0-9]", ""); if (!d.isEmpty() && seen.add(d)) out.add(n); }
+        // a long number saved in "My words" (Aadhaar, PAN-like numbers, account numbers) counts too, even with spaces ("1234 5678 9012")
+        for (String n : myWords) { String t = n.trim(); String d = t.replaceAll("[^0-9]", ""); if (d.length() >= 8 && t.replaceAll("[0-9 \\-]", "").isEmpty() && seen.add(d)) out.add(t); }
         return out;
     }
 
